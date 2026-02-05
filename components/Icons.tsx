@@ -11,7 +11,7 @@ import {
   Check, 
   X,
   BrainCircuit,
-  UserPlus,
+  UserPlus, 
   ChevronRight,
   Shield,
   Activity,
@@ -38,7 +38,9 @@ import {
   ListFilter,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  User,
+  Zap
 } from 'lucide-react';
 
 export { 
@@ -80,5 +82,7 @@ export {
   ListFilter,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  User,
+  Zap
 };
