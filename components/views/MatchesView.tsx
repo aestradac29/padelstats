@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2 } from '../Icons';
+import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, MatchDay, MatchResult } from '../../types';
 import { formatDate } from '../../utils/helpers';
@@ -21,6 +21,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'LIST' | 'TABLE'>('TABLE');
+    const [expandedMatches, setExpandedMatches] = useState<string[]>([]);
     
     if (!data) return null;
 
@@ -31,28 +32,19 @@ const MatchesView: React.FC<MatchesViewProps> = ({
 
     const matches = getFilteredMatches();
     
-    // FILTER LOGIC: Search in Opponent Name, Local Player Name, Rival Player Name
+    // FILTER LOGIC
     const filteredBySearch = matches.filter(m => {
         const lowerTerm = searchTerm.toLowerCase().trim();
         if (!lowerTerm) return true;
-
-        // 1. Check Opponent Team Name
         if (m.opponent.toLowerCase().includes(lowerTerm)) return true;
-
-        // 2. Check Lineups (Players)
         if (m.lineups) {
             return m.lineups.some(l => {
-                 // Check Local Players (resolve ID to Name)
                  const p1 = data?.players.find(p => p.id === l.player1Id);
                  const p2 = data?.players.find(p => p.id === l.player2Id);
-                 
                  if (p1 && (p1.name.toLowerCase().includes(lowerTerm) || (p1.surname && p1.surname.toLowerCase().includes(lowerTerm)))) return true;
                  if (p2 && (p2.name.toLowerCase().includes(lowerTerm) || (p2.surname && p2.surname.toLowerCase().includes(lowerTerm)))) return true;
-
-                 // Check Rival Players (direct strings)
                  if (l.opponent1Name && l.opponent1Name.toLowerCase().includes(lowerTerm)) return true;
                  if (l.opponent2Name && l.opponent2Name.toLowerCase().includes(lowerTerm)) return true;
-
                  return false;
             });
         }
@@ -64,8 +56,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
     const getMatchStatus = (m: MatchDay) => {
          const wins = m.lineups.filter(l => l.result === MatchResult.WIN).length;
          const losses = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
-         
-         if (m.lineups.length === 0) return 'PENDING';
+         if (!m.lineups || m.lineups.length === 0) return 'PENDING';
          if (wins > losses) return 'WIN';
          if (losses > wins) return 'LOSS';
          return 'DRAW';
@@ -74,30 +65,36 @@ const MatchesView: React.FC<MatchesViewProps> = ({
     const getMatchScore = (m: MatchDay) => {
          const wins = m.lineups.filter(l => l.result === MatchResult.WIN).length;
          const losses = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
-         if (m.lineups.length === 0) return '-';
+         if (!m.lineups || m.lineups.length === 0) return '-';
          return `${wins} - ${losses}`;
     };
 
+    const toggleMatchExpand = (id: string) => {
+        setExpandedMatches(prev => 
+            prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
+        );
+    };
+
     return (
-      <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
-        <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-200 pb-6">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Jornadas y Resultados</h2>
+      <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300">
+        <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-200 pb-6 sticky top-0 bg-slate-50 z-20 pt-2">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Jornadas</h2>
            
            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-center">
                 {/* View Toggle */}
-                <div className="bg-slate-100 p-1 rounded-lg flex items-center">
-                    <button onClick={() => setViewMode('TABLE')} className={`p-2 rounded-md transition-all ${viewMode === 'TABLE' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Table size={18} /></button>
-                    <button onClick={() => setViewMode('LIST')} className={`p-2 rounded-md transition-all ${viewMode === 'LIST' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><ListFilter size={18} /></button>
+                <div className="bg-slate-100 p-1 rounded-lg flex items-center shadow-sm w-full md:w-auto">
+                    <button onClick={() => setViewMode('TABLE')} className={`flex-1 md:flex-none p-2 rounded-md transition-all ${viewMode === 'TABLE' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Table size={18} className="mx-auto"/></button>
+                    <button onClick={() => setViewMode('LIST')} className={`flex-1 md:flex-none p-2 rounded-md transition-all ${viewMode === 'LIST' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><ListFilter size={18} className="mx-auto"/></button>
                 </div>
 
                 <div className="relative w-full md:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                         type="text" 
-                        placeholder="Buscar rival o jugador..." 
+                        placeholder="Buscar rival..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-lime-400 outline-none text-sm font-medium transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-lime-400 outline-none text-sm font-medium transition-all shadow-sm"
                     />
                 </div>
                 {sessionRole === 'CAPTAIN' && (
@@ -105,10 +102,16 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                         <Button 
                             variant="secondary"
                             onClick={() => { setModalType('GENERATE_CALENDAR'); setIsModalOpen(true); }}
+                            className="flex-1 md:flex-none justify-center"
                         >
                             <Wand2 size={18} className="text-lime-600"/> <span className="hidden md:inline">Generar</span>
                         </Button>
-                        <Button onClick={() => { setTempMatch({ date: new Date().toISOString().slice(0, 16), isHome: true, lineups: [], tandas: '5' }); setModalType('ADD_MATCH'); setIsModalOpen(true); }}><Plus size={18} /> <span className="hidden md:inline">Nuevo</span></Button>
+                        <Button 
+                            onClick={() => { setTempMatch({ date: new Date().toISOString().slice(0, 16), isHome: true, lineups: [], tandas: '5' }); setModalType('ADD_MATCH'); setIsModalOpen(true); }}
+                            className="flex-1 md:flex-none justify-center px-4"
+                        >
+                            <Plus size={18} /> <span className="hidden md:inline">Nuevo</span>
+                        </Button>
                     </div>
                 )}
            </div>
@@ -126,7 +129,8 @@ const MatchesView: React.FC<MatchesViewProps> = ({
             </div>
         ) : (
             <>
-            {viewMode === 'TABLE' ? (
+            {/* TABLE VIEW (Hidden on Mobile) */}
+            <div className={`${viewMode === 'TABLE' ? 'hidden md:block' : 'hidden'}`}>
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse min-w-[800px]">
@@ -143,7 +147,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                             <tbody className="divide-y divide-slate-100">
                                 {sortedMatches.map((match, idx) => {
                                     const status = getMatchStatus(match);
-                                    let rowBg = "bg-white hover:bg-slate-50"; // Default
+                                    let rowBg = "bg-white hover:bg-slate-50"; 
                                     let resultStyle = "text-slate-400";
                                     
                                     if (status === 'WIN') {
@@ -155,9 +159,6 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                     } else if (status === 'DRAW') {
                                         rowBg = "bg-blue-50 hover:bg-blue-100";
                                         resultStyle = "text-blue-700 font-black";
-                                    } else if (status === 'PENDING') {
-                                        // Specific styling for pending matches like the "upcoming" rows in the excel image
-                                        rowBg = "bg-white hover:bg-slate-50";
                                     }
                                     
                                     const dateObj = new Date(match.date);
@@ -180,7 +181,6 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit mb-1 ${match.isHome ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
                                                         {match.isHome ? 'CASA' : 'FUERA'}
                                                      </span>
-                                                     {/* Use extracted location name if available in notes, else generic */}
                                                      <span className="text-xs font-medium text-slate-600 truncate max-w-[120px]" title={match.notes || (match.isHome ? 'Local' : match.opponent)}>
                                                          {match.notes?.replace('Sede: ', '') || (match.isHome ? 'Local' : match.opponent)}
                                                      </span>
@@ -221,76 +221,110 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                         </table>
                     </div>
                 </div>
-            ) : (
-                <div className="space-y-6">
-                    {sortedMatches.map(match => (
-                        <Card key={match.id} className="hover:shadow-md transition-shadow relative">
-                            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded ${match.isHome ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{match.isHome ? 'Casa' : 'Fuera'}</span>
-                                        <span className="text-slate-400 font-bold text-xs uppercase flex items-center gap-1"><Clock size={12} /> {formatDate(match.date)}</span>
+            </div>
+
+            {/* LIST VIEW (Optimized for Mobile) & Fallback for Table on Mobile */}
+            <div className={`space-y-4 pb-20 ${viewMode === 'TABLE' ? 'md:hidden block' : 'block'}`}>
+                {sortedMatches.map(match => {
+                    const status = getMatchStatus(match);
+                    const isExpanded = expandedMatches.includes(match.id);
+                    const borderColor = status === 'WIN' ? 'border-l-lime-500' : status === 'LOSS' ? 'border-l-red-500' : status === 'DRAW' ? 'border-l-blue-500' : 'border-l-slate-300';
+                    const bgColor = isExpanded ? 'bg-white' : 'bg-white';
+                    
+                    return (
+                        <div key={match.id} className={`rounded-xl shadow-sm border border-slate-200 border-l-4 ${borderColor} overflow-hidden ${bgColor} transition-all`}>
+                            {/* Card Header (Always Visible) */}
+                            <div className="p-4" onClick={() => toggleMatchExpand(match.id)}>
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${match.isHome ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{match.isHome ? 'Casa' : 'Fuera'}</span>
+                                        <span className="text-slate-400 font-bold text-[10px] uppercase flex items-center gap-1"><Clock size={10} /> {formatDate(match.date)}</span>
                                     </div>
-                                    <h3 className="text-xl font-black text-slate-900">vs {match.opponent}</h3>
-                                    {match.tandas && (
-                                    <div className="mt-2 inline-flex items-center bg-blue-50 text-blue-700 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">
-                                        Formato Jornada: {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
-                                    </div>
+                                    {sessionRole === 'CAPTAIN' && isExpanded && (
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
+                                                className="p-1.5 text-blue-600 bg-blue-50 rounded-lg"
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); deleteMatch(match.id); }}
+                                                className="p-1.5 text-red-600 bg-red-50 rounded-lg"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
-                                {sessionRole === 'CAPTAIN' && (
-                                    <div className="flex gap-2">
-                                        <Button variant="secondary" className="text-xs h-8" onClick={() => { setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}><Edit2 size={14} /> Editar</Button>
-                                        <button 
-                                            onClick={() => deleteMatch(match.id)}
-                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-slate-200"
-                                            title="Eliminar Jornada"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="space-y-4">
-                                {match.lineups.map((lineup, idx) => {
-                                    const p1 = data?.players.find(p => p.id === lineup.player1Id);
-                                    const p2 = data?.players.find(p => p.id === lineup.player2Id);
-                                    return (
-                                        <div key={idx} className="flex flex-col sm:flex-row justify-between sm:items-center p-4 rounded-xl bg-slate-50 border border-slate-100 gap-4 transition-all hover:bg-white hover:shadow-sm">
-                                            <div className="flex-1 flex items-center gap-4">
-                                                <div className="w-6 h-6 rounded-full bg-blue-100 border border-blue-200 text-blue-800 flex flex-shrink-0 items-center justify-center font-black text-xs" title={`Pareja ${idx + 1}`}>
-                                                    {idx + 1}
-                                                </div>
-                                                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${lineup.result === MatchResult.WIN ? 'bg-lime-500 shadow-sm shadow-lime-500/50' : lineup.result === MatchResult.LOSS ? 'bg-red-500 shadow-sm shadow-red-500/50' : 'bg-slate-400'}`}></div>
-                                                <div className="flex flex-col">
-                                                    <div className="text-sm font-black text-slate-800 tracking-tight">
-                                                    {p1?.name} {p1?.surname || ''} / {p2?.name} {p2?.surname || ''}
-                                                    </div>
-                                                    {(lineup.opponent1Name || lineup.opponent2Name) && (
-                                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
-                                                        vs <span className="text-slate-600">{lineup.opponent1Name || 'Rival 1'}</span> / <span className="text-slate-600">{lineup.opponent2Name || 'Rival 2'}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center justify-end gap-4">
-                                                <div className="flex gap-2">
-                                                    <span className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-black text-sm text-blue-600 shadow-xs">{lineup.set1}</span>
-                                                    <span className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-black text-sm text-blue-600 shadow-xs">{lineup.set2}</span>
-                                                    {lineup.set3 && <span className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg font-mono font-black text-sm text-blue-600 shadow-xs">{lineup.set3}</span>}
-                                                </div>
-                                                <div className={`text-[10px] font-black uppercase px-2 py-1 rounded-md min-w-[70px] text-center ${lineup.result === MatchResult.WIN ? 'text-lime-700 bg-lime-100' : lineup.result === MatchResult.LOSS ? 'text-red-700 bg-red-100' : 'text-slate-500 bg-slate-100'}`}>
-                                                {lineup.result}
-                                                </div>
-                                            </div>
+                                
+                                <div className="flex justify-between items-center mt-1">
+                                    <h3 className="text-base font-black text-slate-900 truncate pr-2">vs {match.opponent}</h3>
+                                    <div className="flex items-center gap-2">
+                                        {status !== 'PENDING' && (
+                                            <span className={`text-xl font-black ${status === 'WIN' ? 'text-lime-600' : status === 'LOSS' ? 'text-red-500' : 'text-blue-500'}`}>
+                                                {getMatchScore(match)}
+                                            </span>
+                                        )}
+                                        {status === 'PENDING' && <span className="text-xs font-bold text-slate-300 italic">Pendiente</span>}
+                                        <div className="text-slate-300 ml-1">
+                                            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                                         </div>
-                                    )
-                                })}
+                                    </div>
+                                </div>
                             </div>
-                        </Card>
-                    ))}
-                </div>
-            )}
+
+                            {/* Expanded Details (Lineups) */}
+                            {isExpanded && (
+                                <div className="bg-slate-50 border-t border-slate-100 p-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                    {match.tandas && (
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 text-center">
+                                            Formato: {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
+                                        </div>
+                                    )}
+                                    {(!match.lineups || match.lineups.length === 0) ? (
+                                        <div className="text-center py-4 text-xs text-slate-400 italic">
+                                            No hay resultados registrados.
+                                        </div>
+                                    ) : (
+                                        match.lineups.map((lineup, idx) => {
+                                            const p1 = data?.players.find(p => p.id === lineup.player1Id);
+                                            const p2 = data?.players.find(p => p.id === lineup.player2Id);
+                                            return (
+                                                <div key={idx} className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex flex-col gap-2">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${lineup.result === MatchResult.WIN ? 'bg-lime-500' : lineup.result === MatchResult.LOSS ? 'bg-red-500' : 'bg-slate-300'}`}></div>
+                                                            <div className="text-xs font-bold text-slate-800 leading-tight">
+                                                                {p1?.name} {p1?.surname || ''} <br/> {p2?.name} {p2?.surname || ''}
+                                                            </div>
+                                                        </div>
+                                                        <div className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${lineup.result === MatchResult.WIN ? 'text-lime-700 bg-lime-50' : lineup.result === MatchResult.LOSS ? 'text-red-700 bg-red-50' : 'text-slate-500 bg-slate-100'}`}>
+                                                            {lineup.result === MatchResult.WIN ? 'Vic' : lineup.result === MatchResult.LOSS ? 'Der' : 'Emp'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-end border-t border-slate-50 pt-2 mt-1">
+                                                        <div className="text-[10px] text-slate-400">
+                                                            {(lineup.opponent1Name || lineup.opponent2Name) ? (
+                                                                <>vs {lineup.opponent1Name} / {lineup.opponent2Name}</>
+                                                            ) : <span>vs Rival Desconocido</span>}
+                                                        </div>
+                                                        <div className="flex gap-1">
+                                                            <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-slate-600">{lineup.set1}</span>
+                                                            <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-slate-600">{lineup.set2}</span>
+                                                            {lineup.set3 && <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-slate-600">{lineup.set3}</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
             </>
         )}
       </div>

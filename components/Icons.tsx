@@ -35,7 +35,10 @@ import {
   Menu,
   Wand2,
   Table,
-  ListFilter
+  ListFilter,
+  AlertCircle,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 
 export { 
@@ -74,5 +77,8 @@ export {
   Menu,
   Wand2,
   Table,
-  ListFilter
+  ListFilter,
+  AlertCircle,
+  CheckCircle,
+  XCircle
 };

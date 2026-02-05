@@ -1,3 +1,4 @@
+
 export enum Position {
   DRIVE = 'Drive',
   REVES = 'Revés',
@@ -45,6 +46,7 @@ export interface MatchDay {
   notes?: string;
   tandas?: string; // New field: e.g., "5", "4-1", "2-2-1"
   seasonId?: string; // New field to link match to a season
+  availablePlayers?: string[]; // Array of player IDs who were available/called up for this match
 }
 
 export interface ScoringRange {

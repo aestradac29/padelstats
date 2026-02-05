@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield
+  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check
 } from './components/Icons';
 import { 
   Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -63,7 +63,8 @@ const App = () => {
     opponent: '',
     isHome: true, 
     lineups: [],
-    tandas: '5' 
+    tandas: '5',
+    availablePlayers: []
   });
   
   // Calendar Generator State
@@ -342,6 +343,7 @@ const App = () => {
         seasonId: activeSeason.id,
         lineups: [],
         tandas: '5',
+        availablePlayers: [],
         isHome: m.isHome ?? true,
         date: m.date || new Date().toISOString(),
         opponent: m.opponent || 'Desconocido'
@@ -383,6 +385,11 @@ const App = () => {
   const saveMatch = async () => {
     if (!data || !teamId) return;
     const activeSeason = data.seasons?.find(s => s.isActive) || DEFAULT_SEASON;
+    
+    // Force lineup players to be in available list to avoid contradictions
+    const lineupPlayerIds = (tempMatch.lineups || []).flatMap(l => [l.player1Id, l.player2Id].filter(Boolean));
+    const finalAvailablePlayers = Array.from(new Set([...(tempMatch.availablePlayers || []), ...lineupPlayerIds]));
+
     const newMatchData: MatchDay = {
       id: tempMatch.id || Date.now().toString(), 
       date: tempMatch.date || new Date().toISOString(),
@@ -391,7 +398,8 @@ const App = () => {
       lineups: tempMatch.lineups || [],
       notes: tempMatch.notes || undefined,
       tandas: tempMatch.tandas || '5',
-      seasonId: tempMatch.seasonId || activeSeason.id 
+      seasonId: tempMatch.seasonId || activeSeason.id,
+      availablePlayers: finalAvailablePlayers
     };
     
     // Sanitize before saving
@@ -412,6 +420,26 @@ const App = () => {
         console.error(e);
         alert("Error guardando jornada.");
     }
+  };
+
+  // Availability Helpers
+  const toggleAvailability = (playerId: string) => {
+      setTempMatch(prev => {
+          const current = prev.availablePlayers || [];
+          if (current.includes(playerId)) {
+              return { ...prev, availablePlayers: current.filter(id => id !== playerId) };
+          } else {
+              return { ...prev, availablePlayers: [...current, playerId] };
+          }
+      });
+  };
+
+  const setAllAvailability = (available: boolean) => {
+      if (!data) return;
+      setTempMatch(prev => ({
+          ...prev,
+          availablePlayers: available ? data.players.map(p => p.id) : []
+      }));
   };
 
   const handleGenerateCalendar = async () => {
@@ -437,7 +465,8 @@ const App = () => {
             isHome: isHome,
             lineups: [],
             tandas: '5',
-            seasonId: activeSeason.id
+            seasonId: activeSeason.id,
+            availablePlayers: []
         };
     };
 
@@ -803,6 +832,33 @@ const App = () => {
                         <div className="grid grid-cols-2 gap-4"><Input label="Rival" value={tempMatch.opponent} onChange={e => setTempMatch(m => ({...m, opponent: e.target.value}))} /><Input label="Sede / Notas" value={tempMatch.notes || ''} onChange={e => setTempMatch(m => ({...m, notes: e.target.value}))} /></div>
                         <div className="w-full"><Select label="Tandas" value={tempMatch.tandas || '5'} onChange={(e) => setTempMatch(m => ({...m, tandas: e.target.value}))} options={TANDA_OPTIONS} /></div>
                         
+                        {/* AVAILABILITY SECTION */}
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mt-2">
+                             <div className="flex justify-between items-center mb-4">
+                                 <h4 className="font-black text-xs uppercase text-slate-400 tracking-widest">Convocatoria / Disponibilidad</h4>
+                                 <div className="flex gap-2">
+                                     <button type="button" onClick={() => setAllAvailability(true)} className="text-[10px] font-bold text-blue-600 hover:underline">Todos</button>
+                                     <button type="button" onClick={() => setAllAvailability(false)} className="text-[10px] font-bold text-slate-400 hover:text-red-500 hover:underline">Ninguno</button>
+                                 </div>
+                             </div>
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                                 {data?.players.map(p => {
+                                     const isSelected = (tempMatch.availablePlayers || []).includes(p.id);
+                                     return (
+                                         <div 
+                                            key={p.id} 
+                                            onClick={() => toggleAvailability(p.id)}
+                                            className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${isSelected ? 'bg-lime-50 border-lime-400 text-slate-900 shadow-sm' : 'bg-white border-slate-100 text-slate-400 opacity-70 hover:opacity-100'}`}
+                                         >
+                                             <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-lime-500' : 'bg-slate-300'}`}></div>
+                                             {p.name}
+                                         </div>
+                                     );
+                                 })}
+                             </div>
+                             <p className="text-[10px] text-slate-400 mt-2 italic">* Los jugadores en la alineación se marcarán como disponibles automáticamente.</p>
+                        </div>
+
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mt-4"><h4 className="font-black text-xs uppercase text-slate-400 mb-6 tracking-widest">Partidos y Parejas</h4>
                             <div className="space-y-3 mb-6">{(tempMatch.lineups || []).map((l, i) => ( 
                                 <div key={i} className="flex justify-between items-center p-4 rounded-xl text-sm shadow-sm border bg-white border-slate-100">
