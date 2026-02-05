@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check
+  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus
 } from './components/Icons';
 import { 
   Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -66,6 +66,10 @@ const App = () => {
     tandas: '5',
     availablePlayers: []
   });
+
+  // Guest/Filial Add State
+  const [isAddingGuest, setIsAddingGuest] = useState(false);
+  const [guestName, setGuestName] = useState('');
   
   // Calendar Generator State
   const [genStartDate, setGenStartDate] = useState(new Date().toISOString().slice(0, 10));
@@ -187,7 +191,7 @@ const App = () => {
       const newPlayer: Player = {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           name: p.name || 'Nuevo Jugador',
-          surname: '', // Deprecated, keep empty for interface compatibility
+          surname: p.surname || '', // Keep existing surname if provided (e.g. for Guests)
           position: p.position || Position.AMBOS,
           level: 3.0,
           initialPoints: Number(p.initialPoints) || 0,
@@ -228,6 +232,35 @@ const App = () => {
     const updatedPlayers = [...data.players, newPlayer];
     await updateTeamData(teamId, { players: updatedPlayers });
     setIsModalOpen(false);
+  };
+  
+  // NEW FUNCTION: Quick Add Guest from Match Modal (No Prompt)
+  const confirmAddGuest = async () => {
+      if (!data || !teamId || !guestName.trim()) return;
+
+      const newPlayer = createPlayerObject({
+          name: guestName.trim(),
+          surname: '(Filial)',
+          initialPoints: 0,
+          position: Position.AMBOS
+      });
+
+      // 1. Optimistic Update (Immediate UI Refresh)
+      const updatedPlayers = [...data.players, newPlayer];
+      setData(prev => prev ? ({ ...prev, players: updatedPlayers }) : null);
+
+      // 2. Add to Current Match Availability
+      setTempMatch(prev => ({
+          ...prev,
+          availablePlayers: [...(prev.availablePlayers || []), newPlayer.id]
+      }));
+      
+      // 3. Persist to DB
+      await updateTeamData(teamId, { players: updatedPlayers });
+
+      // Reset
+      setGuestName('');
+      setIsAddingGuest(false);
   };
 
   const addPlayersBulk = async () => {
@@ -678,6 +711,10 @@ const App = () => {
        return <LoginView currentUser={currentUser} checkingTeam={checkingTeam} teamId={teamId} handleCreateTeam={handleCreateTeam} handleLogout={handleLogout} handleGuestLogin={handleGuestLogin} />;
   }
 
+  // Calculate filtered options based on availability
+  const availablePlayersForSelect = data?.players.filter(p => (tempMatch.availablePlayers || []).includes(p.id)) || [];
+  const playerOptionsForSelect = [{label: '...', value: ''}, ...availablePlayersForSelect.map(p => ({label: `${p.name} ${p.surname || ''}`, value: p.id}))];
+
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans text-slate-900">
       
@@ -836,11 +873,34 @@ const App = () => {
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mt-2">
                              <div className="flex justify-between items-center mb-4">
                                  <h4 className="font-black text-xs uppercase text-slate-400 tracking-widest">Convocatoria / Disponibilidad</h4>
-                                 <div className="flex gap-2">
+                                 <div className="flex gap-2 items-center">
                                      <button type="button" onClick={() => setAllAvailability(true)} className="text-[10px] font-bold text-blue-600 hover:underline">Todos</button>
                                      <button type="button" onClick={() => setAllAvailability(false)} className="text-[10px] font-bold text-slate-400 hover:text-red-500 hover:underline">Ninguno</button>
+                                     <button type="button" onClick={() => setIsAddingGuest(true)} className="ml-2 flex items-center gap-1 text-[10px] font-black bg-lime-400 hover:bg-lime-300 text-blue-900 px-2 py-1 rounded shadow-sm">
+                                         <UserPlus size={12}/> + Filial
+                                     </button>
                                  </div>
                              </div>
+                             
+                             {isAddingGuest && (
+                                <div className="mb-4 flex gap-2 animate-in fade-in slide-in-from-top-2">
+                                    <input 
+                                        autoFocus
+                                        className="flex-1 px-3 py-2 rounded-lg border border-lime-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 shadow-sm"
+                                        placeholder="Nombre del jugador del Filial..."
+                                        value={guestName}
+                                        onChange={(e) => setGuestName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && confirmAddGuest()}
+                                    />
+                                    <button onClick={confirmAddGuest} type="button" className="bg-lime-500 text-blue-900 px-3 py-2 rounded-lg font-bold text-xs hover:bg-lime-400 transition-colors shadow-sm">
+                                        <Check size={16}/>
+                                    </button>
+                                     <button onClick={() => { setIsAddingGuest(false); setGuestName(''); }} type="button" className="bg-white border border-slate-200 text-slate-500 px-3 py-2 rounded-lg font-bold text-xs hover:bg-slate-50 transition-colors">
+                                        <X size={16}/>
+                                    </button>
+                                </div>
+                             )}
+
                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
                                  {data?.players.map(p => {
                                      const isSelected = (tempMatch.availablePlayers || []).includes(p.id);
@@ -851,7 +911,7 @@ const App = () => {
                                             className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${isSelected ? 'bg-lime-50 border-lime-400 text-slate-900 shadow-sm' : 'bg-white border-slate-100 text-slate-400 opacity-70 hover:opacity-100'}`}
                                          >
                                              <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-lime-500' : 'bg-slate-300'}`}></div>
-                                             {p.name}
+                                             {p.name} {(p.surname === '(Invitado)' || p.surname === '(Filial)') && <span className="text-[9px] text-blue-500 font-normal">(Filial)</span>}
                                          </div>
                                      );
                                  })}
@@ -882,9 +942,14 @@ const App = () => {
                             ))}</div>
                             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <Select label="Jugador Drive" options={[{label: '...', value: ''}, ...(data?.players.map(p => ({label: `${p.name} ${p.surname || ''}`, value: p.id})) || [])]} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({...l, player1Id: e.target.value}))} />
-                                    <Select label="Jugador Revés" options={[{label: '...', value: ''}, ...(data?.players.map(p => ({label: `${p.name} ${p.surname || ''}`, value: p.id})) || [])]} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({...l, player2Id: e.target.value}))} />
+                                    <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({...l, player1Id: e.target.value}))} />
+                                    <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({...l, player2Id: e.target.value}))} />
                                 </div>
+                                {(tempMatch.availablePlayers || []).length === 0 && (
+                                    <div className="text-[10px] text-red-500 font-bold bg-red-50 p-2 rounded text-center">
+                                        No hay jugadores disponibles seleccionados arriba.
+                                    </div>
+                                )}
                                 <div className="grid grid-cols-2 gap-3"><Input label="Rival 1 (Opcional)" value={tempLineupScores.opponent1Name} onChange={e => setTempLineupScores(l => ({...l, opponent1Name: e.target.value}))} /><Input label="Rival 2 (Opcional)" value={tempLineupScores.opponent2Name} onChange={e => setTempLineupScores(l => ({...l, opponent2Name: e.target.value}))} /></div>
                                 <div className="grid grid-cols-3 gap-3">
                                     <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 1</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s1We} onChange={e => setTempLineupScores(l => ({...l, s1We: e.target.value}))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s1They} onChange={e => setTempLineupScores(l => ({...l, s1They: e.target.value}))} /></div></div>
