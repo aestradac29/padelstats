@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu
+  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield
 } from './components/Icons';
 import { 
   Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -17,8 +18,9 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 // New Imports
 import { DEFAULT_SETTINGS, DEFAULT_SEASON, TANDA_OPTIONS } from './utils/constants';
-import { compressImage, recalculateStats } from './utils/helpers';
+import { compressImage, recalculateStats, formatDate } from './utils/helpers';
 import { Button, Input, Select, Checkbox, PadelLogo } from './components/UIComponents';
+import { extractScheduleFromImage } from './services/geminiService';
 
 // Views
 import LoginView from './components/views/LoginView';
@@ -46,8 +48,10 @@ const App = () => {
 
   // --- Modal/Form State ---
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<'ADD_PLAYER' | 'EDIT_PLAYER' | 'ADD_MATCH' | 'EDIT_MATCH' | 'EDIT_TEAM'>('ADD_PLAYER');
+  const [modalType, setModalType] = useState<'ADD_PLAYER' | 'EDIT_PLAYER' | 'ADD_MATCH' | 'EDIT_MATCH' | 'EDIT_TEAM' | 'GENERATE_CALENDAR'>('ADD_PLAYER');
   const [importMode, setImportMode] = useState<'MANUAL' | 'BULK'>('MANUAL');
+  const [calendarMode, setCalendarMode] = useState<'PATTERN' | 'IMAGE'>('PATTERN');
+  const [matchToDelete, setMatchToDelete] = useState<MatchDay | null>(null);
   
   // Temporary State for Forms
   const [tempPlayer, setTempPlayer] = useState<Partial<Player>>({});
@@ -62,6 +66,20 @@ const App = () => {
     tandas: '5' 
   });
   
+  // Calendar Generator State
+  const [genStartDate, setGenStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [genStartTime, setGenStartTime] = useState('20:00');
+  const [genInterval, setGenInterval] = useState(7); // Days
+  const [genOpponents, setGenOpponents] = useState('');
+  const [genHomeAway, setGenHomeAway] = useState<'ALTERNATE' | 'HOME' | 'AWAY'>('ALTERNATE');
+  const [genDoubleRound, setGenDoubleRound] = useState(false);
+
+  // Calendar Image State
+  const [calendarImage, setCalendarImage] = useState<string | null>(null);
+  const [myClubName, setMyClubName] = useState('');
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+  const [previewMatches, setPreviewMatches] = useState<Partial<MatchDay>[]>([]);
+
   const [tempLineupScores, setTempLineupScores] = useState({
       player1Id: '', player2Id: '',
       opponent1Name: '', opponent2Name: '',
@@ -163,19 +181,28 @@ const App = () => {
     setCurrentView('DASHBOARD');
   };
 
-  const createPlayerObject = (p: Partial<Player>) : Player => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      name: p.name || 'Nuevo Jugador',
-      surname: p.surname || '', 
-      position: p.position || Position.AMBOS,
-      level: 3.0,
-      initialPoints: Number(p.initialPoints) || 0,
-      handedness: p.handedness || 'right',
-      matchesPlayed: 0,
-      wins: 0,
-      email: '',
-      photoUrl: p.photoUrl
-  });
+  const createPlayerObject = (p: Partial<Player>) : Player => {
+      // Safely construct player to avoid undefined values which Firebase rejects
+      const newPlayer: Player = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: p.name || 'Nuevo Jugador',
+          surname: '', // Deprecated, keep empty for interface compatibility
+          position: p.position || Position.AMBOS,
+          level: 3.0,
+          initialPoints: Number(p.initialPoints) || 0,
+          handedness: p.handedness || 'right',
+          matchesPlayed: 0,
+          wins: 0,
+          email: ''
+      };
+
+      // Only add photoUrl if it exists to avoid undefined
+      if (p.photoUrl) {
+          newPlayer.photoUrl = p.photoUrl;
+      }
+
+      return newPlayer;
+  };
 
   const addPlayer = async (player: Partial<Player>) => {
     if (!data || !teamId) return;
@@ -212,7 +239,7 @@ const App = () => {
           if (seasonIndex >= 0) {
               const newPointsMap = { ...(updatedSeasons[seasonIndex].playerStartPoints || {}) };
               newPlayers.forEach(p => {
-                  newPointsMap[p.id] = p.initialPoints;
+                  newPointsMap[p.id] = p.initialPoints || 0;
               });
                updatedSeasons[seasonIndex] = {
                  ...updatedSeasons[seasonIndex],
@@ -231,8 +258,13 @@ const App = () => {
 
   const updatePlayer = async (player: Partial<Player>) => {
     if (!data || !teamId) return;
-    const updatedPlayers = data.players.map(p => p.id === player.id ? { ...p, ...player } as Player : p);
-    if (viewSeasonId !== 'all' && modalType === 'EDIT_PLAYER') {
+    // Sanitize update to prevent undefined fields
+    const sanitizedPlayer = { ...player };
+    if (!sanitizedPlayer.surname) sanitizedPlayer.surname = ''; 
+
+    const updatedPlayers = data.players.map(p => p.id === player.id ? { ...p, ...sanitizedPlayer } as Player : p);
+    
+    if (viewSeasonId !== 'all' && modalType === 'EDIT_PLAYER' && player.id) {
          const updatedSeasons = [...(data.seasons || [])];
          const seasonIndex = updatedSeasons.findIndex(s => s.id === viewSeasonId);
          if (seasonIndex >= 0) {
@@ -241,7 +273,7 @@ const App = () => {
                  ...updatedSeasons[seasonIndex],
                  playerStartPoints: {
                      ...(updatedSeasons[seasonIndex].playerStartPoints || {}),
-                     [player.id!]: points
+                     [player.id]: points
                  }
              };
              await updateTeamData(teamId, { players: updatedPlayers, seasons: updatedSeasons });
@@ -272,6 +304,82 @@ const App = () => {
       }
   };
 
+  // --- CALENDAR IMAGE HANDLING ---
+  const handleCalendarImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+          // Use high quality for OCR
+          const compressed = await compressImage(file); 
+          setCalendarImage(compressed);
+          setPreviewMatches([]);
+      } catch (err) {
+          alert("Error cargando imagen");
+      }
+  };
+
+  const analyzeCalendarImage = async () => {
+      if (!calendarImage) return;
+      setIsAnalyzingImage(true);
+      try {
+          const matches = await extractScheduleFromImage(calendarImage, myClubName);
+          setPreviewMatches(matches);
+      } catch (e: any) {
+          alert(e.message);
+      } finally {
+          setIsAnalyzingImage(false);
+      }
+  };
+
+  const saveImportedMatches = async () => {
+    if (!data || !teamId || previewMatches.length === 0) return;
+    const activeSeason = data.seasons?.find(s => s.isActive) || DEFAULT_SEASON;
+    
+    // Add SeasonID to imported matches
+    const matchesToSave: MatchDay[] = previewMatches.map(m => ({
+        ...m,
+        id: m.id || Date.now().toString() + Math.random().toString(),
+        seasonId: activeSeason.id,
+        lineups: [],
+        tandas: '5',
+        isHome: m.isHome ?? true,
+        date: m.date || new Date().toISOString(),
+        opponent: m.opponent || 'Desconocido'
+    } as MatchDay));
+
+    const updatedMatches = [...data.matches, ...matchesToSave];
+    const updatedPlayers = recalculateStats(data.players, updatedMatches);
+    await updateTeamData(teamId, { matches: updatedMatches, players: updatedPlayers });
+    
+    // Cleanup
+    setCalendarImage(null);
+    setPreviewMatches([]);
+    setIsModalOpen(false);
+  };
+
+  const deleteMatch = (id: string) => {
+    const m = data?.matches.find(match => match.id === id);
+    if (m) setMatchToDelete(m);
+  };
+
+  const executeDeleteMatch = async () => {
+    if (!data || !teamId || !matchToDelete) return;
+    
+    // Sanitize helper to remove undefined fields which Firestore rejects
+    const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
+
+    try {
+        const updatedMatches = data.matches.filter(m => m.id !== matchToDelete.id);
+        const updatedPlayers = recalculateStats(data.players, updatedMatches);
+        
+        await updateTeamData(teamId, sanitize({ matches: updatedMatches, players: updatedPlayers }));
+        setMatchToDelete(null);
+    } catch (e) {
+        console.error("Error deleting match:", e);
+        alert("Error al eliminar la jornada. Inténtalo de nuevo.");
+    }
+  };
+
   const saveMatch = async () => {
     if (!data || !teamId) return;
     const activeSeason = data.seasons?.find(s => s.isActive) || DEFAULT_SEASON;
@@ -285,6 +393,10 @@ const App = () => {
       tandas: tempMatch.tandas || '5',
       seasonId: tempMatch.seasonId || activeSeason.id 
     };
+    
+    // Sanitize before saving
+    const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
+
     let updatedMatches;
     if (modalType === 'EDIT_MATCH') {
         updatedMatches = data.matches.map(m => m.id === newMatchData.id ? newMatchData : m);
@@ -292,7 +404,81 @@ const App = () => {
         updatedMatches = [...data.matches, newMatchData];
     }
     const updatedPlayers = recalculateStats(data.players, updatedMatches);
-    await updateTeamData(teamId, { matches: updatedMatches, players: updatedPlayers });
+    
+    try {
+        await updateTeamData(teamId, sanitize({ matches: updatedMatches, players: updatedPlayers }));
+        setIsModalOpen(false);
+    } catch (e) {
+        console.error(e);
+        alert("Error guardando jornada.");
+    }
+  };
+
+  const handleGenerateCalendar = async () => {
+    if (!data || !teamId) return;
+    
+    // 1. Parse opponents
+    const opponents = genOpponents.split('\n').map(s => s.trim()).filter(Boolean);
+    if (opponents.length === 0) {
+        alert("Introduce al menos un rival.");
+        return;
+    }
+
+    const activeSeason = data.seasons?.find(s => s.isActive) || DEFAULT_SEASON;
+    const newMatches: MatchDay[] = [];
+    let currentDate = new Date(`${genStartDate}T${genStartTime}`);
+
+    // Helper to create a match
+    const createMatch = (opponent: string, isHome: boolean, idSuffix: string) => {
+        return {
+            id: Date.now().toString() + idSuffix,
+            date: currentDate.toISOString(),
+            opponent: opponent,
+            isHome: isHome,
+            lineups: [],
+            tandas: '5',
+            seasonId: activeSeason.id
+        };
+    };
+
+    // First Round Loop
+    opponents.forEach((opp, index) => {
+        let isHome = true;
+        if (genHomeAway === 'HOME') isHome = true;
+        else if (genHomeAway === 'AWAY') isHome = false;
+        else isHome = index % 2 === 0; // Alternate
+
+        newMatches.push(createMatch(opp, isHome, `_${index}`));
+        
+        // Increment date for next match
+        currentDate.setDate(currentDate.getDate() + Number(genInterval));
+    });
+
+    // Second Round Loop (Optional)
+    if (genDoubleRound) {
+        opponents.forEach((opp, index) => {
+            // Find the first match against this opponent to reverse home/away
+            // But for simple "Return" leg, we just reverse the logic of the first loop
+            let isHomeFirstLeg = true;
+            if (genHomeAway === 'HOME') isHomeFirstLeg = true;
+            else if (genHomeAway === 'AWAY') isHomeFirstLeg = false;
+            else isHomeFirstLeg = index % 2 === 0;
+
+            newMatches.push(createMatch(opp, !isHomeFirstLeg, `_return_${index}`));
+            currentDate.setDate(currentDate.getDate() + Number(genInterval));
+        });
+    }
+
+    const updatedMatches = [...data.matches, ...newMatches];
+    const updatedPlayers = recalculateStats(data.players, updatedMatches);
+    
+    // Sanitize before saving
+    const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
+
+    await updateTeamData(teamId, sanitize({ matches: updatedMatches, players: updatedPlayers }));
+    
+    // Reset and Close
+    setGenOpponents('');
     setIsModalOpen(false);
   };
 
@@ -386,26 +572,51 @@ const App = () => {
     setBulkText(text);
     const lines = text.split(/\r?\n/);
     const parsedPlayers: Partial<Player>[] = [];
+    
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        const parts = trimmed.split(/[\t,;-]+/).map(p => p.trim());
-        if (parts.length === 0) continue;
-        const name = parts[0];
-        if (!name) continue; 
+
+        let tempLine = trimmed;
         let position = Position.AMBOS;
         let handedness: 'right' | 'left' = 'right';
         let initialPoints = 0;
-        for (let i = 1; i < parts.length; i++) {
-            const part = parts[i].toLowerCase();
-            const partTrimmed = parts[i].trim();
-            if (part.includes('drive')) position = Position.DRIVE;
-            else if (part.includes('rev') || part.includes('back')) position = Position.REVES;
-            else if (part.includes('izq') || part.includes('left') || part.includes('zurdo')) handedness = 'left';
-            else if (part.includes('der') || part.includes('right') || part.includes('diestro')) handedness = 'right';
-            else if (!isNaN(Number(partTrimmed)) && partTrimmed !== '') initialPoints = Number(partTrimmed);
+
+        // 1. Extract Points (look for standalone numbers)
+        const pointsMatch = tempLine.match(/\b\d+(\.\d+)?\b/); 
+        if (pointsMatch) {
+             const val = Number(pointsMatch[0]);
+             if (!isNaN(val)) {
+                 initialPoints = val;
+                 tempLine = tempLine.replace(pointsMatch[0], '');
+             }
         }
-        parsedPlayers.push({ name, position, handedness, initialPoints });
+
+        // 2. Extract Position (insensitive)
+        if (/\b(drive|derecha)\b/i.test(tempLine)) {
+            position = Position.DRIVE;
+            tempLine = tempLine.replace(/\b(drive|derecha)\b/i, '');
+        } else if (/\b(reves|revés|back|backhand)\b/i.test(tempLine)) {
+             position = Position.REVES;
+             tempLine = tempLine.replace(/\b(reves|revés|back|backhand)\b/i, '');
+        }
+
+        // 3. Extract Handedness
+        if (/\b(zurdo|zurda|left|izq)\b/i.test(tempLine)) {
+            handedness = 'left';
+            tempLine = tempLine.replace(/\b(zurdo|zurda|left|izq)\b/i, '');
+        } else if (/\b(diestro|diestra|right|der)\b/i.test(tempLine)) {
+            handedness = 'right';
+            tempLine = tempLine.replace(/\b(diestro|diestra|right|der)\b/i, '');
+        }
+
+        // 4. Cleanup Name
+        let name = tempLine.replace(/[,;\t-]/g, ' ').replace(/\s+/g, ' ').trim();
+        name = name.replace(/\b(puntos|pts|ptos)\b/i, '').trim();
+
+        if (name) {
+            parsedPlayers.push({ name, position, handedness, initialPoints });
+        }
     }
     setTempPlayersList(parsedPlayers);
   };
@@ -463,7 +674,7 @@ const App = () => {
           <NavContent />
       </aside>
 
-      <main className="flex-1 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50 p-4 md:p-10">
+      <main className="flex-1 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50 p-4 md:p-10 relative">
         <div className="max-w-6xl mx-auto pb-20 md:pb-0">
             {currentView === 'DASHBOARD' && (
                 <DashboardView 
@@ -497,6 +708,7 @@ const App = () => {
                     setTempMatch={setTempMatch}
                     setModalType={setModalType}
                     setIsModalOpen={setIsModalOpen}
+                    deleteMatch={deleteMatch}
                 />
             )}
             {currentView === 'LINEUP' && (
@@ -517,24 +729,80 @@ const App = () => {
             )}
         </div>
       </main>
+
+      {/* --- CONFIRMATION MODAL FOR DELETING MATCH --- */}
+      {matchToDelete && (
+        <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 text-center animate-in fade-in">
+              <Shield className="w-12 h-12 text-red-500 mb-4" />
+              <h4 className="text-white font-black text-2xl mb-2">¿Eliminar Jornada?</h4>
+              <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">
+                  Vas a eliminar el partido contra <strong>{matchToDelete.opponent}</strong> ({formatDate(matchToDelete.date)}).<br/>
+                  Esta acción borrará todos los resultados y no se puede deshacer.
+              </p>
+              <div className="flex gap-4">
+                  <button 
+                      onClick={() => setMatchToDelete(null)}
+                      className="px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold uppercase tracking-wide transition-all"
+                  >
+                      Cancelar
+                  </button>
+                  <button 
+                      onClick={executeDeleteMatch}
+                      className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold uppercase tracking-wide flex items-center gap-2 transition-all shadow-lg shadow-red-600/30"
+                  >
+                      <Trash2 className="w-5 h-5" />
+                      Confirmar
+                  </button>
+              </div>
+          </div>
+      )}
       
-      {/* --- MODAL RENDERING LOGIC (Kept in App.tsx for state complexity reasons) --- */}
+      {/* --- MAIN MODAL RENDERING LOGIC --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-blue-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50"><h3 className="font-black text-xl text-slate-900 uppercase tracking-tighter">{modalType.includes('PLAYER') ? 'Gestionar Jugador' : modalType.includes('MATCH') ? 'Gestionar Jornada' : 'Editar Equipo'}</h3><button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 p-2"><X size={24} /></button></div>
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 className="font-black text-xl text-slate-900 uppercase tracking-tighter">
+                    {modalType.includes('PLAYER') ? 'Gestionar Jugador' : 
+                     modalType === 'GENERATE_CALENDAR' ? 'Generador de Calendario' :
+                     modalType.includes('MATCH') ? 'Gestionar Jornada' : 'Editar Equipo'}
+                </h3>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 p-2"><X size={24} /></button>
+            </div>
             <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto">
                 {modalType.includes('PLAYER') && ( <>
                         {modalType === 'ADD_PLAYER' && ( <div className="flex bg-slate-100 p-1 rounded-xl mb-4"><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'MANUAL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => setImportMode('MANUAL')}>Manual</button><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'BULK' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => setImportMode('BULK')}>Lista</button></div> )}
                         {importMode === 'MANUAL' ? ( <>
-                                <div className="flex items-center gap-4"><div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden relative cursor-pointer">{tempPlayer.photoUrl ? ( <img src={tempPlayer.photoUrl} className="w-full h-full object-cover" /> ) : ( <Camera className="text-slate-300" /> )}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handlePhotoUpload}/></div><div className="flex-1 space-y-4"><Input label="Nombre" value={tempPlayer.name || ''} onChange={e => setTempPlayer(p => ({...p, name: e.target.value}))} /><Input label="Apellido" value={tempPlayer.surname || ''} onChange={e => setTempPlayer(p => ({...p, surname: e.target.value}))} /></div></div>
+                                <div className="flex items-center gap-4"><div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden relative cursor-pointer">{tempPlayer.photoUrl ? ( <img src={tempPlayer.photoUrl} className="w-full h-full object-cover" /> ) : ( <Camera className="text-slate-300" /> )}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handlePhotoUpload}/></div><div className="flex-1 space-y-4"><Input label="Nombre y Apellido" value={tempPlayer.name || ''} onChange={e => setTempPlayer(p => ({...p, name: e.target.value}))} /></div></div>
                                 <div className="grid grid-cols-2 gap-6"><Select label="Posición" value={tempPlayer.position || Position.AMBOS} onChange={e => setTempPlayer(p => ({...p, position: e.target.value as Position}))} options={[{label: 'Drive', value: Position.DRIVE},{label: 'Revés', value: Position.REVES},{label: 'Ambos', value: Position.AMBOS}]} /><Input type="number" label="Puntos Iniciales" value={tempPlayer.initialPoints || ''} onChange={e => setTempPlayer(p => ({...p, initialPoints: Number(e.target.value)}))} /></div>
                                 <div className="pt-2"><Checkbox label="Es Zurdo" checked={tempPlayer.handedness === 'left'} onChange={(c) => setTempPlayer(p => ({...p, handedness: c ? 'left' : 'right'}))} /></div>
-                            </> ) : ( <div className="space-y-6"><textarea className="w-full h-40 p-4 rounded-xl border border-slate-200 text-sm font-mono outline-none focus:ring-2 focus:ring-lime-400" placeholder="Nombre, Apellido, Posición, Puntos..." value={bulkText} onChange={handleBulkTextChange} /><div className="bg-lime-50 text-lime-700 p-3 rounded-xl text-xs font-bold border border-lime-200">{tempPlayersList.length} jugadores detectados automáticamente.</div></div> )}
+                            </> ) : ( 
+                                <div className="space-y-6">
+                                    <textarea className="w-full h-40 p-4 rounded-xl border border-slate-200 text-sm font-mono outline-none focus:ring-2 focus:ring-lime-400 bg-white text-slate-900" placeholder="Nombre Apellido, Posición, Puntos..." value={bulkText} onChange={handleBulkTextChange} />
+                                    <div className="bg-lime-50 text-lime-700 p-3 rounded-xl text-xs font-bold border border-lime-200">{tempPlayersList.length} jugadores detectados automáticamente.</div>
+                                    {tempPlayersList.length > 0 && (
+                                        <div className="mt-4 max-h-60 overflow-y-auto space-y-2 border-t border-slate-100 pt-4">
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase">Previsualización ({tempPlayersList.length})</h4>
+                                            {tempPlayersList.map((p, i) => (
+                                                <div key={i} className="flex justify-between items-center p-2 bg-slate-50 rounded-lg text-sm">
+                                                    <span className="font-bold text-slate-700">{p.name}</span>
+                                                    <div className="flex gap-2 text-xs text-slate-500">
+                                                        <span>{p.position}</span>
+                                                        <span>{p.initialPoints} pts</span>
+                                                        <span>{p.handedness === 'left' ? 'Zurdo' : 'Diestro'}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div> 
+                            )}
                 </> )}
                 {(modalType === 'ADD_MATCH' || modalType === 'EDIT_MATCH') && ( <>
                         <div className="grid grid-cols-2 gap-4 items-end"><Input type="datetime-local" label="Fecha y Hora" value={tempMatch.date} onChange={e => setTempMatch(m => ({...m, date: e.target.value}))} /><div className="bg-slate-100 p-1 rounded-xl flex"><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${tempMatch.isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: true}))}>Casa</button><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${!tempMatch.isHome ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: false}))}>Fuera</button></div></div>
-                        <div className="grid grid-cols-2 gap-4"><Input label="Rival" value={tempMatch.opponent} onChange={e => setTempMatch(m => ({...m, opponent: e.target.value}))} /><Select label="Tandas" value={tempMatch.tandas || '5'} onChange={(e) => setTempMatch(m => ({...m, tandas: e.target.value}))} options={TANDA_OPTIONS} /></div>
+                        <div className="grid grid-cols-2 gap-4"><Input label="Rival" value={tempMatch.opponent} onChange={e => setTempMatch(m => ({...m, opponent: e.target.value}))} /><Input label="Sede / Notas" value={tempMatch.notes || ''} onChange={e => setTempMatch(m => ({...m, notes: e.target.value}))} /></div>
+                        <div className="w-full"><Select label="Tandas" value={tempMatch.tandas || '5'} onChange={(e) => setTempMatch(m => ({...m, tandas: e.target.value}))} options={TANDA_OPTIONS} /></div>
+                        
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mt-4"><h4 className="font-black text-xs uppercase text-slate-400 mb-6 tracking-widest">Partidos y Parejas</h4>
                             <div className="space-y-3 mb-6">{(tempMatch.lineups || []).map((l, i) => ( 
                                 <div key={i} className="flex justify-between items-center p-4 rounded-xl text-sm shadow-sm border bg-white border-slate-100">
@@ -571,9 +839,141 @@ const App = () => {
                             </div>
                         </div>
                 </> )}
+
+                {modalType === 'GENERATE_CALENDAR' && (
+                    <div className="space-y-6">
+                        {/* Tab Switcher */}
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                            <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'PATTERN' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('PATTERN')}>Patrón Automático</button>
+                            <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'IMAGE' ? 'bg-white text-lime-700 shadow-sm border border-lime-200' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('IMAGE')}><span className="flex items-center justify-center gap-1"><Sparkles size={12}/> Importar con IA</span></button>
+                        </div>
+
+                        {calendarMode === 'PATTERN' ? (
+                            <>
+                                <div className="bg-lime-50 text-blue-900 p-4 rounded-xl text-sm border border-lime-200">
+                                    <h4 className="font-bold flex items-center gap-2 mb-1"><Wand2 size={16}/> Generador Algorítmico</h4>
+                                    <p className="opacity-80 text-xs">Crea jornadas secuenciales basadas en una lista de rivales y una frecuencia.</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input type="date" label="Inicio Temporada" value={genStartDate} onChange={(e) => setGenStartDate(e.target.value)} />
+                                    <Input type="time" label="Hora por defecto" value={genStartTime} onChange={(e) => setGenStartTime(e.target.value)} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Select 
+                                        label="Frecuencia" 
+                                        value={genInterval} 
+                                        onChange={(e) => setGenInterval(Number(e.target.value))}
+                                        options={[
+                                            {label: 'Semanal (7 días)', value: '7'},
+                                            {label: 'Quincenal (14 días)', value: '14'},
+                                            {label: 'Mensual (28 días)', value: '28'},
+                                            {label: 'Diaria (Torneo)', value: '1'}
+                                        ]}
+                                    />
+                                    <Select 
+                                        label="Localidad" 
+                                        value={genHomeAway} 
+                                        onChange={(e) => setGenHomeAway(e.target.value as any)}
+                                        options={[
+                                            {label: 'Alternar (C/F)', value: 'ALTERNATE'},
+                                            {label: 'Siempre Casa', value: 'HOME'},
+                                            {label: 'Siempre Fuera', value: 'AWAY'}
+                                        ]}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lista de Rivales (Uno por línea)</label>
+                                    <textarea 
+                                        className="w-full h-32 p-4 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-lime-400 bg-white text-slate-900" 
+                                        placeholder="Club de Tenis A&#10;Padel Center B&#10;Los Amigos..." 
+                                        value={genOpponents} 
+                                        onChange={(e) => setGenOpponents(e.target.value)} 
+                                    />
+                                    <div className="text-right mt-1 text-xs text-slate-400 font-bold">{genOpponents.split('\n').filter(s => s.trim()).length} jornadas detectadas</div>
+                                </div>
+                                <div className="pt-2">
+                                    <Checkbox label="Crear Ida y Vuelta (Doble enfrentamiento)" checked={genDoubleRound} onChange={setGenDoubleRound} />
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="bg-slate-900 text-white p-4 rounded-xl text-sm border border-slate-700 relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 w-32 h-32 bg-lime-500 blur-[60px] opacity-20 rounded-full pointer-events-none"></div>
+                                     <h4 className="font-bold flex items-center gap-2 mb-1 relative z-10"><ImageIcon size={16}/> Lector de Calendarios</h4>
+                                     <p className="opacity-80 text-xs relative z-10">Sube una foto de tu calendario (Excel, Tabla, Papel) y la IA extraerá los partidos automáticamente.</p>
+                                </div>
+                                
+                                {!calendarImage ? (
+                                    <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer relative group">
+                                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleCalendarImageUpload}/>
+                                        <Upload className="text-slate-400 mb-2 group-hover:scale-110 transition-transform" size={32}/>
+                                        <span className="font-bold text-slate-600 text-sm">Toca para subir imagen</span>
+                                        <span className="text-xs text-slate-400 mt-1">Soporta .jpg, .png</span>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-xl">
+                                            <img src={calendarImage} className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                                            <div className="flex-1">
+                                                <span className="text-xs font-bold text-lime-600 uppercase tracking-wider block mb-1">Imagen Cargada</span>
+                                                <button onClick={() => { setCalendarImage(null); setPreviewMatches([]); }} className="text-xs text-red-500 hover:underline font-bold">Cambiar imagen</button>
+                                            </div>
+                                        </div>
+                                        
+                                        <Input 
+                                            label="Nombre de tu Club/Sede (Para saber si es Casa)" 
+                                            placeholder="Ej. Racket Sport" 
+                                            value={myClubName}
+                                            onChange={(e) => setMyClubName(e.target.value)}
+                                        />
+
+                                        {previewMatches.length === 0 ? (
+                                            <Button onClick={analyzeCalendarImage} disabled={!myClubName || isAnalyzingImage} className="w-full">
+                                                {isAnalyzingImage ? 'Analizando imagen...' : 'Extraer Partidos'}
+                                            </Button>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Vista Previa ({previewMatches.length})</h4>
+                                                <div className="max-h-48 overflow-y-auto border rounded-xl border-slate-200 bg-slate-50">
+                                                    {previewMatches.map((m, i) => (
+                                                        <div key={i} className="p-3 border-b border-slate-100 last:border-0 text-sm flex justify-between items-center">
+                                                            <div>
+                                                                <div className="font-bold text-slate-800">{m.opponent}</div>
+                                                                <div className="text-[10px] text-slate-500">{formatDate(m.date!)}</div>
+                                                            </div>
+                                                            <div className={`text-[10px] font-black uppercase px-2 py-1 rounded ${m.isHome ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                                {m.isHome ? 'Casa' : 'Fuera'}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+
                 {modalType === 'EDIT_TEAM' && ( <Input label="Nuevo Nombre del Equipo" value={tempTeamName} onChange={(e) => setTempTeamName(e.target.value)} /> )}
             </div>
-            <div className="p-6 bg-slate-100 flex justify-end gap-3"><Button variant="ghost" className="font-bold" onClick={() => setIsModalOpen(false)}>Cancelar</Button><Button className="px-10 h-12 font-black" onClick={() => { if (modalType === 'ADD_PLAYER') { if (importMode === 'MANUAL') addPlayer(tempPlayer); else addPlayersBulk(); } else if (modalType === 'EDIT_PLAYER') updatePlayer(tempPlayer); else if (modalType === 'ADD_MATCH' || modalType === 'EDIT_MATCH') saveMatch(); else if (modalType === 'EDIT_TEAM') handleUpdateTeamName(); }}>Guardar Cambios</Button></div>
+            <div className="p-6 bg-slate-100 flex justify-end gap-3"><Button variant="ghost" className="font-bold" onClick={() => setIsModalOpen(false)}>Cancelar</Button><Button className="px-10 h-12 font-black" onClick={() => { 
+                if (modalType === 'ADD_PLAYER') { 
+                    if (importMode === 'MANUAL') addPlayer(tempPlayer); else addPlayersBulk(); 
+                } else if (modalType === 'EDIT_PLAYER') {
+                    updatePlayer(tempPlayer); 
+                } else if (modalType === 'ADD_MATCH' || modalType === 'EDIT_MATCH') {
+                    saveMatch(); 
+                } else if (modalType === 'GENERATE_CALENDAR') {
+                    if (calendarMode === 'PATTERN') handleGenerateCalendar();
+                    else saveImportedMatches();
+                } else if (modalType === 'EDIT_TEAM') {
+                    handleUpdateTeamName(); 
+                }
+            }}>
+                {modalType === 'GENERATE_CALENDAR' ? 'Confirmar' : 'Guardar Cambios'}
+            </Button></div>
           </div>
         </div>
       )}

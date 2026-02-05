@@ -6,9 +6,9 @@ export const PadelLogo = ({ className = "w-12 h-12" }: { className?: string }) =
     <circle cx="50" cy="50" r="48" fill="#a3e635" stroke="#ffffff" strokeWidth="2" /> 
     <circle cx="50" cy="50" r="46" fill="url(#fuzz)" fillOpacity="0.15" />
     <path 
-      d="M15 50 L 35 50 L 45 25 L 55 75 L 65 50 L 85 50" 
+      d="M 2 50 L 30 50 L 40 25 L 50 75 L 60 50 L 98 50" 
       fill="none" 
-      stroke="#1e3a8a"
+      stroke="#ffffff"
       strokeWidth="5" 
       strokeLinecap="round" 
       strokeLinejoin="round"

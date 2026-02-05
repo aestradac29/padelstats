@@ -32,7 +32,10 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  Menu
+  Menu,
+  Wand2,
+  Table,
+  ListFilter
 } from 'lucide-react';
 
 export { 
@@ -68,5 +71,8 @@ export {
   ChevronDown,
   ChevronUp,
   Sparkles,
-  Menu
+  Menu,
+  Wand2,
+  Table,
+  ListFilter
 };

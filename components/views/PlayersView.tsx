@@ -118,12 +118,17 @@ const PlayersView: React.FC<PlayersViewProps> = ({
     });
 
     const getInitialPointsForEdit = (pid: string) => {
+        // Fallback logic: If season points are undefined, default to global initialPoints instead of 0
         if (viewSeasonId === 'all') {
             const p = data.players.find(pl => pl.id === pid);
             return p?.initialPoints || 0;
         } else {
             const season = data.seasons?.find(s => s.id === viewSeasonId);
-            return season?.playerStartPoints?.[pid] || 0;
+            const p = data.players.find(pl => pl.id === pid);
+            if (season?.playerStartPoints && typeof season.playerStartPoints[pid] !== 'undefined') {
+                return season.playerStartPoints[pid];
+            }
+            return p?.initialPoints || 0;
         }
     };
 

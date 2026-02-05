@@ -12,7 +12,6 @@ interface LineupViewProps {
 
 const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
     const [opponentDesc, setOpponentDesc] = useState('');
-    const [focus, setFocus] = useState<'aggressive' | 'defensive' | 'balanced'>('balanced');
     const [availablePlayers, setAvailablePlayers] = useState<string[]>([]);
     const [autoSort, setAutoSort] = useState(true);
     const [lineupAdvice, setLineupAdvice] = useState<string>('');
@@ -75,7 +74,7 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
         
         try {
             // Pass available players to AI
-            const result = await getLineupSuggestion(data.players, availablePlayers, opponentDesc, focus);
+            const result = await getLineupSuggestion(data.players, availablePlayers, opponentDesc);
             
             // 1. Update Reasoning
             setLineupAdvice(result.reasoning);
@@ -203,20 +202,6 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                   value={opponentDesc} 
                                   onChange={(e) => setOpponentDesc(e.target.value)}
                                ></textarea>
-                           </div>
-                           <div>
-                               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Estrategia</label>
-                               <div className="grid grid-cols-3 gap-2">
-                                   {['aggressive', 'balanced', 'defensive'].map(f => ( 
-                                       <button 
-                                          key={f} 
-                                          onClick={() => setFocus(f as any)} 
-                                          className={`py-2 px-1 rounded-lg text-[10px] font-bold uppercase transition-all border ${focus === f ? 'bg-lime-500 border-lime-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400 hover:border-lime-500/50'}`}
-                                       >
-                                           {f === 'aggressive' ? 'Ofensiva' : f === 'balanced' ? 'Equilibrada' : 'Defensiva'}
-                                       </button> 
-                                   ))}
-                               </div>
                            </div>
                            <Button 
                               className="w-full justify-center h-12 text-sm font-black shadow-lime-500/20 shadow-lg mt-2" 
