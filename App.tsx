@@ -281,7 +281,7 @@ const App = () => {
       opponent: tempMatch.opponent || 'Desconocido',
       isHome: tempMatch.isHome ?? true,
       lineups: tempMatch.lineups || [],
-      notes: tempMatch.notes || null,
+      notes: tempMatch.notes || undefined,
       tandas: tempMatch.tandas || '5',
       seasonId: tempMatch.seasonId || activeSeason.id 
     };

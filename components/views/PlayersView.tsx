@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LayoutGrid, List, ArrowUpDown, Edit2, Hand, Trash2, Plus } from '../Icons';
 import { Button, Card } from '../UIComponents';
-import { AppState, Player, Position, MatchResult } from '../../types';
+import { AppState, Player, Position, MatchResult, MatchDay } from '../../types';
 
 interface PlayersViewProps {
     data: AppState | null;
@@ -16,7 +16,7 @@ interface PlayersViewProps {
 }
 
 // Exporting this to be used by other views if needed, though simpler to duplicate small logic in refactor or use utils
-export const getPoints = (p: Player, matchesContext: any[], seasonId: string, data: AppState) => {
+export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: string, data: AppState) => {
     if (!data) return 0;
     let calculatedPoints = p.initialPoints || 0;
     let currentSettings = data.settings;
