@@ -287,18 +287,17 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                                 <button onClick={() => clearPair(idx)} className="text-slate-500"><X size={14}/></button>
                                            </div>
 
-                                           {/* Player 1 (Drive) */}
+                                           {/* Player 2 (Revés) - MOVED TO LEFT */}
                                            <div className="flex-1 w-full relative">
                                                 <div className="absolute top-2 left-3 z-10 pointer-events-none">
-                                                    <span className="text-[9px] font-black uppercase tracking-wider text-blue-400 bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-900/50">Drive</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-950/80 px-1.5 py-0.5 rounded border border-orange-900/50">Revés</span>
                                                 </div>
                                                 <div className="bg-slate-700/50 rounded-lg p-1">
-                                                    {/* CHANGED: Increased input height to h-11 */}
                                                     <Select 
                                                         options={playerOptions} 
-                                                        value={pair.player1Id} 
-                                                        onChange={(e) => updatePair(idx, 'player1Id', e.target.value)}
-                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pl-14 h-11 focus:ring-0 cursor-pointer"
+                                                        value={pair.player2Id} 
+                                                        onChange={(e) => updatePair(idx, 'player2Id', e.target.value)}
+                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pl-16 h-11 focus:ring-0 cursor-pointer"
                                                     />
                                                 </div>
                                            </div>
@@ -315,18 +314,17 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                                )}
                                            </div>
 
-                                           {/* Player 2 (Revés) */}
+                                           {/* Player 1 (Drive) - MOVED TO RIGHT */}
                                            <div className="flex-1 w-full relative">
                                                 <div className="absolute top-2 left-3 z-10 pointer-events-none">
-                                                    <span className="text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-950/80 px-1.5 py-0.5 rounded border border-orange-900/50">Revés</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-wider text-blue-400 bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-900/50">Drive</span>
                                                 </div>
                                                 <div className="bg-slate-700/50 rounded-lg p-1">
-                                                    {/* CHANGED: Increased input height to h-11 */}
                                                     <Select 
                                                         options={playerOptions} 
-                                                        value={pair.player2Id} 
-                                                        onChange={(e) => updatePair(idx, 'player2Id', e.target.value)}
-                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pl-16 h-11 focus:ring-0 cursor-pointer"
+                                                        value={pair.player1Id} 
+                                                        onChange={(e) => updatePair(idx, 'player1Id', e.target.value)}
+                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pl-14 h-11 focus:ring-0 cursor-pointer"
                                                     />
                                                 </div>
                                            </div>
@@ -353,8 +351,8 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                    
                    {/* Legend */}
                    <div className="mt-4 flex gap-4 justify-center text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500"></div> Drive</span>
                         <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div> Revés</span>
+                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500"></div> Drive</span>
                         <span className="flex items-center gap-1"><Zap size={10} className="text-lime-500"/> Puntos Totales</span>
                    </div>
                </div>
