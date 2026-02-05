@@ -114,7 +114,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     
     // Calculate Match Day results (Win/Loss/Draw based on majority sets)
     const getMatchDayResult = (m: MatchDay) => {
-        // CRITICAL FIX: If no lineups, it's PENDING, not a DRAW.
         if (!m.lineups || m.lineups.length === 0) return 'PENDING';
         
         const wins = m.lineups.filter(l => l.result === MatchResult.WIN).length;
@@ -138,7 +137,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     const totalLineupsWonDirect = playedMatches.reduce((acc, m) => acc + m.lineups.filter(l => l.result === MatchResult.WIN).length, 0);
     const matchesWinRate = totalLineupsPlayed > 0 ? Math.round((totalLineupsWonDirect / totalLineupsPlayed) * 100) : 0;
 
+    // Reset analysis when data or season changes to avoid stale data
     useEffect(() => {
+        setAiAnalysis(null);
+    }, [viewSeasonId, data?.matches.length]);
+
+    const handleRunAnalysis = () => {
         if (!data) return;
         setLoadingAi(true);
         
@@ -190,8 +194,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         analyzeTeamStats(context)
             .then(setAiAnalysis)
             .finally(() => setLoadingAi(false));
-            
-    }, [data, viewSeasonId]); 
+    };
 
     if (!data) return <div>Cargando...</div>;
     const chartData = stats.map(p => ({ name: p.name, points: p.points })).sort((a, b) => b.points - a.points).slice(0, 5);
@@ -226,39 +229,57 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                     <BrainCircuit size={20} />
                  </div>
                  <h3 className="font-bold text-lg text-white">Análisis Técnico IA</h3>
-                 {loadingAi && <span className="text-xs text-blue-300 animate-pulse ml-auto">Analizando...</span>}
             </div>
             
-            <div className="p-6 grid md:grid-cols-3 gap-6">
-                 {/* Column 1: Summary */}
-                 <div className="md:col-span-2 space-y-4">
-                     <div>
-                        <h4 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2">Situación Actual</h4>
-                        <p className="text-blue-50 text-sm leading-relaxed font-light">
-                            {aiAnalysis?.summary || "Recopilando datos de la temporada..."}
-                        </p>
+            {!aiAnalysis ? (
+                <div className="p-8 flex flex-col items-center justify-center text-center relative z-10">
+                    <Sparkles className="text-lime-400 mb-3 opacity-80" size={32} />
+                    <p className="text-blue-200 text-sm mb-6 max-w-md leading-relaxed">
+                        Utiliza la Inteligencia Artificial para detectar patrones, rachas y áreas de mejora en tu juego basándose en los datos actuales de la temporada.
+                    </p>
+                    <Button onClick={handleRunAnalysis} disabled={loadingAi} className="shadow-lg shadow-lime-500/20 px-8 py-3">
+                        {loadingAi ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
+                                <span>Analizando...</span>
+                            </>
+                        ) : (
+                            'Generar Informe Táctico'
+                        )}
+                    </Button>
+                </div>
+            ) : (
+                <div className="p-6 grid md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
+                     {/* Column 1: Summary */}
+                     <div className="md:col-span-2 space-y-4">
+                         <div>
+                            <h4 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2">Situación Actual</h4>
+                            <p className="text-blue-50 text-sm leading-relaxed font-light">
+                                {aiAnalysis.summary}
+                            </p>
+                         </div>
+                         <div>
+                            <h4 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2">Detalles Clave</h4>
+                            <p className="text-blue-50 text-sm leading-relaxed font-light">
+                                 {aiAnalysis.details}
+                            </p>
+                         </div>
                      </div>
-                     <div>
-                        <h4 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2">Detalles Clave</h4>
-                        <p className="text-blue-50 text-sm leading-relaxed font-light">
-                             {aiAnalysis?.details || "..."}
-                        </p>
-                     </div>
-                 </div>
 
-                 {/* Column 2: Technical Focus (Real Objective) */}
-                 <div className="bg-blue-900/50 rounded-xl p-4 border border-blue-700/50 flex flex-col justify-center relative overflow-hidden">
-                     <div className="absolute -right-4 -top-4 text-blue-800/20 rotate-12">
-                         <Sparkles size={100} />
+                     {/* Column 2: Technical Focus (Real Objective) */}
+                     <div className="bg-blue-900/50 rounded-xl p-4 border border-blue-700/50 flex flex-col justify-center relative overflow-hidden">
+                         <div className="absolute -right-4 -top-4 text-blue-800/20 rotate-12">
+                             <Sparkles size={100} />
+                         </div>
+                         <h4 className="text-xs font-black text-lime-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <Sparkles size={12} /> Objetivo Prioritario
+                         </h4>
+                         <p className="text-white font-medium italic text-lg leading-snug relative z-10">
+                            "{aiAnalysis.tip}"
+                         </p>
                      </div>
-                     <h4 className="text-xs font-black text-lime-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <Sparkles size={12} /> Objetivo Prioritario
-                     </h4>
-                     <p className="text-white font-medium italic text-lg leading-snug relative z-10">
-                        "{aiAnalysis?.tip || "..."}"
-                     </p>
-                 </div>
-            </div>
+                </div>
+            )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
