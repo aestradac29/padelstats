@@ -17,7 +17,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 // New Imports
 import { DEFAULT_SETTINGS, DEFAULT_SEASON, TANDA_OPTIONS } from './utils/constants';
-import { updateFavicon, compressImage, recalculateStats } from './utils/helpers';
+import { compressImage, recalculateStats } from './utils/helpers';
 import { Button, Input, Select, Checkbox, PadelLogo } from './components/UIComponents';
 
 // Views
@@ -72,7 +72,7 @@ const App = () => {
 
   // --- Initialization & Auth Listener ---
   useEffect(() => {
-    updateFavicon();
+    // Favicon is now handled statically in index.html
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);

@@ -1,13 +1,6 @@
 import { MatchDay, MatchResult, Player } from "../types";
 
-export const updateFavicon = () => {
-  const svg = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="%23a3e635" stroke="%23ffffff" stroke-width="2"/><path d="M15 50 L 35 50 L 45 25 L 55 75 L 65 50 L 85 50" fill="none" stroke="%231e3a8a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  const link = (document.querySelector("link[rel*='icon']") as HTMLLinkElement) || document.createElement('link');
-  link.type = 'image/svg+xml';
-  link.rel = 'icon';
-  link.href = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  document.head.appendChild(link);
-};
+// updateFavicon removed - now handled by static icon.svg and manifest
 
 export const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
