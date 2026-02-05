@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles } from '../Icons';
 import { Card, Button } from '../UIComponents';
@@ -111,14 +112,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     const stats = getFilteredStats();
     const filteredMatches = getFilteredMatches();
     
-    // Stats Calculations
-    const totalLineupsPlayed = filteredMatches.reduce((acc, m) => acc + (m.lineups?.length || 0), 0);
-    const totalLineupsWonDirect = filteredMatches.reduce((acc, m) => acc + m.lineups.filter(l => l.result === MatchResult.WIN).length, 0);
-
-    const matchDaysCount = filteredMatches.length;
-    
     // Calculate Match Day results (Win/Loss/Draw based on majority sets)
     const getMatchDayResult = (m: MatchDay) => {
+        // CRITICAL FIX: If no lineups, it's PENDING, not a DRAW.
+        if (!m.lineups || m.lineups.length === 0) return 'PENDING';
+        
         const wins = m.lineups.filter(l => l.result === MatchResult.WIN).length;
         const losses = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
         if (wins > losses) return 'WIN';
@@ -126,34 +124,42 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         return 'DRAW';
     };
 
-    const matchDaysWon = filteredMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
-    const matchDaysWinRate = matchDaysCount > 0 ? Math.round((matchDaysWon / matchDaysCount) * 100) : 0;
+    // Derived Stats
+    const playedMatches = filteredMatches.filter(m => m.lineups && m.lineups.length > 0);
+    const matchDaysTotal = filteredMatches.length;
+    const matchDaysPlayedCount = playedMatches.length;
+
+    const matchDaysWon = playedMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
+    
+    // Win Rates (Based only on PLAYED matches)
+    const matchDaysWinRate = matchDaysPlayedCount > 0 ? Math.round((matchDaysWon / matchDaysPlayedCount) * 100) : 0;
+    
+    const totalLineupsPlayed = playedMatches.reduce((acc, m) => acc + (m.lineups?.length || 0), 0);
+    const totalLineupsWonDirect = playedMatches.reduce((acc, m) => acc + m.lineups.filter(l => l.result === MatchResult.WIN).length, 0);
     const matchesWinRate = totalLineupsPlayed > 0 ? Math.round((totalLineupsWonDirect / totalLineupsPlayed) * 100) : 0;
 
     useEffect(() => {
         if (!data) return;
         setLoadingAi(true);
         
-        // 1. Calculate Home vs Away Performance
-        const homeMatches = filteredMatches.filter(m => m.isHome);
-        const awayMatches = filteredMatches.filter(m => !m.isHome);
+        // 1. Calculate Home vs Away Performance (Only Played)
+        const homeMatches = playedMatches.filter(m => m.isHome);
+        const awayMatches = playedMatches.filter(m => !m.isHome);
         
         const homeWins = homeMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
         const awayWins = awayMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
 
-        // 2. Calculate Recent Streak (Last 5)
+        // 2. Calculate Recent Streak (Last 5 Played)
         // Sort Newest -> Oldest first to get the last 5
-        const sortedMatchesDesc = [...filteredMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const sortedMatchesDesc = [...playedMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         // Get the last 5 results
         let recentResults = sortedMatchesDesc.slice(0, 5).map(m => getMatchDayResult(m));
         
         // REVERSE it so it reads chronologically (Oldest -> Newest) for the AI context
-        // This fixes the "loss win win" vs "win win loss" confusion
         const chronologicalStreak = [...recentResults].reverse(); 
 
         // 3. Find MVP (Most points)
-        // BUG FIX: Must have played at least 1 match to be MVP
         const activePlayers = stats.filter(p => p.matchesPlayed > 0);
         const mvpPlayer = activePlayers.length > 0 ? activePlayers.reduce((prev, current) => (prev.points > current.points) ? prev : current) : null;
 
@@ -161,11 +167,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         const context = {
             teamName: data.teamName,
             seasonId: viewSeasonId,
-            totalMatchDays: matchDaysCount,
+            totalScheduledMatches: matchDaysTotal,
+            matchesPlayed: matchDaysPlayedCount,
             matchDaysRecord: {
                 won: matchDaysWon,
-                lost: filteredMatches.filter(m => getMatchDayResult(m) === 'LOSS').length,
-                draw: filteredMatches.filter(m => getMatchDayResult(m) === 'DRAW').length,
+                lost: playedMatches.filter(m => getMatchDayResult(m) === 'LOSS').length,
+                draw: playedMatches.filter(m => getMatchDayResult(m) === 'DRAW').length,
             },
             individualMatchesRecord: {
                 total: totalLineupsPlayed,
@@ -176,8 +183,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 home: `${homeWins} victorias de ${homeMatches.length} jugados`,
                 away: `${awayWins} victorias de ${awayMatches.length} jugados`,
             },
-            // Explicitly state format to AI
-            recentStreakChronological: chronologicalStreak.join(' -> ') + " (Last match is the rightmost)", 
+            recentStreakChronological: chronologicalStreak.length > 0 ? chronologicalStreak.join(' -> ') : "Sin partidos jugados", 
             mvpPlayer: mvpPlayer ? `${mvpPlayer.name} (${mvpPlayer.points} pts)` : 'N/A (Nadie ha jugado aún)'
         };
 
@@ -281,9 +287,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-slate-100">
-                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wide">Jornadas</span>
+                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wide">Jornadas Jugadas</span>
                     <div className="flex items-end gap-2 mt-1">
-                        <span className="font-black text-xl text-slate-900">{matchDaysCount}</span>
+                        <span className="font-black text-xl text-slate-900">{matchDaysPlayedCount} <span className="text-sm text-slate-400 font-normal">/ {matchDaysTotal}</span></span>
                     </div>
                   </div>
                   <div className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-slate-100">
