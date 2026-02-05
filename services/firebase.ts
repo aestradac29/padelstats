@@ -1,5 +1,5 @@
 
-import * as firebaseApp from 'firebase/app';
+import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   createUserWithEmailAndPassword, 
@@ -31,8 +31,7 @@ const firebaseConfig = {
   measurementId: "G-78L3200GZ5"
 };
 
-// Use type assertion to handle potential environment mismatches where initializeApp is not correctly typed
-const app = (firebaseApp as any).initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
