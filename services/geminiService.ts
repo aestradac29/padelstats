@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Player, MatchDay } from "../types";
+import { Player, MatchDay, MatchResult, MatchLineup } from "../types";
 
 // Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -186,5 +186,81 @@ export const extractScheduleFromImage = async (
     } catch (error) {
         console.error("Error parsing calendar image:", error);
         throw new Error("No se pudo leer el calendario. Asegúrate que la imagen sea clara.");
+    }
+};
+
+export const parseMatchDetailsFromText = async (
+    rawText: string,
+    players: Player[]
+): Promise<Partial<MatchDay>> => {
+    
+    // Simplificar lista de jugadores para la IA
+    const roster = players.map(p => ({
+        id: p.id,
+        name: p.name,
+        surname: p.surname
+    }));
+
+    const currentDate = new Date().toISOString();
+
+    const prompt = `
+        Analiza el siguiente texto copiado de WhatsApp con los resultados de una jornada de pádel.
+        
+        TEXTO ORIGINAL:
+        """
+        ${rawText}
+        """
+
+        JUGADORES DE MI EQUIPO (Usa sus IDs):
+        ${JSON.stringify(roster)}
+        
+        INSTRUCCIONES:
+        1. Identifica la FECHA y HORA. Usa el año actual (${new Date().getFullYear()}). Devuelve ISO String.
+        2. Identifica el RIVAL. Normalmente está en la primera línea. Si pone algo como "Racket Z - G6 All black", y mi equipo no sé cuál es, asume que el rival es el nombre que NO parece una sede o que parece un equipo contrario.
+        3. Identifica la SEDE/LUGAR y ponlo en 'notes'.
+        4. Identifica las TANDAS (ej: '3-2').
+        5. Identifica si es CASA o FUERA (isHome). Si la sede coincide con el nombre del primer equipo mencionado, suele ser casa. Usa tu criterio.
+        6. EXTRAE LAS ALINEACIONES (Lineups):
+           - Busca patrones como "1 Luis - Cristian 6-3 6-4 👍🏻".
+           - Mapea los nombres (Luis, Cristian) a los IDs de mi lista de jugadores. Si no encuentras coincidencia exacta, usa la más cercana fonéticamente. Si es un jugador desconocido, déjalo vacío.
+           - Extrae los sets (ej: "6-3", "6-4").
+           - Extrae el resultado: 👍🏻, ✅, WIN, GANADO = 'Victoria'. 👎🏻, ❌, LOSS, PERDIDO = 'Derrota'.
+        
+        DEVUELVE SOLO JSON CON ESTA ESTRUCTURA (MatchDay):
+        {
+            "date": "ISO_STRING",
+            "opponent": "Nombre Rival",
+            "isHome": boolean,
+            "tandas": "string (ej: 3-2)",
+            "notes": "Sede encontrada",
+            "lineups": [
+                {
+                    "player1Id": "id_found_or_empty",
+                    "player2Id": "id_found_or_empty",
+                    "set1": "6-0",
+                    "set2": "6-0",
+                    "set3": "",
+                    "result": "Victoria" | "Derrota" | "Empate"
+                }
+            ]
+        }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json"
+            }
+        });
+
+        const text = response.text || "{}";
+        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(jsonStr);
+
+    } catch (error) {
+        console.error("Error parsing text match:", error);
+        throw new Error("No se pudo interpretar el texto. Revisa el formato.");
     }
 };

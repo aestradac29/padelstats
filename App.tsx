@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus
+  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List
 } from './components/Icons';
 import { 
   Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -20,7 +20,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { DEFAULT_SETTINGS, DEFAULT_SEASON, TANDA_OPTIONS } from './utils/constants';
 import { compressImage, recalculateStats, formatDate } from './utils/helpers';
 import { Button, Input, Select, Checkbox, PadelLogo } from './components/UIComponents';
-import { extractScheduleFromImage } from './services/geminiService';
+import { extractScheduleFromImage, parseMatchDetailsFromText } from './services/geminiService';
 
 // Views
 import LoginView from './components/views/LoginView';
@@ -66,6 +66,11 @@ const App = () => {
     tandas: '5',
     availablePlayers: []
   });
+
+  // Match Import State
+  const [showMatchTextImport, setShowMatchTextImport] = useState(false);
+  const [matchImportText, setMatchImportText] = useState('');
+  const [isProcessingText, setIsProcessingText] = useState(false);
 
   // Guest/Filial Add State
   const [isAddingGuest, setIsAddingGuest] = useState(false);
@@ -362,6 +367,33 @@ const App = () => {
           alert(e.message);
       } finally {
           setIsAnalyzingImage(false);
+      }
+  };
+  
+  // --- MATCH TEXT PARSING ---
+  const handleMatchTextImport = async () => {
+      if (!data || !matchImportText.trim()) return;
+      setIsProcessingText(true);
+      try {
+          const result = await parseMatchDetailsFromText(matchImportText, data.players);
+          
+          // Merge result with tempMatch
+          setTempMatch(prev => ({
+              ...prev,
+              ...result,
+              // Ensure we combine available players if any found
+              availablePlayers: [
+                  ...(prev.availablePlayers || []), 
+                  ...(result.availablePlayers || [])
+              ]
+          }));
+          
+          setMatchImportText('');
+          setShowMatchTextImport(false);
+      } catch (e: any) {
+          alert(e.message);
+      } finally {
+          setIsProcessingText(false);
       }
   };
 
@@ -865,6 +897,32 @@ const App = () => {
                             )}
                 </> )}
                 {(modalType === 'ADD_MATCH' || modalType === 'EDIT_MATCH') && ( <>
+                        
+                        {/* Import Text Button Area */}
+                        {!showMatchTextImport ? (
+                             <div className="flex justify-end mb-2">
+                                 <button onClick={() => setShowMatchTextImport(true)} className="flex items-center gap-1 text-[10px] uppercase font-black text-lime-600 bg-lime-50 px-3 py-2 rounded-lg hover:bg-lime-100 transition-colors">
+                                     <List size={14} /> Importar desde WhatsApp
+                                 </button>
+                             </div>
+                        ) : (
+                             <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2">
+                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Pega el texto del partido aquí</label>
+                                 <textarea 
+                                     className="w-full h-32 p-3 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm mb-2 outline-none focus:ring-2 focus:ring-lime-400"
+                                     placeholder={`Ej:\nEquipo A - Equipo B\nSábado 15 - 17:30\n\n1 Pedro - Juan 6-4 7-6 👍🏻`}
+                                     value={matchImportText}
+                                     onChange={(e) => setMatchImportText(e.target.value)}
+                                 />
+                                 <div className="flex justify-end gap-2">
+                                     <button onClick={() => setShowMatchTextImport(false)} className="text-xs font-bold text-slate-500 px-3 py-1.5 hover:bg-slate-200 rounded-lg">Cancelar</button>
+                                     <button onClick={handleMatchTextImport} disabled={isProcessingText || !matchImportText.trim()} className="text-xs font-bold bg-lime-400 text-blue-900 px-3 py-1.5 rounded-lg hover:bg-lime-300 flex items-center gap-2">
+                                         {isProcessingText ? 'Procesando...' : <><Sparkles size={12}/> Interpretar con IA</>}
+                                     </button>
+                                 </div>
+                             </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-4 items-end"><Input type="datetime-local" label="Fecha y Hora" value={tempMatch.date} onChange={e => setTempMatch(m => ({...m, date: e.target.value}))} /><div className="bg-slate-100 p-1 rounded-xl flex"><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${tempMatch.isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: true}))}>Casa</button><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${!tempMatch.isHome ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: false}))}>Fuera</button></div></div>
                         <div className="grid grid-cols-2 gap-4"><Input label="Rival" value={tempMatch.opponent} onChange={e => setTempMatch(m => ({...m, opponent: e.target.value}))} /><Input label="Sede / Notas" value={tempMatch.notes || ''} onChange={e => setTempMatch(m => ({...m, notes: e.target.value}))} /></div>
                         <div className="w-full"><Select label="Tandas" value={tempMatch.tandas || '5'} onChange={(e) => setTempMatch(m => ({...m, tandas: e.target.value}))} options={TANDA_OPTIONS} /></div>
