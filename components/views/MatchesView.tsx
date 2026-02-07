@@ -234,7 +234,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                     return (
                         <div key={match.id} className={`rounded-xl shadow-sm border border-slate-200 border-l-4 ${borderColor} overflow-hidden ${bgColor} transition-all`}>
                             {/* Card Header (Always Visible) */}
-                            <div className="p-4" onClick={() => toggleMatchExpand(match.id)}>
+                            <div className="p-4 cursor-pointer" onClick={() => toggleMatchExpand(match.id)}>
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${match.isHome ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{match.isHome ? 'Casa' : 'Fuera'}</span>
@@ -276,48 +276,60 @@ const MatchesView: React.FC<MatchesViewProps> = ({
 
                             {/* Expanded Details (Lineups) */}
                             {isExpanded && (
-                                <div className="bg-slate-50 border-t border-slate-100 p-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                                    {match.tandas && (
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 text-center">
-                                            Formato: {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
+                                <div className="bg-slate-50/50 border-t border-slate-100 p-2 animate-in slide-in-from-top-2 duration-200">
+                                    {match.tandas && match.tandas !== '5' && (
+                                        <div className="flex justify-center mb-2">
+                                            <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-slate-200">
+                                                {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
+                                            </span>
                                         </div>
                                     )}
                                     {(!match.lineups || match.lineups.length === 0) ? (
-                                        <div className="text-center py-4 text-xs text-slate-400 italic">
-                                            No hay resultados registrados.
+                                        <div className="text-center py-3 text-xs text-slate-400 italic">
+                                            Sin resultados registrados.
                                         </div>
                                     ) : (
-                                        match.lineups.map((lineup, idx) => {
-                                            const p1 = data?.players.find(p => p.id === lineup.player1Id);
-                                            const p2 = data?.players.find(p => p.id === lineup.player2Id);
-                                            return (
-                                                <div key={idx} className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex flex-col gap-2">
-                                                    <div className="flex justify-between items-start">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${lineup.result === MatchResult.WIN ? 'bg-lime-500' : lineup.result === MatchResult.LOSS ? 'bg-red-500' : 'bg-slate-300'}`}></div>
-                                                            <div className="text-xs font-bold text-slate-800 leading-tight">
-                                                                {p1?.name} {p1?.surname || ''} <br/> {p2?.name} {p2?.surname || ''}
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {match.lineups.map((lineup, idx) => {
+                                                const p1 = data?.players.find(p => p.id === lineup.player1Id);
+                                                const p2 = data?.players.find(p => p.id === lineup.player2Id);
+                                                
+                                                // Determine Result Colors
+                                                const isWin = lineup.result === MatchResult.WIN;
+                                                const isLoss = lineup.result === MatchResult.LOSS;
+                                                const stripColor = isWin ? 'bg-lime-500' : isLoss ? 'bg-red-500' : 'bg-slate-300';
+                                                const scoreBg = isWin ? 'bg-lime-50 text-lime-700 border-lime-100' : isLoss ? 'bg-red-50 text-red-700 border-red-100' : 'bg-slate-50 text-slate-600 border-slate-100';
+
+                                                return (
+                                                    <div key={idx} className="flex bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden h-full">
+                                                        {/* Color Strip */}
+                                                        <div className={`w-1 ${stripColor} flex-shrink-0`}></div>
+                                                        
+                                                        {/* Content */}
+                                                        <div className="flex-1 p-2 flex items-center justify-between gap-2 overflow-hidden">
+                                                            <div className="flex flex-col min-w-0 justify-center">
+                                                                <div className="text-xs font-bold text-slate-800 truncate leading-tight">
+                                                                    {p1?.name} {p1?.surname || ''} <span className="text-slate-300 mx-0.5">/</span> {p2?.name} {p2?.surname || ''}
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                                                                    {(lineup.opponent1Name || lineup.opponent2Name) 
+                                                                        ? <><span className="opacity-50">vs</span> {lineup.opponent1Name || '?'} / {lineup.opponent2Name || '?'}</>
+                                                                        : <span className="opacity-50 italic">Rival no registrado</span>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {/* Score */}
+                                                            <div className={`flex gap-1 font-mono text-[10px] font-black whitespace-nowrap`}>
+                                                                <span className={`px-1.5 py-0.5 rounded border ${scoreBg}`}>{lineup.set1}</span>
+                                                                <span className={`px-1.5 py-0.5 rounded border ${scoreBg}`}>{lineup.set2}</span>
+                                                                {lineup.set3 && <span className={`px-1.5 py-0.5 rounded border ${scoreBg}`}>{lineup.set3}</span>}
                                                             </div>
                                                         </div>
-                                                        <div className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${lineup.result === MatchResult.WIN ? 'text-lime-700 bg-lime-50' : lineup.result === MatchResult.LOSS ? 'text-red-700 bg-red-50' : 'text-slate-500 bg-slate-100'}`}>
-                                                            {lineup.result === MatchResult.WIN ? 'Vic' : lineup.result === MatchResult.LOSS ? 'Der' : 'Emp'}
-                                                        </div>
                                                     </div>
-                                                    <div className="flex justify-between items-end border-t border-slate-50 pt-2 mt-1">
-                                                        <div className="text-[10px] text-slate-400">
-                                                            {(lineup.opponent1Name || lineup.opponent2Name) ? (
-                                                                <>vs {lineup.opponent1Name} / {lineup.opponent2Name}</>
-                                                            ) : <span>vs Rival Desconocido</span>}
-                                                        </div>
-                                                        <div className="flex gap-1">
-                                                            <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-slate-600">{lineup.set1}</span>
-                                                            <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-slate-600">{lineup.set2}</span>
-                                                            {lineup.set3 && <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold text-slate-600">{lineup.set3}</span>}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })
+                                                )
+                                            })}
+                                        </div>
                                     )}
                                 </div>
                             )}
