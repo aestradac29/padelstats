@@ -55,6 +55,8 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
                     if (result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
                     else if (result === MatchResult.LOSS) calculatedPoints -= currentSettings.pointsPerLoss;
                 }
+                // Clamp to zero after each match result so losses at 0 pts don't create "debt"
+                calculatedPoints = Math.max(0, calculatedPoints);
             }
         });
     } else {
@@ -65,11 +67,13 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
                     if (lineup.result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
                     else if (lineup.result === MatchResult.LOSS) calculatedPoints += currentSettings.pointsPerLoss;
                     else if (lineup.result === MatchResult.DRAW) calculatedPoints += currentSettings.pointsPerDraw;
+                    
+                    calculatedPoints = Math.max(0, calculatedPoints);
                 }
             });
         });
     }
-    return Math.max(0, calculatedPoints);
+    return calculatedPoints;
 };
 
 const PlayersView: React.FC<PlayersViewProps> = ({ 
