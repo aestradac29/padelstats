@@ -57,7 +57,7 @@ export interface ScoringRange {
 }
 
 export interface TeamSettings {
-  scoringSystem: 'SIMPLE' | 'RANGES'; // Toggle between simple constant points or dynamic ranges
+  scoringSystem: 'SIMPLE' | 'RANGES' | 'NONE'; // Toggle between simple, ranges or disabled
   pointsPerWin: number;
   pointsPerLoss: number;
   pointsPerDraw: number;

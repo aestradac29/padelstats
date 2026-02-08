@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Trash2, Check, X, Edit2 } from '../Icons';
-import { Button, Card, Input } from '../UIComponents';
+import { Button, Card, Input, Select } from '../UIComponents';
 import { AppState, Season, TeamSettings, MatchResult } from '../../types';
-import { DEFAULT_SETTINGS } from '../../utils/constants';
+import { DEFAULT_SETTINGS, PRESET_RANGES } from '../../utils/constants';
 import { recalculateStats } from '../../utils/helpers';
 
 interface SettingsViewProps {
@@ -24,11 +24,21 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     const [newSeasonName, setNewSeasonName] = useState('');
     const [editingSeasonId, setEditingSeasonId] = useState<string | null>(null);
     const [tempSeasonName, setTempSeasonName] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
 
     useEffect(() => { 
         if (currentSeason?.settings) setLocalSettings(currentSeason.settings); 
         else if (data?.settings) setLocalSettings(data.settings); 
     }, [viewSeasonId, data]);
+
+    // Auto-detect selected category based on range values
+    useEffect(() => {
+        if (localSettings.ranges) {
+            const match = Object.entries(PRESET_RANGES).find(([key, val]) => JSON.stringify(val) === JSON.stringify(localSettings.ranges));
+            if (match) setSelectedCategory(match[0]);
+            else setSelectedCategory('');
+        }
+    }, [localSettings.ranges]);
 
     if (!data) return null;
 
@@ -224,8 +234,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                  {isGlobalView ? ( <div className="p-10 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50"><p className="text-slate-400 font-medium">Selecciona una temporada específica para editar sus puntos.</p></div> ) : (
                     <>
                     <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'NONE' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'NONE'}))}>Desactivado</button>
                         <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'SIMPLE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'SIMPLE'}))}>Simple</button>
-                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'RANGES' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'RANGES'}))}>Tramos SNP</button>
+                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'RANGES' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'RANGES'}))}>Tramos</button>
                     </div>
                     {localSettings.scoringSystem === 'SIMPLE' ? (
                         <div className="grid grid-cols-2 gap-4">
@@ -234,11 +245,39 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                             <Input type="number" label="Derrota" value={localSettings.pointsPerLoss} onChange={e => setLocalSettings(p => ({...p, pointsPerLoss: Number(e.target.value)}))} />
                             <Input type="number" label="Asistencia" value={localSettings.pointsAttendance} onChange={e => setLocalSettings(p => ({...p, pointsAttendance: Number(e.target.value)}))} />
                         </div>
-                    ) : (
+                    ) : localSettings.scoringSystem === 'RANGES' ? (
                         <div className="space-y-4">
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <Select 
+                                    label="Automatizar Tramos por Categoría"
+                                    value={selectedCategory}
+                                    onChange={(e) => {
+                                        const cat = e.target.value;
+                                        if (cat && PRESET_RANGES[cat]) {
+                                            setLocalSettings(s => ({...s, ranges: PRESET_RANGES[cat]}));
+                                        }
+                                    }}
+                                    options={[
+                                        {label: 'Seleccionar para cargar...', value: ''},
+                                        {label: '1ª Categoría', value: '1ª'},
+                                        {label: '2ª Categoría', value: '2ª'},
+                                        {label: '3ª Categoría', value: '3ª'},
+                                        {label: '4ª Categoría', value: '4ª'},
+                                        {label: '5ª Categoría', value: '5ª'},
+                                        {label: '6ª Categoría', value: '6ª'},
+                                    ]}
+                                />
+                                <p className="text-[10px] text-slate-400 mt-2 italic">* Al seleccionar una categoría se reemplazarán los valores actuales de la tabla.</p>
+                            </div>
                             <div className="overflow-x-auto"><table className="w-full text-xs text-center"><thead className="bg-slate-50 text-slate-400 uppercase"><tr><th className="p-2">Desde</th><th className="p-2">Hasta</th><th className="p-2 text-lime-600">Sumar</th><th className="p-2 text-red-500">Restar</th><th className="p-2"></th></tr></thead><tbody className="divide-y divide-slate-100">
-                                {(localSettings.ranges || []).map((range, idx) => ( <tr key={idx}><td><input type="number" className="w-16 p-2 border rounded-lg text-center bg-white" value={range.min} onChange={(e) => updateRange(idx, 'min', Number(e.target.value))} /></td><td><input type="number" className="w-16 p-2 border rounded-lg text-center bg-white" value={range.max} onChange={(e) => updateRange(idx, 'max', Number(e.target.value))} /></td><td><input type="number" className="w-12 p-2 border rounded-lg text-center font-black text-lime-700 bg-lime-50" value={range.win} onChange={(e) => updateRange(idx, 'win', Number(e.target.value))} /></td><td><input type="number" className="w-12 p-2 border rounded-lg text-center font-black text-red-700 bg-red-50" value={range.loss} onChange={(e) => updateRange(idx, 'loss', Number(e.target.value))} /></td><td><button onClick={() => removeRange(idx)} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td></tr> ))}
+                                {(localSettings.ranges || []).map((range, idx) => ( <tr key={idx}><td><input type="number" className="w-16 p-2 border rounded-lg text-center bg-white" value={range.min} onChange={(e) => updateRange(idx, 'min', Number(e.target.value))} /></td><td><input type="number" className="w-16 p-2 border rounded-lg text-center bg-white" value={range.max} onChange={(e) => updateRange(idx, 'max', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border rounded-lg text-center font-black text-lime-700 bg-lime-50" value={range.win} onChange={(e) => updateRange(idx, 'win', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border rounded-lg text-center font-black text-red-700 bg-red-50" value={range.loss} onChange={(e) => updateRange(idx, 'loss', Number(e.target.value))} /></td><td><button onClick={() => removeRange(idx)} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td></tr> ))}
                             </tbody></table><div className="mt-4"><Button variant="secondary" onClick={addRange} className="w-full text-xs border-dashed border-2 py-3">Añadir Nuevo Tramo</Button></div></div>
+                        </div>
+                    ) : (
+                        <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+                            <Shield size={32} className="mx-auto text-slate-300 mb-2"/>
+                            <p className="text-slate-500 font-medium">Puntuación Automática Desactivada</p>
+                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Los partidos no sumarán ni restarán puntos. Solo se mostrarán los puntos iniciales.</p>
                         </div>
                     )}
                     <div className="pt-6 border-t border-slate-100"><Button onClick={handleSave} className="w-full h-14 text-base">Guardar Configuración de Temporada</Button></div>

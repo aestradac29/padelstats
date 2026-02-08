@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy } from '../Icons';
 import { Button, Card } from '../UIComponents';
@@ -34,6 +33,12 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
             }
         }
     }
+    
+    // If scoring is disabled, just return initial/start points
+    if (currentSettings.scoringSystem === 'NONE') {
+        return calculatedPoints;
+    }
+
     const sortedMatches = [...matchesContext].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
         sortedMatches.forEach(match => {

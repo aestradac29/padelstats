@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles } from '../Icons';
 import { Card, Button } from '../UIComponents';
@@ -33,6 +32,11 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
         }
     }
     
+    // If scoring is disabled, just return initial/start points
+    if (currentSettings.scoringSystem === 'NONE') {
+        return calculatedPoints;
+    }
+
     const matches = data.matches.filter(m => m.seasonId === seasonId || (!m.seasonId && seasonId === 'default') || seasonId === 'all');
     const sortedMatches = [...matches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
