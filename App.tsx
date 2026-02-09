@@ -808,8 +808,8 @@ const App = () => {
           <NavContent />
       </aside>
 
-      <main className="flex-1 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-10 relative scroll-smooth">
-        <div className="max-w-6xl mx-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50 dark:bg-slate-950 relative scroll-smooth">
+        <div className="max-w-6xl mx-auto pb-20 md:pb-0 p-4 md:p-10">
             {currentView === 'DASHBOARD' && (
                 <DashboardView 
                     data={data} 

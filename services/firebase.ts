@@ -21,15 +21,51 @@ import {
 } from 'firebase/firestore';
 import { AppState, TeamSettings, Player } from '../types';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAB6uZxIc9c_ao9J2gTK6dLxWLmPtp_IOI",
-  authDomain: "padel-stats-des.firebaseapp.com",
-  projectId: "padel-stats-des",
-  storageBucket: "padel-stats-des.firebasestorage.app",
-  messagingSenderId: "525423144336",
-  appId: "1:525423144336:web:acbca15b8d36928aad5715",
-  measurementId: "G-78L3200GZ5"
-};
+// Add global type augmentation for ImportMeta to fix TypeScript errors
+declare global {
+  interface ImportMeta {
+    env: any;
+  }
+}
+
+// --- CONFIGURACIÓN DE FIREBASE ---
+
+let firebaseConfig;
+
+const env = import.meta.env || {};
+
+// Verificar si tenemos la clave principal (inyectada via vite.config.ts)
+const hasProdKeys = !!env.VITE_FIREBASE_API_KEY;
+
+if (hasProdKeys) {
+  // --- PRODUCCIÓN (VERCEL / CUSTOM ENV) ---
+  console.log("%c🔥 Firebase: Inicializando con configuración de PRODUCCIÓN", "color: #a3e635; font-weight: bold; background: #1e3a8a; padding: 4px; border-radius: 4px;");
+  console.log(`📡 Conectando a Project ID: ${env.VITE_FIREBASE_PROJECT_ID}`);
+  
+  firebaseConfig = {
+    apiKey: env.VITE_FIREBASE_API_KEY,
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: env.VITE_FIREBASE_APP_ID,
+    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID
+  };
+} else {
+  // --- DESARROLLO (LOCAL) O FALLBACK ---
+  console.log("%c🔧 Firebase: Usando configuración de DESARROLLO / Fallback", "color: orange; font-weight: bold;");
+
+  // Claves de Desarrollo (Padel Stats Des) - Hardcoded backup
+  firebaseConfig = {
+    apiKey: "AIzaSyAB6uZxIc9c_ao9J2gTK6dLxWLmPtp_IOI",
+    authDomain: "padel-stats-des.firebaseapp.com",
+    projectId: "padel-stats-des",
+    storageBucket: "padel-stats-des.firebasestorage.app",
+    messagingSenderId: "525423144336",
+    appId: "1:525423144336:web:acbca15b8d36928aad5715",
+    measurementId: "G-78L3200GZ5"
+  };
+}
 
 const app = initializeApp(firebaseConfig);
 
