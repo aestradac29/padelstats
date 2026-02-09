@@ -42,7 +42,8 @@ import {
   User,
   Zap,
   Sun,
-  Moon
+  Moon,
+  Copy
 } from 'lucide-react';
 
 export { 
@@ -88,5 +89,6 @@ export {
   User,
   Zap,
   Sun,
-  Moon
+  Moon,
+  Copy
 };

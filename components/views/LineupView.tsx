@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Check, BrainCircuit, Sparkles, ArrowUpDown, Trash2, X, ChevronDown, ChevronUp, User, Zap, Shield, Trophy } from '../Icons';
+import { LayoutGrid, Check, BrainCircuit, Sparkles, ArrowUpDown, Trash2, X, ChevronDown, ChevronUp, User, Zap, Shield, Trophy, Copy } from '../Icons';
 import { Button, Card, Checkbox, Select } from '../UIComponents';
 import { AppState, Position } from '../../types';
 import { getLineupSuggestion } from '../../services/geminiService';
@@ -109,6 +109,39 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
 
     const handleSortByPoints = () => {
         setDraftLineup(sortPairs(draftLineup));
+    };
+
+    const handleCopyLineup = () => {
+        let text = `🎾 *Alineación ${data?.teamName || 'Equipo'}*\n`;
+        if (opponentDesc) text += `🆚 Rival: ${opponentDesc}\n`;
+        text += `\n`;
+
+        let hasContent = false;
+        draftLineup.forEach((pair, index) => {
+            const p1 = data?.players.find(p => p.id === pair.player1Id);
+            const p2 = data?.players.find(p => p.id === pair.player2Id);
+
+            if (p1 || p2) {
+                hasContent = true;
+                const name1 = p1 ? p1.name : '___';
+                const name2 = p2 ? p2.name : '___';
+                text += `${index + 1}️⃣ ${name1} / ${name2}\n`;
+            }
+        });
+
+        if (!hasContent) {
+            alert("La alineación está vacía.");
+            return;
+        }
+        
+        text += `\n💪 ¡Vamos Equipo!`;
+
+        navigator.clipboard.writeText(text).then(() => {
+            alert("✅ Alineación copiada al portapapeles");
+        }).catch(err => {
+            console.error('Error al copiar: ', err);
+            alert("Error al copiar al portapapeles");
+        });
     };
 
     const updatePair = (index: number, field: 'player1Id' | 'player2Id', value: string) => {
@@ -253,6 +286,9 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                    <Trophy size={18} className="text-yellow-500"/> Pista Central
                                </h3>
                                <div className="flex gap-2">
+                                    <button onClick={handleCopyLineup} className="text-slate-400 hover:text-lime-400 transition-colors p-2 bg-slate-800 rounded-lg" title="Copiar alineación">
+                                        <Copy size={16}/>
+                                    </button>
                                     <button onClick={handleSortByPoints} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800 rounded-lg" title="Reordenar por fuerza">
                                         <ArrowUpDown size={16}/>
                                     </button>
