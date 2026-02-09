@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNCIONES AUXILIARES ---
+    
+    // Verifica si el usuario ha iniciado sesión en Firebase Auth
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Verifica si el usuario actual es el dueño del documento (por ID)
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- REGLAS DE COLECCIÓN: USERS ---
+    match /users/{userId} {
+      // Lectura: Permitida a autenticados. 
+      // Necesario para que la app pueda mostrar nombres de jugadores al buscar o listar.
+      allow read: if isSignedIn();
+      
+      // Escritura: Solo el propio usuario puede modificar su perfil (nombre, foto, etc.)
+      allow write: if isOwner(userId);
+    }
+
+    // --- REGLAS DE COLECCIÓN: TEAMS ---
+    match /teams/{teamId} {
+      // Lectura: Permitida a cualquier usuario autenticado.
+      // Esto permite compartir el ID del equipo con otros jugadores registrados para que vean las estadísticas.
+      // Si necesitas que gente SIN cuenta vea datos, cambia esto a: allow read: if true;
+      allow read: if isSignedIn();
+
+      // Escritura/Modificación: ESTRICTO.
+      // Solo el Capitán (cuyo UID coincide con el ID del equipo) puede crear, editar partidos o cambiar ajustes.
+      allow write: if isOwner(teamId);
+    }
+  }
+}
