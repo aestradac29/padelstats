@@ -120,13 +120,21 @@ export const createTeam = async (user: User, teamName: string, initialSettings: 
 };
 
 export const subscribeToTeam = (teamId: string, callback: (data: AppState | null) => void) => {
-  return onSnapshot(doc(db, 'teams', teamId), (docSnap) => {
-    if (docSnap.exists()) {
-      callback(docSnap.data() as AppState);
-    } else {
-      callback(null);
+  return onSnapshot(
+    doc(db, 'teams', teamId), 
+    (docSnap) => {
+      if (docSnap.exists()) {
+        callback(docSnap.data() as AppState);
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.error("Error subscribing to team (Firestore):", error);
+      // We could call callback(null) here, but usually we let the UI handle the 'loading' or 'error' state externally.
+      // For now, logging ensures we see permission errors in console.
     }
-  });
+  );
 };
 
 export const getTeamIdForUser = async (uid: string): Promise<string | null> => {

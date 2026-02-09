@@ -206,7 +206,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             .finally(() => setLoadingAi(false));
     };
 
-    if (!data) return <div>Cargando...</div>;
+    if (!data) return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 animate-in fade-in">
+             <div className="w-16 h-16 border-4 border-slate-200 dark:border-slate-700 border-t-lime-500 rounded-full animate-spin mb-6"></div>
+             <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Cargando Equipo</h3>
+             <p className="text-slate-400 text-sm mt-2 font-medium">Sincronizando datos en tiempo real...</p>
+        </div>
+    );
+
     const chartData = stats.map(p => ({ name: p.name, points: p.points })).sort((a, b) => b.points - a.points).slice(0, 5);
     
     return (
