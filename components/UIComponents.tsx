@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Eye, EyeOff, Check, ChevronDown } from './Icons';
 
@@ -30,9 +31,9 @@ export const Button = ({
   
   const variants = {
     primary: "bg-lime-400 text-blue-950 hover:bg-lime-300 shadow-md hover:shadow-lg shadow-lime-400/20",
-    secondary: "bg-white text-blue-900 border-2 border-slate-200 hover:border-blue-600 hover:text-blue-700 shadow-sm",
-    danger: "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200",
-    ghost: "text-slate-500 hover:text-blue-900 hover:bg-slate-100"
+    secondary: "bg-white dark:bg-slate-800 text-blue-900 dark:text-blue-100 border-2 border-slate-200 dark:border-slate-700 hover:border-blue-600 dark:hover:border-blue-400 hover:text-blue-700 dark:hover:text-white shadow-sm",
+    danger: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800",
+    ghost: "text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300 hover:bg-slate-100 dark:hover:bg-slate-800"
   };
   return (
     <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>
@@ -42,7 +43,7 @@ export const Button = ({
 };
 
 export const Card = ({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 ${className || ''}`} {...props}>
+  <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700 p-6 ${className || ''}`} {...props}>
     {children}
   </div>
 );
@@ -54,10 +55,10 @@ export const Input = ({ label, type = "text", ...props }: React.InputHTMLAttribu
 
     return (
         <div className="flex flex-col gap-1 w-full relative">
-            {label && <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</label>}
+            {label && <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</label>}
             <div className="relative">
                 <input 
-                className="px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-full font-medium pr-10 [color-scheme:light]"
+                className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-full font-medium pr-10 [color-scheme:light] dark:[color-scheme:dark]"
                 type={inputType}
                 {...props} 
                 />
@@ -65,7 +66,7 @@ export const Input = ({ label, type = "text", ...props }: React.InputHTMLAttribu
                     <button 
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none"
                     >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -77,21 +78,14 @@ export const Input = ({ label, type = "text", ...props }: React.InputHTMLAttribu
 
 export const Select = ({ label, options, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string, options: {value: string, label: string}[] }) => (
   <div className="flex flex-col gap-1 w-full">
-    {label && <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</label>}
+    {label && <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</label>}
     <div className="relative">
         <select 
-          style={{ 
-            backgroundColor: 'white', 
-            color: '#0f172a',
-            appearance: 'none',
-            MozAppearance: 'none',
-            WebkitAppearance: 'none'
-          }}
-          className={`px-4 py-3 rounded-xl border border-slate-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-full font-bold appearance-none [color-scheme:light] ${props.className}`}
+          className={`px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-full font-bold appearance-none [color-scheme:light] dark:[color-scheme:dark] ${props.className}`}
           {...props}
         >
           {options.map(opt => (
-            <option key={opt.value} value={opt.value} className="text-slate-900 bg-white font-medium">
+            <option key={opt.value} value={opt.value} className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 font-medium">
                 {opt.label}
             </option>
           ))}
@@ -104,11 +98,11 @@ export const Select = ({ label, options, ...props }: React.SelectHTMLAttributes<
 export const Checkbox = ({ label, checked, onChange }: { label: string, checked: boolean, onChange: (checked: boolean) => void }) => (
     <div 
         onClick={() => onChange(!checked)}
-        className={`cursor-pointer flex items-center gap-3 p-3 rounded-xl border transition-all ${checked ? 'border-lime-400 bg-lime-50' : 'border-slate-200 bg-slate-50'}`}
+        className={`cursor-pointer flex items-center gap-3 p-3 rounded-xl border transition-all ${checked ? 'border-lime-400 bg-lime-50 dark:bg-lime-900/20' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'}`}
     >
-        <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${checked ? 'bg-lime-400 border-lime-400' : 'bg-white border-slate-300'}`}>
+        <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${checked ? 'bg-lime-400 border-lime-400' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600'}`}>
             {checked && <Check size={14} className="text-blue-900" />}
         </div>
-        <span className="font-medium text-slate-700 select-none">{label}</span>
+        <span className="font-medium text-slate-700 dark:text-slate-200 select-none">{label}</span>
     </div>
 );

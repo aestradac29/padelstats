@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List
+  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon
 } from './components/Icons';
 import { 
   Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -38,6 +38,15 @@ const App = () => {
   const [data, setData] = useState<AppState | null>(null); 
   const [isLoading, setIsLoading] = useState(true);
   
+  // Theme State
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' || 
+        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
+
   // --- UI State ---
   const [currentView, setCurrentView] = useState<ViewState>('LOGIN');
   const [sessionRole, setSessionRole] = useState<'CAPTAIN' | 'GUEST'>('GUEST');
@@ -100,7 +109,14 @@ const App = () => {
 
   // --- Initialization & Auth Listener ---
   useEffect(() => {
-    // Favicon is now handled statically in index.html
+    // Theme initialization
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -124,7 +140,7 @@ const App = () => {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [darkMode]);
 
   // --- Real-time Data Subscription ---
   useEffect(() => {
@@ -152,6 +168,8 @@ const App = () => {
   }, [teamId]);
 
   // --- Actions ---
+
+  const toggleTheme = () => setDarkMode(!darkMode);
 
   const handleLogout = async () => {
     await logoutUser();
@@ -717,7 +735,14 @@ const App = () => {
 
   const NavContent = () => (
       <div className="flex flex-col h-full">
-         <div className="p-8"><h1 className="text-white font-black text-2xl flex items-center gap-2 tracking-tighter uppercase"><PadelLogo className="w-8 h-8" /> Padel Stats</h1><div className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 uppercase border border-blue-800">{sessionRole}</div></div>
+         <div className="p-8">
+           <h1 className="text-white font-black text-2xl flex items-center gap-2 tracking-tighter uppercase">
+             <PadelLogo className="w-8 h-8" /> Padel Stats
+           </h1>
+           <div className="mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 uppercase border border-blue-800">
+             {sessionRole}
+           </div>
+         </div>
         {data && data.seasons && data.seasons.length > 0 && (
              <div className="px-6 mb-6"><div className="relative"><select style={{ backgroundColor: '#1e3a8a', color: 'white', appearance: 'none', MozAppearance: 'none', WebkitAppearance: 'none' }} value={viewSeasonId} onChange={(e) => setViewSeasonId(e.target.value)} className="w-full font-bold text-sm py-3 px-4 rounded-xl appearance-none border border-blue-800 outline-none focus:ring-2 focus:ring-lime-400 transition-all [color-scheme:dark]"><option value="all">Todas las Temporadas</option>{data.seasons.map(s => ( <option key={s.id} value={s.id}>{s.name} {s.isActive ? '(Activa)' : ''}</option> ))}</select><ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 pointer-events-none" size={18} /></div></div>
         )}
@@ -728,7 +753,13 @@ const App = () => {
              return ( <button key={item.id} onClick={() => { setCurrentView(item.id as ViewState); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group ${isActive ? 'bg-lime-400 text-blue-950 shadow-lg shadow-lime-400/20' : 'hover:bg-blue-900 hover:text-white'}`}><item.icon size={22} className={isActive ? 'text-blue-950' : 'text-slate-400 group-hover:text-lime-400'} /><span className="font-bold text-xs uppercase tracking-wider">{item.label}</span>{isActive && <ChevronRight size={16} className="ml-auto opacity-50" />}</button> )
           })}
         </nav>
-        <div className="p-6 border-t border-blue-900"><button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-xl transition-all text-xs font-black uppercase"><LogOut size={18} /> Salir de la Sesión</button></div>
+        <div className="p-6 border-t border-blue-900 space-y-3">
+          <button onClick={toggleTheme} className="w-full flex items-center gap-3 px-4 py-3 text-blue-300 hover:text-white hover:bg-blue-900/50 rounded-xl transition-all text-xs font-bold uppercase">
+             {darkMode ? <Sun size={18}/> : <Moon size={18}/>} 
+             <span>{darkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
+          </button>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-xl transition-all text-xs font-black uppercase"><LogOut size={18} /> Salir de la Sesión</button>
+        </div>
       </div>
   );
 
@@ -748,12 +779,17 @@ const App = () => {
   const playerOptionsForSelect = [{label: '...', value: ''}, ...availablePlayersForSelect.map(p => ({label: `${p.name} ${p.surname || ''}`, value: p.id}))];
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">
       
       {/* Mobile Top Bar */}
       <div className="md:hidden bg-blue-950 p-4 flex justify-between items-center text-white shadow-md z-30 sticky top-0">
           <div className="flex items-center gap-2 font-black uppercase tracking-tight"><PadelLogo className="w-8 h-8"/> Padel Stats</div>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-white"><Menu size={24}/></button>
+          <div className="flex items-center gap-2">
+              <button onClick={toggleTheme} className="p-2 text-blue-300">
+                {darkMode ? <Sun size={20}/> : <Moon size={20}/>}
+              </button>
+              <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-white"><Menu size={24}/></button>
+          </div>
       </div>
 
       {/* Mobile Menu Drawer (Overlay) */}
@@ -772,7 +808,7 @@ const App = () => {
           <NavContent />
       </aside>
 
-      <main className="flex-1 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50 p-4 md:p-10 relative">
+      <main className="flex-1 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-10 relative scroll-smooth">
         <div className="max-w-6xl mx-auto pb-20 md:pb-0">
             {currentView === 'DASHBOARD' && (
                 <DashboardView 
@@ -783,6 +819,7 @@ const App = () => {
                     setTempTeamName={setTempTeamName}
                     setModalType={setModalType}
                     setIsModalOpen={setIsModalOpen}
+                    isDarkMode={darkMode}
                 />
             )}
             {currentView === 'PLAYERS' && (
@@ -858,33 +895,33 @@ const App = () => {
       {/* --- MAIN MODAL RENDERING LOGIC --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-blue-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="font-black text-xl text-slate-900 uppercase tracking-tighter">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 animate-in zoom-in-95">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
+                <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter">
                     {modalType.includes('PLAYER') ? 'Gestionar Jugador' : 
                      modalType === 'GENERATE_CALENDAR' ? 'Generador de Calendario' :
                      modalType.includes('MATCH') ? 'Gestionar Jornada' : 'Editar Equipo'}
                 </h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 p-2"><X size={24} /></button>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-2"><X size={24} /></button>
             </div>
             <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto">
                 {modalType.includes('PLAYER') && ( <>
-                        {modalType === 'ADD_PLAYER' && ( <div className="flex bg-slate-100 p-1 rounded-xl mb-4"><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'MANUAL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => setImportMode('MANUAL')}>Manual</button><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'BULK' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`} onClick={() => setImportMode('BULK')}>Lista</button></div> )}
+                        {modalType === 'ADD_PLAYER' && ( <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-4"><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'MANUAL' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => setImportMode('MANUAL')}>Manual</button><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'BULK' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => setImportMode('BULK')}>Lista</button></div> )}
                         {importMode === 'MANUAL' ? ( <>
-                                <div className="flex items-center gap-4"><div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden relative cursor-pointer">{tempPlayer.photoUrl ? ( <img src={tempPlayer.photoUrl} className="w-full h-full object-cover" /> ) : ( <Camera className="text-slate-300" /> )}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handlePhotoUpload}/></div><div className="flex-1 space-y-4"><Input label="Nombre y Apellido" value={tempPlayer.name || ''} onChange={e => setTempPlayer(p => ({...p, name: e.target.value}))} /></div></div>
+                                <div className="flex items-center gap-4"><div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center overflow-hidden relative cursor-pointer">{tempPlayer.photoUrl ? ( <img src={tempPlayer.photoUrl} className="w-full h-full object-cover" /> ) : ( <Camera className="text-slate-300 dark:text-slate-500" /> )}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handlePhotoUpload}/></div><div className="flex-1 space-y-4"><Input label="Nombre y Apellido" value={tempPlayer.name || ''} onChange={e => setTempPlayer(p => ({...p, name: e.target.value}))} /></div></div>
                                 <div className="grid grid-cols-2 gap-6"><Select label="Posición" value={tempPlayer.position || Position.AMBOS} onChange={e => setTempPlayer(p => ({...p, position: e.target.value as Position}))} options={[{label: 'Drive', value: Position.DRIVE},{label: 'Revés', value: Position.REVES},{label: 'Ambos', value: Position.AMBOS}]} /><Input type="number" label="Puntos Iniciales" value={tempPlayer.initialPoints || ''} onChange={e => setTempPlayer(p => ({...p, initialPoints: Number(e.target.value)}))} /></div>
                                 <div className="pt-2"><Checkbox label="Es Zurdo" checked={tempPlayer.handedness === 'left'} onChange={(c) => setTempPlayer(p => ({...p, handedness: c ? 'left' : 'right'}))} /></div>
                             </> ) : ( 
                                 <div className="space-y-6">
-                                    <textarea className="w-full h-40 p-4 rounded-xl border border-slate-200 text-sm font-mono outline-none focus:ring-2 focus:ring-lime-400 bg-white text-slate-900" placeholder="Nombre Apellido, Posición, Puntos..." value={bulkText} onChange={handleBulkTextChange} />
-                                    <div className="bg-lime-50 text-lime-700 p-3 rounded-xl text-xs font-bold border border-lime-200">{tempPlayersList.length} jugadores detectados automáticamente.</div>
+                                    <textarea className="w-full h-40 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-mono outline-none focus:ring-2 focus:ring-lime-400 bg-white dark:bg-slate-900 text-slate-900 dark:text-white" placeholder="Nombre Apellido, Posición, Puntos..." value={bulkText} onChange={handleBulkTextChange} />
+                                    <div className="bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 p-3 rounded-xl text-xs font-bold border border-lime-200 dark:border-lime-900/50">{tempPlayersList.length} jugadores detectados automáticamente.</div>
                                     {tempPlayersList.length > 0 && (
-                                        <div className="mt-4 max-h-60 overflow-y-auto space-y-2 border-t border-slate-100 pt-4">
+                                        <div className="mt-4 max-h-60 overflow-y-auto space-y-2 border-t border-slate-100 dark:border-slate-700 pt-4">
                                             <h4 className="text-xs font-bold text-slate-400 uppercase">Previsualización ({tempPlayersList.length})</h4>
                                             {tempPlayersList.map((p, i) => (
-                                                <div key={i} className="flex justify-between items-center p-2 bg-slate-50 rounded-lg text-sm">
-                                                    <span className="font-bold text-slate-700">{p.name}</span>
-                                                    <div className="flex gap-2 text-xs text-slate-500">
+                                                <div key={i} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 rounded-lg text-sm">
+                                                    <span className="font-bold text-slate-700 dark:text-slate-200">{p.name}</span>
+                                                    <div className="flex gap-2 text-xs text-slate-500 dark:text-slate-400">
                                                         <span>{p.position}</span>
                                                         <span>{p.initialPoints} pts</span>
                                                         <span>{p.handedness === 'left' ? 'Zurdo' : 'Diestro'}</span>
@@ -901,21 +938,21 @@ const App = () => {
                         {/* Import Text Button Area */}
                         {!showMatchTextImport ? (
                              <div className="flex justify-end mb-2">
-                                 <button onClick={() => setShowMatchTextImport(true)} className="flex items-center gap-1 text-[10px] uppercase font-black text-lime-600 bg-lime-50 px-3 py-2 rounded-lg hover:bg-lime-100 transition-colors">
+                                 <button onClick={() => setShowMatchTextImport(true)} className="flex items-center gap-1 text-[10px] uppercase font-black text-lime-600 bg-lime-50 dark:bg-lime-900/20 dark:text-lime-400 px-3 py-2 rounded-lg hover:bg-lime-100 dark:hover:bg-lime-900/30 transition-colors">
                                      <List size={14} /> Importar desde WhatsApp
                                  </button>
                              </div>
                         ) : (
-                             <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2">
+                             <div className="mb-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-2">
                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Pega el texto del partido aquí</label>
                                  <textarea 
-                                     className="w-full h-32 p-3 rounded-lg border border-slate-300 bg-white text-slate-900 text-sm mb-2 outline-none focus:ring-2 focus:ring-lime-400"
+                                     className="w-full h-32 p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm mb-2 outline-none focus:ring-2 focus:ring-lime-400"
                                      placeholder={`Ej:\nEquipo A - Equipo B\nSábado 15 - 17:30\n\n1 Pedro - Juan 6-4 7-6 👍🏻`}
                                      value={matchImportText}
                                      onChange={(e) => setMatchImportText(e.target.value)}
                                  />
                                  <div className="flex justify-end gap-2">
-                                     <button onClick={() => setShowMatchTextImport(false)} className="text-xs font-bold text-slate-500 px-3 py-1.5 hover:bg-slate-200 rounded-lg">Cancelar</button>
+                                     <button onClick={() => setShowMatchTextImport(false)} className="text-xs font-bold text-slate-500 px-3 py-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg">Cancelar</button>
                                      <button onClick={handleMatchTextImport} disabled={isProcessingText || !matchImportText.trim()} className="text-xs font-bold bg-lime-400 text-blue-900 px-3 py-1.5 rounded-lg hover:bg-lime-300 flex items-center gap-2">
                                          {isProcessingText ? 'Procesando...' : <><Sparkles size={12}/> Interpretar con IA</>}
                                      </button>
@@ -923,16 +960,16 @@ const App = () => {
                              </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-4 items-end"><Input type="datetime-local" label="Fecha y Hora" value={tempMatch.date} onChange={e => setTempMatch(m => ({...m, date: e.target.value}))} /><div className="bg-slate-100 p-1 rounded-xl flex"><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${tempMatch.isHome ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: true}))}>Casa</button><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${!tempMatch.isHome ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: false}))}>Fuera</button></div></div>
+                        <div className="grid grid-cols-2 gap-4 items-end"><Input type="datetime-local" label="Fecha y Hora" value={tempMatch.date} onChange={e => setTempMatch(m => ({...m, date: e.target.value}))} /><div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl flex"><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: true}))}>Casa</button><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${!tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-orange-500 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: false}))}>Fuera</button></div></div>
                         <div className="grid grid-cols-2 gap-4"><Input label="Rival" value={tempMatch.opponent} onChange={e => setTempMatch(m => ({...m, opponent: e.target.value}))} /><Input label="Sede / Notas" value={tempMatch.notes || ''} onChange={e => setTempMatch(m => ({...m, notes: e.target.value}))} /></div>
                         <div className="w-full"><Select label="Tandas" value={tempMatch.tandas || '5'} onChange={(e) => setTempMatch(m => ({...m, tandas: e.target.value}))} options={TANDA_OPTIONS} /></div>
                         
                         {/* AVAILABILITY SECTION */}
-                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mt-2">
+                        <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 mt-2">
                              <div className="flex justify-between items-center mb-4">
                                  <h4 className="font-black text-xs uppercase text-slate-400 tracking-widest">Convocatoria / Disponibilidad</h4>
                                  <div className="flex gap-2 items-center">
-                                     <button type="button" onClick={() => setAllAvailability(true)} className="text-[10px] font-bold text-blue-600 hover:underline">Todos</button>
+                                     <button type="button" onClick={() => setAllAvailability(true)} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline">Todos</button>
                                      <button type="button" onClick={() => setAllAvailability(false)} className="text-[10px] font-bold text-slate-400 hover:text-red-500 hover:underline">Ninguno</button>
                                      <button type="button" onClick={() => setIsAddingGuest(true)} className="ml-2 flex items-center gap-1 text-[10px] font-black bg-lime-400 hover:bg-lime-300 text-blue-900 px-2 py-1 rounded shadow-sm">
                                          <UserPlus size={12}/> + Filial
@@ -944,7 +981,7 @@ const App = () => {
                                 <div className="mb-4 flex gap-2 animate-in fade-in slide-in-from-top-2">
                                     <input 
                                         autoFocus
-                                        className="flex-1 px-3 py-2 rounded-lg border border-lime-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-lime-500 shadow-sm"
+                                        className="flex-1 px-3 py-2 rounded-lg border border-lime-300 dark:border-lime-800 bg-white dark:bg-slate-800 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-500 shadow-sm"
                                         placeholder="Nombre del jugador del Filial..."
                                         value={guestName}
                                         onChange={(e) => setGuestName(e.target.value)}
@@ -953,7 +990,7 @@ const App = () => {
                                     <button onClick={confirmAddGuest} type="button" className="bg-lime-500 text-blue-900 px-3 py-2 rounded-lg font-bold text-xs hover:bg-lime-400 transition-colors shadow-sm">
                                         <Check size={16}/>
                                     </button>
-                                     <button onClick={() => { setIsAddingGuest(false); setGuestName(''); }} type="button" className="bg-white border border-slate-200 text-slate-500 px-3 py-2 rounded-lg font-bold text-xs hover:bg-slate-50 transition-colors">
+                                     <button onClick={() => { setIsAddingGuest(false); setGuestName(''); }} type="button" className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 px-3 py-2 rounded-lg font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                                         <X size={16}/>
                                     </button>
                                 </div>
@@ -966,9 +1003,9 @@ const App = () => {
                                          <div 
                                             key={p.id} 
                                             onClick={() => toggleAvailability(p.id)}
-                                            className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${isSelected ? 'bg-lime-50 border-lime-400 text-slate-900 shadow-sm' : 'bg-white border-slate-100 text-slate-400 opacity-70 hover:opacity-100'}`}
+                                            className={`cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${isSelected ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-400 dark:border-lime-700 text-slate-900 dark:text-lime-100 shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 opacity-70 hover:opacity-100'}`}
                                          >
-                                             <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-lime-500' : 'bg-slate-300'}`}></div>
+                                             <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-lime-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
                                              {p.name} {(p.surname === '(Invitado)' || p.surname === '(Filial)') && <span className="text-[9px] text-blue-500 font-normal">(Filial)</span>}
                                          </div>
                                      );
@@ -977,18 +1014,18 @@ const App = () => {
                              <p className="text-[10px] text-slate-400 mt-2 italic">* Los jugadores en la alineación se marcarán como disponibles automáticamente.</p>
                         </div>
 
-                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mt-4"><h4 className="font-black text-xs uppercase text-slate-400 mb-6 tracking-widest">Partidos y Parejas</h4>
+                        <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 mt-4"><h4 className="font-black text-xs uppercase text-slate-400 mb-6 tracking-widest">Partidos y Parejas</h4>
                             <div className="space-y-3 mb-6">{(tempMatch.lineups || []).map((l, i) => ( 
-                                <div key={i} className="flex justify-between items-center p-4 rounded-xl text-sm shadow-sm border bg-white border-slate-100">
+                                <div key={i} className="flex justify-between items-center p-4 rounded-xl text-sm shadow-sm border bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-2.5 h-2.5 rounded-full ${l.result === MatchResult.WIN ? 'bg-lime-500' : l.result === MatchResult.LOSS ? 'bg-red-500' : 'bg-slate-400'}`}></div>
                                         <div>
-                                            <div className="font-black text-slate-800">{data?.players.find(p => p.id === l.player1Id)?.name} / {data?.players.find(p => p.id === l.player2Id)?.name}</div>
+                                            <div className="font-black text-slate-800 dark:text-white">{data?.players.find(p => p.id === l.player1Id)?.name} / {data?.players.find(p => p.id === l.player2Id)?.name}</div>
                                             {l.opponent1Name && <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">vs {l.opponent1Name} / {l.opponent2Name}</div>}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <div className={`font-mono font-black text-xs px-2 py-1 rounded shadow-sm ${l.result === MatchResult.WIN ? 'text-lime-700 bg-lime-100 border border-lime-200' : l.result === MatchResult.LOSS ? 'text-red-700 bg-red-100 border border-red-200' : 'text-blue-600 bg-blue-50 border border-blue-100'}`}>
+                                        <div className={`font-mono font-black text-xs px-2 py-1 rounded shadow-sm ${l.result === MatchResult.WIN ? 'text-lime-700 bg-lime-100 dark:bg-lime-900/30 dark:text-lime-400 border border-lime-200 dark:border-lime-800' : l.result === MatchResult.LOSS ? 'text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800' : 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800'}`}>
                                             {l.set1} {l.set2} {l.set3}
                                         </div>
                                         <div className="flex gap-1">
@@ -998,23 +1035,23 @@ const App = () => {
                                     </div>
                                 </div> 
                             ))}</div>
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({...l, player1Id: e.target.value}))} />
                                     <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({...l, player2Id: e.target.value}))} />
                                 </div>
                                 {(tempMatch.availablePlayers || []).length === 0 && (
-                                    <div className="text-[10px] text-red-500 font-bold bg-red-50 p-2 rounded text-center">
+                                    <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/20 p-2 rounded text-center">
                                         No hay jugadores disponibles seleccionados arriba.
                                     </div>
                                 )}
                                 <div className="grid grid-cols-2 gap-3"><Input label="Rival 1 (Opcional)" value={tempLineupScores.opponent1Name} onChange={e => setTempLineupScores(l => ({...l, opponent1Name: e.target.value}))} /><Input label="Rival 2 (Opcional)" value={tempLineupScores.opponent2Name} onChange={e => setTempLineupScores(l => ({...l, opponent2Name: e.target.value}))} /></div>
                                 <div className="grid grid-cols-3 gap-3">
-                                    <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 1</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s1We} onChange={e => setTempLineupScores(l => ({...l, s1We: e.target.value}))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s1They} onChange={e => setTempLineupScores(l => ({...l, s1They: e.target.value}))} /></div></div>
-                                    <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 2</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s2We} onChange={e => setTempLineupScores(l => ({...l, s2We: e.target.value}))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s2They} onChange={e => setTempLineupScores(l => ({...l, s2They: e.target.value}))} /></div></div>
-                                    <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 3</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s3We} onChange={e => setTempLineupScores(l => ({...l, s3We: e.target.value}))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 border rounded-lg font-black" value={tempLineupScores.s3They} onChange={e => setTempLineupScores(l => ({...l, s3They: e.target.value}))} /></div></div>
+                                    <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 1</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1We} onChange={e => setTempLineupScores(l => ({...l, s1We: e.target.value}))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1They} onChange={e => setTempLineupScores(l => ({...l, s1They: e.target.value}))} /></div></div>
+                                    <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 2</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2We} onChange={e => setTempLineupScores(l => ({...l, s2We: e.target.value}))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2They} onChange={e => setTempLineupScores(l => ({...l, s2They: e.target.value}))} /></div></div>
+                                    <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 3</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s3We} onChange={e => setTempLineupScores(l => ({...l, s3We: e.target.value}))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s3They} onChange={e => setTempLineupScores(l => ({...l, s3They: e.target.value}))} /></div></div>
                                 </div>
-                                <Button variant="secondary" className="w-full text-xs font-black py-3 border-2 border-dashed border-blue-200 text-blue-600" onClick={addLineupToTempMatch}><Plus size={16}/> Añadir Pareja al Listado</Button>
+                                <Button variant="secondary" className="w-full text-xs font-black py-3 border-2 border-dashed border-blue-200 dark:border-slate-600 text-blue-600 dark:text-blue-300" onClick={addLineupToTempMatch}><Plus size={16}/> Añadir Pareja al Listado</Button>
                             </div>
                         </div>
                 </> )}
@@ -1022,14 +1059,14 @@ const App = () => {
                 {modalType === 'GENERATE_CALENDAR' && (
                     <div className="space-y-6">
                         {/* Tab Switcher */}
-                        <div className="flex bg-slate-100 p-1 rounded-xl">
-                            <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'PATTERN' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('PATTERN')}>Patrón Automático</button>
-                            <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'IMAGE' ? 'bg-white text-lime-700 shadow-sm border border-lime-200' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('IMAGE')}><span className="flex items-center justify-center gap-1"><Sparkles size={12}/> Importar con IA</span></button>
+                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                            <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'PATTERN' ? 'bg-white dark:bg-slate-700 text-blue-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('PATTERN')}>Patrón Automático</button>
+                            <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'IMAGE' ? 'bg-white dark:bg-slate-700 text-lime-700 dark:text-lime-400 shadow-sm border border-lime-200 dark:border-lime-800' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('IMAGE')}><span className="flex items-center justify-center gap-1"><Sparkles size={12}/> Importar con IA</span></button>
                         </div>
 
                         {calendarMode === 'PATTERN' ? (
                             <>
-                                <div className="bg-lime-50 text-blue-900 p-4 rounded-xl text-sm border border-lime-200">
+                                <div className="bg-lime-50 dark:bg-lime-900/20 text-blue-900 dark:text-lime-100 p-4 rounded-xl text-sm border border-lime-200 dark:border-lime-900/50">
                                     <h4 className="font-bold flex items-center gap-2 mb-1"><Wand2 size={16}/> Generador Algorítmico</h4>
                                     <p className="opacity-80 text-xs">Crea jornadas secuenciales basadas en una lista de rivales y una frecuencia.</p>
                                 </div>
@@ -1061,9 +1098,9 @@ const App = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Lista de Rivales (Uno por línea)</label>
+                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">Lista de Rivales (Uno por línea)</label>
                                     <textarea 
-                                        className="w-full h-32 p-4 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-lime-400 bg-white text-slate-900" 
+                                        className="w-full h-32 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-lime-400 bg-white dark:bg-slate-900 text-slate-900 dark:text-white" 
                                         placeholder="Club de Tenis A&#10;Padel Center B&#10;Los Amigos..." 
                                         value={genOpponents} 
                                         onChange={(e) => setGenOpponents(e.target.value)} 
@@ -1083,16 +1120,16 @@ const App = () => {
                                 </div>
                                 
                                 {!calendarImage ? (
-                                    <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer relative group">
+                                    <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
                                         <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleCalendarImageUpload}/>
                                         <Upload className="text-slate-400 mb-2 group-hover:scale-110 transition-transform" size={32}/>
-                                        <span className="font-bold text-slate-600 text-sm">Toca para subir imagen</span>
+                                        <span className="font-bold text-slate-600 dark:text-slate-300 text-sm">Toca para subir imagen</span>
                                         <span className="text-xs text-slate-400 mt-1">Soporta .jpg, .png</span>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-xl">
-                                            <img src={calendarImage} className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                                        <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900 p-2 rounded-xl">
+                                            <img src={calendarImage} className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-700" />
                                             <div className="flex-1">
                                                 <span className="text-xs font-bold text-lime-600 uppercase tracking-wider block mb-1">Imagen Cargada</span>
                                                 <button onClick={() => { setCalendarImage(null); setPreviewMatches([]); }} className="text-xs text-red-500 hover:underline font-bold">Cambiar imagen</button>
@@ -1113,14 +1150,14 @@ const App = () => {
                                         ) : (
                                             <div className="space-y-2">
                                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Vista Previa ({previewMatches.length})</h4>
-                                                <div className="max-h-48 overflow-y-auto border rounded-xl border-slate-200 bg-slate-50">
+                                                <div className="max-h-48 overflow-y-auto border rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                                                     {previewMatches.map((m, i) => (
-                                                        <div key={i} className="p-3 border-b border-slate-100 last:border-0 text-sm flex justify-between items-center">
+                                                        <div key={i} className="p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 text-sm flex justify-between items-center">
                                                             <div>
-                                                                <div className="font-bold text-slate-800">{m.opponent}</div>
-                                                                <div className="text-[10px] text-slate-500">{formatDate(m.date!)}</div>
+                                                                <div className="font-bold text-slate-800 dark:text-white">{m.opponent}</div>
+                                                                <div className="text-[10px] text-slate-500 dark:text-slate-400">{formatDate(m.date!)}</div>
                                                             </div>
-                                                            <div className={`text-[10px] font-black uppercase px-2 py-1 rounded ${m.isHome ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                            <div className={`text-[10px] font-black uppercase px-2 py-1 rounded ${m.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
                                                                 {m.isHome ? 'Casa' : 'Fuera'}
                                                             </div>
                                                         </div>
@@ -1137,7 +1174,7 @@ const App = () => {
 
                 {modalType === 'EDIT_TEAM' && ( <Input label="Nuevo Nombre del Equipo" value={tempTeamName} onChange={(e) => setTempTeamName(e.target.value)} /> )}
             </div>
-            <div className="p-6 bg-slate-100 flex justify-end gap-3"><Button variant="ghost" className="font-bold" onClick={() => setIsModalOpen(false)}>Cancelar</Button><Button className="px-10 h-12 font-black" onClick={() => { 
+            <div className="p-6 bg-slate-100 dark:bg-slate-900 flex justify-end gap-3"><Button variant="ghost" className="font-bold" onClick={() => setIsModalOpen(false)}>Cancelar</Button><Button className="px-10 h-12 font-black" onClick={() => { 
                 if (modalType === 'ADD_PLAYER') { 
                     if (importMode === 'MANUAL') addPlayer(tempPlayer); else addPlayersBulk(); 
                 } else if (modalType === 'EDIT_PLAYER') {

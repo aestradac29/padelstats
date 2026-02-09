@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Shield, Trash2, Check, X, Edit2 } from '../Icons';
 import { Button, Card, Input, Select } from '../UIComponents';
@@ -144,7 +145,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
         }
     };
 
-    if (sessionRole !== 'CAPTAIN') return <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl font-bold">Acceso restringido a capitanes.</div>
+    if (sessionRole !== 'CAPTAIN') return <div className="p-8 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl font-bold">Acceso restringido a capitanes.</div>
     
     return (
         <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in pb-20 relative">
@@ -177,32 +178,32 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             )}
 
             <header className="text-center">
-                <h2 className="text-2xl font-black text-slate-900 uppercase">Ajustes del Equipo</h2>
-                <p className="text-slate-500 text-sm">Gestiona temporadas y baremos.</p>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase">Ajustes del Equipo</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">Gestiona temporadas y baremos.</p>
             </header>
             <Card className="space-y-4">
-                 <h3 className="font-bold text-lg text-slate-900 border-b pb-2">Temporadas</h3>
+                 <h3 className="font-bold text-lg text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">Temporadas</h3>
                  <div className="flex gap-2">
                      <Input placeholder="Nueva temporada (ej. 2025)" value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} />
                      <Button onClick={addNewSeason} disabled={!newSeasonName}>Crear</Button>
                  </div>
                  <div className="space-y-3 mt-4">
                      {(data.seasons || []).map(s => (
-                         <div key={s.id} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${s.isActive ? 'bg-lime-50 border-lime-200' : 'bg-slate-50 border-slate-100'}`}>
+                         <div key={s.id} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${s.isActive ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-200 dark:border-lime-900/50' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
                              {editingSeasonId === s.id ? (
                                 <div className="flex gap-2 flex-1 items-center">
-                                    <input type="text" value={tempSeasonName} onChange={(e) => setTempSeasonName(e.target.value)} className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white outline-none focus:ring-2 focus:ring-lime-400" autoFocus/>
+                                    <input type="text" value={tempSeasonName} onChange={(e) => setTempSeasonName(e.target.value)} className="flex-1 px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-lime-400" autoFocus/>
                                     <button onClick={saveSeasonName} className="bg-lime-500 text-white p-2 rounded-lg"><Check size={18} /></button>
-                                    <button onClick={() => setEditingSeasonId(null)} className="bg-slate-200 text-slate-600 p-2 rounded-lg"><X size={18} /></button>
+                                    <button onClick={() => setEditingSeasonId(null)} className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 p-2 rounded-lg"><X size={18} /></button>
                                 </div>
                              ) : (
                                 <div className="flex-1 flex items-center justify-between">
                                     <div className="flex flex-col">
-                                      <span className={`font-black text-base ${s.isActive ? 'text-blue-900' : 'text-slate-700'}`}>{s.name}</span>
-                                      {s.isActive && <span className="text-[10px] font-black text-lime-600 uppercase">Activa</span>}
+                                      <span className={`font-black text-base ${s.isActive ? 'text-blue-900 dark:text-blue-200' : 'text-slate-700 dark:text-slate-300'}`}>{s.name}</span>
+                                      {s.isActive && <span className="text-[10px] font-black text-lime-600 dark:text-lime-400 uppercase">Activa</span>}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <button onClick={() => startEditingSeason(s)} className="text-slate-400 hover:text-blue-600 p-2 rounded-lg hover:bg-white transition-colors"><Edit2 size={16} /></button>
+                                      <button onClick={() => startEditingSeason(s)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"><Edit2 size={16} /></button>
                                       <button 
                                           type="button" 
                                           onClick={(e) => { 
@@ -214,13 +215,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                               }
                                               setSeasonToDelete(s); 
                                           }} 
-                                          className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-white transition-colors"
+                                          className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
                                           title="Borrar Temporada"
                                       >
                                           <Trash2 size={18} />
                                       </button>
                                       {!s.isActive && (
-                                        <button onClick={() => setSeasonActive(s.id)} className="text-xs font-bold bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-all">Activar</button>
+                                        <button onClick={() => setSeasonActive(s.id)} className="text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-all">Activar</button>
                                       )}
                                     </div>
                                 </div>
@@ -230,13 +231,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                  </div>
             </Card>
             <Card className="space-y-6">
-                 <h3 className="font-bold text-lg text-slate-900 flex items-center justify-between border-b pb-2">Baremo de Puntuación {!isGlobalView && <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-full uppercase">Temporada: {currentSeason?.name}</span>}</h3>
-                 {isGlobalView ? ( <div className="p-10 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50"><p className="text-slate-400 font-medium">Selecciona una temporada específica para editar sus puntos.</p></div> ) : (
+                 <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">Baremo de Puntuación {!isGlobalView && <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full uppercase">Temporada: {currentSeason?.name}</span>}</h3>
+                 {isGlobalView ? ( <div className="p-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900"><p className="text-slate-400 font-medium">Selecciona una temporada específica para editar sus puntos.</p></div> ) : (
                     <>
-                    <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
-                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'NONE' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'NONE'}))}>Desactivado</button>
-                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'SIMPLE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'SIMPLE'}))}>Simple</button>
-                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'RANGES' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'RANGES'}))}>Tramos</button>
+                    <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-6">
+                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'NONE' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'NONE'}))}>Desactivado</button>
+                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'SIMPLE' ? 'bg-white dark:bg-slate-700 text-blue-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'SIMPLE'}))}>Simple</button>
+                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'RANGES' ? 'bg-white dark:bg-slate-700 text-blue-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'RANGES'}))}>Tramos</button>
                     </div>
                     {localSettings.scoringSystem === 'SIMPLE' ? (
                         <div className="grid grid-cols-2 gap-4">
@@ -247,7 +248,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                     ) : localSettings.scoringSystem === 'RANGES' ? (
                         <div className="space-y-4">
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                                 <Select 
                                     label="Automatizar Tramos por Categoría"
                                     value={selectedCategory}
@@ -269,18 +270,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                 />
                                 <p className="text-[10px] text-slate-400 mt-2 italic">* Al seleccionar una categoría se reemplazarán los valores actuales de la tabla.</p>
                             </div>
-                            <div className="overflow-x-auto"><table className="w-full text-xs text-center"><thead className="bg-slate-50 text-slate-400 uppercase"><tr><th className="p-2">Desde</th><th className="p-2">Hasta</th><th className="p-2 text-lime-600">Sumar</th><th className="p-2 text-red-500">Restar</th><th className="p-2"></th></tr></thead><tbody className="divide-y divide-slate-100">
-                                {(localSettings.ranges || []).map((range, idx) => ( <tr key={idx}><td><input type="number" className="w-16 p-2 border rounded-lg text-center bg-white" value={range.min} onChange={(e) => updateRange(idx, 'min', Number(e.target.value))} /></td><td><input type="number" className="w-16 p-2 border rounded-lg text-center bg-white" value={range.max} onChange={(e) => updateRange(idx, 'max', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border rounded-lg text-center font-black text-lime-700 bg-lime-50" value={range.win} onChange={(e) => updateRange(idx, 'win', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border rounded-lg text-center font-black text-red-700 bg-red-50" value={range.loss} onChange={(e) => updateRange(idx, 'loss', Number(e.target.value))} /></td><td><button onClick={() => removeRange(idx)} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td></tr> ))}
+                            <div className="overflow-x-auto"><table className="w-full text-xs text-center"><thead className="bg-slate-50 dark:bg-slate-900 text-slate-400 uppercase"><tr><th className="p-2">Desde</th><th className="p-2">Hasta</th><th className="p-2 text-lime-600 dark:text-lime-400">Sumar</th><th className="p-2 text-red-500 dark:text-red-400">Restar</th><th className="p-2"></th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                {(localSettings.ranges || []).map((range, idx) => ( <tr key={idx}><td><input type="number" className="w-16 p-2 border dark:border-slate-700 rounded-lg text-center bg-white dark:bg-slate-800 dark:text-white" value={range.min} onChange={(e) => updateRange(idx, 'min', Number(e.target.value))} /></td><td><input type="number" className="w-16 p-2 border dark:border-slate-700 rounded-lg text-center bg-white dark:bg-slate-800 dark:text-white" value={range.max} onChange={(e) => updateRange(idx, 'max', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border dark:border-lime-900/50 rounded-lg text-center font-black text-lime-700 dark:text-lime-400 bg-lime-50 dark:bg-lime-900/20" value={range.win} onChange={(e) => updateRange(idx, 'win', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border dark:border-red-900/50 rounded-lg text-center font-black text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20" value={range.loss} onChange={(e) => updateRange(idx, 'loss', Number(e.target.value))} /></td><td><button onClick={() => removeRange(idx)} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td></tr> ))}
                             </tbody></table><div className="mt-4"><Button variant="secondary" onClick={addRange} className="w-full text-xs border-dashed border-2 py-3">Añadir Nuevo Tramo</Button></div></div>
                         </div>
                     ) : (
-                        <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
-                            <Shield size={32} className="mx-auto text-slate-300 mb-2"/>
-                            <p className="text-slate-500 font-medium">Puntuación Automática Desactivada</p>
-                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Los partidos no sumarán ni restarán puntos. Solo se mostrarán los puntos iniciales.</p>
+                        <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900">
+                            <Shield size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2"/>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium">Puntuación Automática Desactivada</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs mx-auto">Los partidos no sumarán ni restarán puntos. Solo se mostrarán los puntos iniciales.</p>
                         </div>
                     )}
-                    <div className="pt-6 border-t border-slate-100"><Button onClick={handleSave} className="w-full h-14 text-base">Guardar Configuración de Temporada</Button></div>
+                    <div className="pt-6 border-t border-slate-100 dark:border-slate-700"><Button onClick={handleSave} className="w-full h-14 text-base">Guardar Configuración de Temporada</Button></div>
                     </>
                  )}
             </Card>

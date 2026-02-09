@@ -149,10 +149,10 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
 
     return (
       <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in pb-20">
-           <header className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-200 pb-4">
+           <header className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2"><LayoutGrid className="text-lime-500" /> Pizarra Táctica</h2>
-                <p className="text-slate-500 mt-1">Diseña la estrategia y las parejas para la jornada.</p>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2"><LayoutGrid className="text-lime-500" /> Pizarra Táctica</h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">Diseña la estrategia y las parejas para la jornada.</p>
               </div>
               <div className="flex gap-2">
                    <Checkbox label="Ordenar por Ranking" checked={autoSort} onChange={setAutoSort} />
@@ -165,16 +165,16 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                <div className="xl:col-span-4 space-y-6">
                    
                    {/* 1. Convocatoria (Availability) */}
-                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                      <div className="flex justify-between items-center p-4 cursor-pointer bg-slate-50 border-b border-slate-100" onClick={() => setShowAvailability(!showAvailability)}>
-                          <h3 className="font-bold text-sm uppercase tracking-wide text-slate-700 flex items-center gap-2"><Check size={16} className="text-lime-600"/> Disponibles</h3>
+                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                      <div className="flex justify-between items-center p-4 cursor-pointer bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800" onClick={() => setShowAvailability(!showAvailability)}>
+                          <h3 className="font-bold text-sm uppercase tracking-wide text-slate-700 dark:text-slate-200 flex items-center gap-2"><Check size={16} className="text-lime-600"/> Disponibles</h3>
                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-bold bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md">{availablePlayers.length}</span>
+                             <span className="text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-md">{availablePlayers.length}</span>
                              {showAvailability ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
                           </div>
                       </div>
                       {showAvailability && (
-                        <div className="p-4 bg-slate-50/50">
+                        <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50">
                             {/* ADDED: p-2 padding to container to prevent clipping of scaled items */}
                             <div className="flex flex-wrap gap-2 max-h-[250px] overflow-y-auto p-2">
                                 {data?.players.map(p => {
@@ -184,16 +184,16 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                         <button
                                             key={p.id}
                                             onClick={() => togglePlayerAvailability(p.id)}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isAvailable ? 'bg-lime-400 text-blue-900 border-lime-500 shadow-md transform scale-105' : 'bg-white border-slate-200 text-slate-400 opacity-60 hover:opacity-100'}`}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isAvailable ? 'bg-lime-400 text-blue-900 border-lime-500 shadow-md transform scale-105' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 opacity-60 hover:opacity-100'}`}
                                         >
                                             {p.name} <span className="opacity-50 text-[10px]">({points})</span>
                                         </button>
                                     )
                                 })}
                             </div>
-                            <div className="mt-4 pt-3 border-t border-slate-200 flex justify-between">
-                                <button onClick={() => setAvailablePlayers(data?.players.map(p => p.id) || [])} className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">Marcar Todos</button>
-                                <button onClick={() => setAvailablePlayers([])} className="text-[10px] font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 px-2 py-1 rounded">Desmarcar</button>
+                            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between">
+                                <button onClick={() => setAvailablePlayers(data?.players.map(p => p.id) || [])} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded">Marcar Todos</button>
+                                <button onClick={() => setAvailablePlayers([])} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded">Desmarcar</button>
                             </div>
                         </div>
                       )}
@@ -231,9 +231,9 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
 
                    {/* AI Reasoning Display */}
                    {lineupAdvice && (
-                       <div className="bg-blue-50 rounded-2xl border border-blue-100 p-5 animate-in slide-in-from-top-4">
-                           <h4 className="font-bold text-xs uppercase text-blue-700 mb-2 flex items-center gap-2"><Shield size={14}/> Informe Técnico</h4>
-                           <p className="text-xs text-blue-900/80 leading-relaxed whitespace-pre-wrap font-medium">{lineupAdvice}</p>
+                       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-900/50 p-5 animate-in slide-in-from-top-4">
+                           <h4 className="font-bold text-xs uppercase text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-2"><Shield size={14}/> Informe Técnico</h4>
+                           <p className="text-xs text-blue-900/80 dark:text-blue-200/80 leading-relaxed whitespace-pre-wrap font-medium">{lineupAdvice}</p>
                        </div>
                    )}
                </div>

@@ -40,7 +40,9 @@ import {
   CheckCircle,
   XCircle,
   User,
-  Zap
+  Zap,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export { 
@@ -84,5 +86,7 @@ export {
   CheckCircle,
   XCircle,
   User,
-  Zap
+  Zap,
+  Sun,
+  Moon
 };

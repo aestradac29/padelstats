@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles } from '../Icons';
 import { Card, Button } from '../UIComponents';
@@ -14,6 +15,7 @@ interface DashboardViewProps {
     setTempTeamName: (name: string) => void;
     setModalType: (type: any) => void;
     setIsModalOpen: (isOpen: boolean) => void;
+    isDarkMode: boolean;
 }
 
 // Re-implementing helper here since it depends on AppState context often
@@ -82,7 +84,7 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
 };
 
 const DashboardView: React.FC<DashboardViewProps> = ({ 
-    data, sessionRole, viewSeasonId, teamId, setTempTeamName, setModalType, setIsModalOpen 
+    data, sessionRole, viewSeasonId, teamId, setTempTeamName, setModalType, setIsModalOpen, isDarkMode 
 }) => {
     const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
@@ -209,13 +211,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
-        <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-200 pb-6">
+        <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">{sessionRole === 'CAPTAIN' ? `Hola, ${data.captainName}` : `Equipo`}</h2>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{sessionRole === 'CAPTAIN' ? `Hola, ${data.captainName}` : `Equipo`}</h2>
             <div className="flex items-center gap-2 mt-1">
-                <p className="text-slate-500 font-medium">Resumen de <span className="font-bold text-blue-600">{data.teamName}</span></p>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Resumen de <span className="font-bold text-blue-600 dark:text-blue-400">{data.teamName}</span></p>
                 {sessionRole === 'CAPTAIN' && (
-                    <button onClick={() => { setTempTeamName(data.teamName); setModalType('EDIT_TEAM'); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-600 transition-colors">
+                    <button onClick={() => { setTempTeamName(data.teamName); setModalType('EDIT_TEAM'); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                         <Edit2 size={14} />
                     </button>
                 )}
@@ -292,53 +294,63 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="col-span-1 md:col-span-2">
-            <h3 className="font-black text-lg mb-6 flex items-center gap-2 text-slate-900"><Trophy className="text-lime-500" size={24} /> Ranking (Top 5)</h3>
+            <h3 className="font-black text-lg mb-6 flex items-center gap-2 text-slate-900 dark:text-white"><Trophy className="text-lime-500" size={24} /> Ranking (Top 5)</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 600, fill: '#64748b'}} axisLine={false} tickLine={false} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                  <Tooltip cursor={{fill: '#eff6ff'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold'}} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
+                  <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 600, fill: isDarkMode ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: isDarkMode ? '#94a3b8' : '#64748b'}} />
+                  <Tooltip 
+                    cursor={{fill: isDarkMode ? '#1e293b' : '#eff6ff'}} 
+                    contentStyle={{
+                        borderRadius: '12px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', 
+                        fontWeight: 'bold',
+                        backgroundColor: isDarkMode ? '#1e293b' : '#fff',
+                        color: isDarkMode ? '#fff' : '#0f172a'
+                    }} 
+                  />
                   <Bar dataKey="points" radius={[6, 6, 0, 0]} barSize={40}>
-                    {chartData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={index === 0 ? '#a3e635' : '#1e3a8a'} /> ))}
+                    {chartData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={index === 0 ? '#a3e635' : (isDarkMode ? '#60a5fa' : '#1e3a8a')} /> ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </Card>
-          <Card className="bg-slate-50 border-none">
-            <h3 className="font-black text-lg mb-6 flex items-center gap-2 text-slate-900"><Activity className="text-blue-500" size={24} /> Resumen</h3>
+          <Card className="bg-slate-50 dark:bg-slate-900 border-none">
+            <h3 className="font-black text-lg mb-6 flex items-center gap-2 text-slate-900 dark:text-white"><Activity className="text-blue-500" size={24} /> Resumen</h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center p-4 bg-white rounded-xl shadow-sm border border-slate-100">
-                <span className="text-slate-500 font-medium text-sm uppercase tracking-wide">Jugadores</span>
-                <span className="font-black text-2xl text-slate-900">{stats.length}</span>
+              <div className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm uppercase tracking-wide">Jugadores</span>
+                <span className="font-black text-2xl text-slate-900 dark:text-white">{stats.length}</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-slate-100">
-                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wide">Jornadas Jugadas</span>
+                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">Jornadas Jugadas</span>
                     <div className="flex items-end gap-2 mt-1">
-                        <span className="font-black text-xl text-slate-900">{matchDaysPlayedCount} <span className="text-sm text-slate-400 font-normal">/ {matchDaysTotal}</span></span>
+                        <span className="font-black text-xl text-slate-900 dark:text-white">{matchDaysPlayedCount} <span className="text-sm text-slate-400 dark:text-slate-500 font-normal">/ {matchDaysTotal}</span></span>
                     </div>
                   </div>
-                  <div className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-slate-100">
-                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wide">WR Jornadas</span>
+                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">WR Jornadas</span>
                     <div className="flex items-end gap-2 mt-1">
-                        <span className={`font-black text-xl ${matchDaysWinRate >= 50 ? 'text-lime-600' : 'text-blue-600'}`}>{matchDaysWinRate}%</span>
+                        <span className={`font-black text-xl ${matchDaysWinRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-blue-600 dark:text-blue-400'}`}>{matchDaysWinRate}%</span>
                     </div>
                   </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-slate-100">
-                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wide">Partidos</span>
+                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">Partidos</span>
                     <div className="flex items-end gap-2 mt-1">
-                        <span className="font-black text-xl text-slate-900">{totalLineupsPlayed}</span>
+                        <span className="font-black text-xl text-slate-900 dark:text-white">{totalLineupsPlayed}</span>
                     </div>
                   </div>
-                  <div className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-slate-100">
-                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wide">WR Partidos</span>
+                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">WR Partidos</span>
                     <div className="flex items-end gap-2 mt-1">
-                        <span className={`font-black text-xl ${matchesWinRate >= 50 ? 'text-lime-600' : 'text-blue-600'}`}>{matchesWinRate}%</span>
+                        <span className={`font-black text-xl ${matchesWinRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-blue-600 dark:text-blue-400'}`}>{matchesWinRate}%</span>
                     </div>
                   </div>
               </div>
