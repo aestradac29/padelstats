@@ -1,6 +1,7 @@
 
+
 import React, { useState } from 'react';
-import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp } from '../Icons';
+import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp, AlertCircle } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, MatchDay, MatchResult } from '../../types';
 import { formatDate } from '../../utils/helpers';
@@ -107,7 +108,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                             <Wand2 size={18} className="text-lime-600 dark:text-lime-400"/> <span className="hidden md:inline">Generar</span>
                         </Button>
                         <Button 
-                            onClick={() => { setTempMatch({ date: new Date().toISOString().slice(0, 16), isHome: true, lineups: [], tandas: '5' }); setModalType('ADD_MATCH'); setIsModalOpen(true); }}
+                            onClick={() => { setTempMatch({ date: new Date().toISOString().slice(0, 16), isHome: true, lineups: [], tandas: '5', ignorePoints: false }); setModalType('ADD_MATCH'); setIsModalOpen(true); }}
                             className="flex-1 md:flex-none justify-center px-4"
                         >
                             <Plus size={18} /> <span className="hidden md:inline">Nuevo</span>
@@ -178,9 +179,16 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                             </td>
                                             <td className="p-3 border-r border-slate-200/50 dark:border-slate-700/50">
                                                 <div className="flex flex-col">
-                                                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit mb-1 ${match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
-                                                        {match.isHome ? 'CASA' : 'FUERA'}
-                                                     </span>
+                                                     <div className="flex gap-1 mb-1">
+                                                         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit ${match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
+                                                            {match.isHome ? 'CASA' : 'FUERA'}
+                                                         </span>
+                                                         {match.ignorePoints && (
+                                                             <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" title="Histórico: No suma puntos">
+                                                                 HIST
+                                                             </span>
+                                                         )}
+                                                     </div>
                                                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate max-w-[120px]" title={match.notes || (match.isHome ? 'Local' : match.opponent)}>
                                                          {match.notes?.replace('Sede: ', '') || (match.isHome ? 'Local' : match.opponent)}
                                                      </span>
@@ -238,6 +246,9 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>{match.isHome ? 'Casa' : 'Fuera'}</span>
+                                        {match.ignorePoints && (
+                                             <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">HIST</span>
+                                        )}
                                         <span className="text-slate-400 font-bold text-[10px] uppercase flex items-center gap-1"><Clock size={10} /> {formatDate(match.date)}</span>
                                     </div>
                                     {sessionRole === 'CAPTAIN' && isExpanded && (
@@ -282,6 +293,14 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                             <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-slate-200 dark:border-slate-600">
                                                 {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
                                             </span>
+                                        </div>
+                                    )}
+                                    {match.ignorePoints && (
+                                        <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-100 dark:border-yellow-900/30 flex items-start gap-2">
+                                            <AlertCircle size={14} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                                            <p className="text-[10px] text-yellow-700 dark:text-yellow-300">
+                                                Este partido está marcado como histórico. Cuenta para estadísticas pero no suma puntos a la clasificación.
+                                            </p>
                                         </div>
                                     )}
                                     {(!match.lineups || match.lineups.length === 0) ? (

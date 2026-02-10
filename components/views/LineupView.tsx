@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { LayoutGrid, Check, BrainCircuit, Sparkles, ArrowUpDown, Trash2, X, ChevronDown, ChevronUp, User, Zap, Shield, Trophy, Copy } from '../Icons';
 import { Button, Card, Checkbox, Select } from '../UIComponents';
@@ -125,7 +126,8 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                 hasContent = true;
                 const name1 = p1 ? p1.name : '___';
                 const name2 = p2 ? p2.name : '___';
-                text += `${index + 1}️⃣ ${name1} / ${name2}\n`;
+                // Swapped order: Revés (Left) / Drive (Right) to match visual layout
+                text += `${index + 1}️⃣ ${name2} / ${name1}\n`;
             }
         });
 

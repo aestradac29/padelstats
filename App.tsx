@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon
@@ -73,7 +74,8 @@ const App = () => {
     isHome: true, 
     lineups: [],
     tandas: '5',
-    availablePlayers: []
+    availablePlayers: [],
+    ignorePoints: false
   });
 
   // Match Import State
@@ -429,7 +431,8 @@ const App = () => {
         availablePlayers: [],
         isHome: m.isHome ?? true,
         date: m.date || new Date().toISOString(),
-        opponent: m.opponent || 'Desconocido'
+        opponent: m.opponent || 'Desconocido',
+        ignorePoints: false
     } as MatchDay));
 
     const updatedMatches = [...data.matches, ...matchesToSave];
@@ -482,7 +485,8 @@ const App = () => {
       notes: tempMatch.notes || undefined,
       tandas: tempMatch.tandas || '5',
       seasonId: tempMatch.seasonId || activeSeason.id,
-      availablePlayers: finalAvailablePlayers
+      availablePlayers: finalAvailablePlayers,
+      ignorePoints: tempMatch.ignorePoints || false
     };
     
     // Sanitize before saving
@@ -549,7 +553,8 @@ const App = () => {
             lineups: [],
             tandas: '5',
             seasonId: activeSeason.id,
-            availablePlayers: []
+            availablePlayers: [],
+            ignorePoints: false
         };
     };
 
@@ -962,6 +967,19 @@ const App = () => {
 
                         <div className="grid grid-cols-2 gap-4 items-end"><Input type="datetime-local" label="Fecha y Hora" value={tempMatch.date} onChange={e => setTempMatch(m => ({...m, date: e.target.value}))} /><div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl flex"><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: true}))}>Casa</button><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${!tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-orange-500 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({...m, isHome: false}))}>Fuera</button></div></div>
                         <div className="grid grid-cols-2 gap-4"><Input label="Rival" value={tempMatch.opponent} onChange={e => setTempMatch(m => ({...m, opponent: e.target.value}))} /><Input label="Sede / Notas" value={tempMatch.notes || ''} onChange={e => setTempMatch(m => ({...m, notes: e.target.value}))} /></div>
+                        
+                        {/* HISTORICAL MATCH TOGGLE */}
+                        <div className="bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-xl border border-yellow-200 dark:border-yellow-900/30">
+                             <Checkbox 
+                                label="Modo Histórico (No sumar puntos)" 
+                                checked={tempMatch.ignorePoints || false} 
+                                onChange={(c) => setTempMatch(m => ({...m, ignorePoints: c}))} 
+                             />
+                             <p className="text-[10px] text-yellow-700 dark:text-yellow-400 mt-1 ml-9 leading-tight">
+                                Activa esto si ya has incluido los puntos de este partido en los "Puntos Iniciales". El partido contará para estadísticas pero no duplicará puntos.
+                             </p>
+                        </div>
+
                         <div className="w-full"><Select label="Tandas" value={tempMatch.tandas || '5'} onChange={(e) => setTempMatch(m => ({...m, tandas: e.target.value}))} options={TANDA_OPTIONS} /></div>
                         
                         {/* AVAILABILITY SECTION */}

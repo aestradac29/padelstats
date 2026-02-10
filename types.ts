@@ -1,4 +1,5 @@
 
+
 export enum Position {
   DRIVE = 'Drive',
   REVES = 'Revés',
@@ -47,6 +48,7 @@ export interface MatchDay {
   tandas?: string; // New field: e.g., "5", "4-1", "2-2-1"
   seasonId?: string; // New field to link match to a season
   availablePlayers?: string[]; // Array of player IDs who were available/called up for this match
+  ignorePoints?: boolean; // If true, stats count but points are not added (Historical matches)
 }
 
 export interface ScoringRange {

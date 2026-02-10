@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles } from '../Icons';
 import { Card, Button } from '../UIComponents';
@@ -40,7 +41,10 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
     }
 
     const matches = data.matches.filter(m => m.seasonId === seasonId || (!m.seasonId && seasonId === 'default') || seasonId === 'all');
-    const sortedMatches = [...matches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    // FILTER IGNORED MATCHES
+    const matchesToScore = matches.filter(m => !m.ignorePoints);
+    const sortedMatches = [...matchesToScore].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
         sortedMatches.forEach(match => {
