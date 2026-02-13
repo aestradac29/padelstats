@@ -1055,8 +1055,8 @@ const App = () => {
                             ))}</div>
                             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({...l, player1Id: e.target.value}))} />
-                                    <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({...l, player2Id: e.target.value}))} />
+                                    <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({...l, player1Id: e.target.value}))} />
+                                    <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({...l, player2Id: e.target.value}))} />
                                 </div>
                                 {(tempMatch.availablePlayers || []).length === 0 && (
                                     <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/20 p-2 rounded text-center">
