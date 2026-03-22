@@ -81,7 +81,8 @@ export const Select = ({ label, options, ...props }: React.SelectHTMLAttributes<
     {label && <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</label>}
     <div className="relative">
         <select 
-          className={`px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-full font-bold appearance-none [color-scheme:light] dark:[color-scheme:dark] ${props.className}`}
+          style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
+          className={`custom-select px-4 py-3 pr-10 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-full font-bold appearance-none !appearance-none [color-scheme:light] dark:[color-scheme:dark] ${props.className || ''}`}
           {...props}
         >
           {options.map(opt => (

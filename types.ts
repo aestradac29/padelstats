@@ -84,7 +84,7 @@ export interface AppState {
   seasons?: Season[]; // Array of seasons
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD' | 'PLAYERS' | 'MATCHES' | 'LINEUP' | 'SETTINGS';
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'PLAYERS' | 'MATCHES' | 'LINEUP' | 'SETTINGS' | 'QUICK_LINEUP';
 
 export interface UserSession {
   role: 'CAPTAIN' | 'GUEST';

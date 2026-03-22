@@ -2,8 +2,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { Player, MatchDay, MatchResult, MatchLineup } from "../types";
 
-// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Always use const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface AIAnalysisResult {
     summary: string;

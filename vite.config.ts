@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
       })
     ],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.API_KEY),
       // --- MAPEO DE VARIABLES DE FIREBASE ---
       // Esto asegura que si en Vercel las llamaste "FIREBASE_API_KEY" (sin VITE_), funcionen igual.
       'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify(env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY),
@@ -43,10 +43,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_FIREBASE_STORAGE_BUCKET': JSON.stringify(env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET),
       'import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(env.VITE_FIREBASE_MESSAGING_SENDER_ID || env.FIREBASE_MESSAGING_SENDER_ID),
       'import.meta.env.VITE_FIREBASE_APP_ID': JSON.stringify(env.VITE_FIREBASE_APP_ID || env.FIREBASE_APP_ID),
-      'import.meta.env.VITE_FIREBASE_MEASUREMENT_ID': JSON.stringify(env.VITE_FIREBASE_MEASUREMENT_ID || env.FIREBASE_MEASUREMENT_ID),
-      
-      // Fallback para evitar errores con librerías que usan process.env
-      'process.env': {}
+      'import.meta.env.VITE_FIREBASE_MEASUREMENT_ID': JSON.stringify(env.VITE_FIREBASE_MEASUREMENT_ID || env.FIREBASE_MEASUREMENT_ID)
     },
     build: {
       outDir: 'dist',
