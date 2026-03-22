@@ -46,7 +46,8 @@ import {
   Copy,
   TrendingUp,
   TrendingDown,
-  Target
+  Target,
+  ListOrdered
 } from 'lucide-react';
 
 export { 
@@ -96,5 +97,6 @@ export {
   Copy,
   TrendingUp,
   TrendingDown,
-  Target
+  Target,
+  ListOrdered
 };

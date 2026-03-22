@@ -1049,6 +1049,7 @@ const App = () => {
                                     <div className="flex items-center gap-3">
                                         <div className={`w-2.5 h-2.5 rounded-full ${l.result === MatchResult.WIN ? 'bg-lime-500' : l.result === MatchResult.LOSS ? 'bg-red-500' : 'bg-slate-400'}`}></div>
                                         <div>
+                                            <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Pareja {i + 1}</div>
                                             <div className="font-black text-slate-800 dark:text-white">{data?.players.find(p => p.id === l.player1Id)?.name} / {data?.players.find(p => p.id === l.player2Id)?.name}</div>
                                             {l.opponent1Name && <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">vs {l.opponent1Name} / {l.opponent2Name}</div>}
                                         </div>

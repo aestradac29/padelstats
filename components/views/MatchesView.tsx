@@ -327,6 +327,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                         {/* Content */}
                                                         <div className="flex-1 p-2 flex items-center justify-between gap-2 overflow-hidden">
                                                             <div className="flex flex-col min-w-0 justify-center">
+                                                                <div className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Pareja {idx + 1}</div>
                                                                 <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">
                                                                     {p1?.name} {p1?.surname || ''} <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span> {p2?.name} {p2?.surname || ''}
                                                                 </div>

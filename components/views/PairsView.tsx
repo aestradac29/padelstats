@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Activity, Trophy, Calendar, X, ChevronRight, CheckCircle, XCircle, Table, LayoutGrid, TrendingUp, TrendingDown, Target, Users } from '../Icons';
+import { Activity, Trophy, Calendar, X, ChevronRight, CheckCircle, XCircle, Table, LayoutGrid, TrendingUp, TrendingDown, Target, Users, ListOrdered, Clock } from '../Icons';
 import { AppState, MatchDay, MatchLineup, MatchResult, Position } from '../../types';
 import { Card, Select, Button } from '../UIComponents';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -26,9 +26,11 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     const [sortBy, setSortBy] = useState<'matches' | 'winRate'>('matches');
     const [selectedPlayerId, setSelectedPlayerId] = useState<string>('all');
     const [viewMode, setViewMode] = useState<'list' | 'matrix'>('list');
-    const [activeTab, setActiveTab] = useState<'PAIRS' | 'POSITION' | 'NEMESIS' | 'STREAKS'>('PAIRS');
+    const [activeTab, setActiveTab] = useState<'PAIRS' | 'POSITION' | 'NEMESIS' | 'STREAKS' | 'ORDER'>('PAIRS');
     const [selectedNemesisTeam, setSelectedNemesisTeam] = useState<string>('all');
     const [nemesisSort, setNemesisSort] = useState<{key: 'name' | 'team' | 'matches' | 'wins' | 'losses', direction: 'asc' | 'desc'}>({key: 'losses', direction: 'desc'});
+    const [selectedNemesis, setSelectedNemesis] = useState<any | null>(null);
+    const [orderViewType, setOrderViewType] = useState<'PLAYERS' | 'PAIRS'>('PLAYERS');
 
     const pairStats = useMemo(() => {
         if (!data) return [];
@@ -169,7 +171,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
 
-        const rivalsMap = new Map<string, { name: string, team: string, matches: number, wins: number, losses: number, winRate: number }>();
+        const rivalsMap = new Map<string, { name: string, team: string, matches: number, wins: number, losses: number, winRate: number, playedAgainst: any[] }>();
         
         filteredMatches.forEach(matchDay => {
             const teamName = matchDay.opponent || 'Desconocido';
@@ -180,13 +182,19 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                 opponents.forEach(oppName => {
                     const key = `${oppName}_${teamName}`;
                     if (!rivalsMap.has(key)) {
-                        rivalsMap.set(key, { name: oppName, team: teamName, matches: 0, wins: 0, losses: 0, winRate: 0 });
+                        rivalsMap.set(key, { name: oppName, team: teamName, matches: 0, wins: 0, losses: 0, winRate: 0, playedAgainst: [] });
                     }
                     const stat = rivalsMap.get(key)!;
                     stat.matches += 1;
                     if (lineup.result === MatchResult.WIN) stat.wins += 1;
                     if (lineup.result === MatchResult.LOSS) stat.losses += 1;
                     stat.winRate = Math.round((stat.wins / stat.matches) * 100);
+                    stat.playedAgainst.push({
+                        matchDay,
+                        lineup,
+                        ourPlayer1: data.players.find(p => p.id === lineup.player1Id),
+                        ourPlayer2: data.players.find(p => p.id === lineup.player2Id)
+                    });
                 });
             });
         });
@@ -267,6 +275,73 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
         });
 
         return { hot: hot.sort((a,b) => b.streak - a.streak), cold: cold.sort((a,b) => b.streak - a.streak) };
+    }, [data, viewSeasonId]);
+
+    // --- ORDER ---
+    const orderStats = useMemo(() => {
+        if (!data) return { players: [], pairs: [] };
+        const filteredMatches = viewSeasonId === 'all' 
+            ? data.matches 
+            : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+
+        const playerStats = new Map<string, { name: string, positions: { [key: number]: { matches: number, wins: number } } }>();
+        const pairStatsMap = new Map<string, { name: string, positions: { [key: number]: { matches: number, wins: number } } }>();
+
+        filteredMatches.forEach(matchDay => {
+            matchDay.lineups.forEach((lineup, idx) => {
+                const pairNum = idx + 1;
+                const p1 = data.players.find(p => p.id === lineup.player1Id);
+                const p2 = data.players.find(p => p.id === lineup.player2Id);
+                
+                if (p1) {
+                    if (!playerStats.has(p1.id)) playerStats.set(p1.id, { name: p1.name, positions: {} });
+                    const stat = playerStats.get(p1.id)!;
+                    if (!stat.positions[pairNum]) stat.positions[pairNum] = { matches: 0, wins: 0 };
+                    stat.positions[pairNum].matches += 1;
+                    if (lineup.result === MatchResult.WIN) stat.positions[pairNum].wins += 1;
+                }
+                
+                if (p2) {
+                    if (!playerStats.has(p2.id)) playerStats.set(p2.id, { name: p2.name, positions: {} });
+                    const stat = playerStats.get(p2.id)!;
+                    if (!stat.positions[pairNum]) stat.positions[pairNum] = { matches: 0, wins: 0 };
+                    stat.positions[pairNum].matches += 1;
+                    if (lineup.result === MatchResult.WIN) stat.positions[pairNum].wins += 1;
+                }
+                
+                if (p1 && p2) {
+                    const pairId = [p1.id, p2.id].sort().join('_');
+                    const pairName = `${p1.name} / ${p2.name}`;
+                    if (!pairStatsMap.has(pairId)) pairStatsMap.set(pairId, { name: pairName, positions: {} });
+                    const stat = pairStatsMap.get(pairId)!;
+                    if (!stat.positions[pairNum]) stat.positions[pairNum] = { matches: 0, wins: 0 };
+                    stat.positions[pairNum].matches += 1;
+                    if (lineup.result === MatchResult.WIN) stat.positions[pairNum].wins += 1;
+                }
+            });
+        });
+
+        const formatStats = (map: Map<any, any>) => {
+            return Array.from(map.values()).map(s => {
+                let totalMatches = 0;
+                let totalWins = 0;
+                Object.values(s.positions).forEach((pos: any) => {
+                    totalMatches += pos.matches;
+                    totalWins += pos.wins;
+                });
+                return {
+                    ...s,
+                    totalMatches,
+                    totalWins,
+                    winRate: totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0
+                };
+            }).sort((a, b) => b.totalMatches - a.totalMatches);
+        };
+
+        return {
+            players: formatStats(playerStats),
+            pairs: formatStats(pairStatsMap)
+        };
     }, [data, viewSeasonId]);
 
     if (!data) return null;
@@ -416,6 +491,87 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
         );
     }
 
+    if (selectedNemesis) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in pb-20">
+                <button 
+                    onClick={() => setSelectedNemesis(null)}
+                    className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors font-bold text-sm mb-4"
+                >
+                    <ChevronRight className="rotate-180" size={16} /> Volver a Némesis
+                </button>
+
+                <div className="bg-gradient-to-br from-red-900 to-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-red-500 blur-[100px] opacity-20 rounded-full pointer-events-none"></div>
+                    
+                    <div className="relative z-10">
+                        <h2 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <Target size={16} /> Ficha de Rival
+                        </h2>
+                        <div className="mt-6">
+                            <h3 className="text-3xl font-black mb-1">{selectedNemesis.name}</h3>
+                            <p className="text-slate-400 font-bold uppercase tracking-widest">{selectedNemesis.team}</p>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mt-10">
+                            <div className="bg-slate-800/50 rounded-2xl p-4 text-center border border-slate-700/50">
+                                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Partidos</p>
+                                <p className="text-3xl font-black">{selectedNemesis.matches}</p>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-2xl p-4 text-center border border-slate-700/50">
+                                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Nuestras Victorias</p>
+                                <p className="text-3xl font-black text-lime-400">{selectedNemesis.wins}</p>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-2xl p-4 text-center border border-slate-700/50">
+                                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Nuestras Derrotas</p>
+                                <p className="text-3xl font-black text-red-400">{selectedNemesis.losses}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mt-8 mb-4 flex items-center gap-2">
+                    <Calendar className="text-blue-500" /> Historial de Partidos
+                </h3>
+
+                <div className="space-y-4">
+                    {selectedNemesis.playedAgainst.map((m: any, idx: number) => {
+                        const isWin = m.lineup.result === MatchResult.WIN;
+                        const isLoss = m.lineup.result === MatchResult.LOSS;
+                        
+                        return (
+                            <Card key={idx} className="p-0 overflow-hidden border-l-4" style={{ borderLeftColor: isWin ? '#a3e635' : isLoss ? '#ef4444' : '#94a3b8' }}>
+                                <div className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-xs font-black uppercase px-2 py-0.5 rounded ${isWin ? 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-400' : isLoss ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}>
+                                                {isWin ? 'Victoria' : isLoss ? 'Derrota' : 'Empate'}
+                                            </span>
+                                            <span className="text-slate-400 font-bold text-[10px] uppercase flex items-center gap-1">
+                                                <Clock size={10} /> {new Date(m.matchDay.date).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                        <p className="font-bold text-slate-900 dark:text-white">vs {m.ourPlayer1?.name} & {m.ourPlayer2?.name}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Jornada vs {m.matchDay.opponent}</p>
+                                    </div>
+                                    
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                        {[m.lineup.set1, m.lineup.set2, m.lineup.set3].filter(Boolean).map((set, i) => (
+                                            <div key={i} className="flex-1 sm:flex-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-center min-w-[60px]">
+                                                <span className="text-xs text-slate-400 block mb-1 font-bold">S{i+1}</span>
+                                                <span className="font-black text-slate-700 dark:text-slate-200">{set}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in pb-20">
             <header className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
@@ -440,6 +596,9 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                     </button>
                     <button onClick={() => setActiveTab('STREAKS')} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'STREAKS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                         <TrendingUp size={16} /> Rachas
+                    </button>
+                    <button onClick={() => setActiveTab('ORDER')} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'ORDER' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                        <ListOrdered size={16} /> Orden
                     </button>
                 </div>
             </div>
@@ -676,7 +835,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                     </thead>
                                     <tbody>
                                         {nemesisStats.map((stat, i) => (
-                                            <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <tr key={i} onClick={() => setSelectedNemesis(stat)} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
                                                 <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{stat.name}</td>
                                                 <td className="p-3 text-sm text-slate-500 dark:text-slate-400">{stat.team}</td>
                                                 <td className="p-3 text-center font-medium text-slate-600 dark:text-slate-400">{stat.matches}</td>
@@ -739,6 +898,55 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                             )}
                         </Card>
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'ORDER' && (
+                <div className="space-y-6 animate-in fade-in">
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl inline-flex shadow-inner">
+                            <button onClick={() => setOrderViewType('PLAYERS')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${orderViewType === 'PLAYERS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Jugadores</button>
+                            <button onClick={() => setOrderViewType('PAIRS')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${orderViewType === 'PAIRS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Parejas</button>
+                        </div>
+                    </div>
+
+                    <Card className="p-0 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase">{orderViewType === 'PLAYERS' ? 'Jugador' : 'Pareja'}</th>
+                                        {[1, 2, 3, 4, 5].map(pos => (
+                                            <th key={pos} className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Pareja {pos}</th>
+                                        ))}
+                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(orderViewType === 'PLAYERS' ? orderStats.players : orderStats.pairs).map((stat, i) => (
+                                        <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{stat.name}</td>
+                                            {[1, 2, 3, 4, 5].map(pos => {
+                                                const posStat = stat.positions[pos];
+                                                if (!posStat) return <td key={pos} className="p-3 text-center text-slate-300 dark:text-slate-600">-</td>;
+                                                const winRate = Math.round((posStat.wins / posStat.matches) * 100);
+                                                return (
+                                                    <td key={pos} className="p-3 text-center">
+                                                        <div className="font-bold text-slate-700 dark:text-slate-300">{posStat.wins}V - {posStat.matches - posStat.wins}D</div>
+                                                        <div className={`text-[10px] font-black ${winRate >= 50 ? 'text-lime-500' : 'text-red-500'}`}>{winRate}%</div>
+                                                    </td>
+                                                );
+                                            })}
+                                            <td className="p-3 text-center">
+                                                <div className="font-black text-slate-900 dark:text-white">{stat.totalWins}V - {stat.totalMatches - stat.totalWins}D</div>
+                                                <div className={`text-[10px] font-black ${stat.winRate >= 50 ? 'text-lime-500' : 'text-red-500'}`}>{stat.winRate}%</div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
                 </div>
             )}
         </div>
