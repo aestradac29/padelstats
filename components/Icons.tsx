@@ -43,7 +43,10 @@ import {
   Zap,
   Sun,
   Moon,
-  Copy
+  Copy,
+  TrendingUp,
+  TrendingDown,
+  Target
 } from 'lucide-react';
 
 export { 
@@ -90,5 +93,8 @@ export {
   Zap,
   Sun,
   Moon,
-  Copy
+  Copy,
+  TrendingUp,
+  TrendingDown,
+  Target
 };

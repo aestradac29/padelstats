@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon
+  Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity
 } from './components/Icons';
 import { 
   Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -31,6 +31,7 @@ import MatchesView from './components/views/MatchesView';
 import LineupView from './components/views/LineupView';
 import SettingsView from './components/views/SettingsView';
 import QuickLineupView from './components/views/QuickLineupView';
+import PairsView from './components/views/PairsView';
 
 const App = () => {
   // --- Global State ---
@@ -753,7 +754,7 @@ const App = () => {
              <div className="px-6 mb-6"><div className="relative"><select style={{ backgroundColor: '#1e3a8a', color: 'white', appearance: 'none', MozAppearance: 'none', WebkitAppearance: 'none' }} value={viewSeasonId} onChange={(e) => setViewSeasonId(e.target.value)} className="w-full font-bold text-sm py-3 px-4 rounded-xl appearance-none border border-blue-800 outline-none focus:ring-2 focus:ring-lime-400 transition-all [color-scheme:dark]"><option value="all">Todas las Temporadas</option>{data.seasons.map(s => ( <option key={s.id} value={s.id}>{s.name} {s.isActive ? '(Activa)' : ''}</option> ))}</select><ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 pointer-events-none" size={18} /></div></div>
         )}
         <nav className="flex-1 px-4 space-y-2">
-          {[ { id: 'DASHBOARD', label: 'Inicio', icon: Trophy }, { id: 'PLAYERS', label: 'Plantilla', icon: Users }, { id: 'MATCHES', label: 'Jornadas', icon: Calendar }, { id: 'LINEUP', label: 'Alineación', icon: LayoutGrid }, { id: 'QUICK_LINEUP', label: 'Alineación Rápida', icon: Sparkles }, { id: 'SETTINGS', label: 'Ajustes', icon: Settings, role: 'CAPTAIN' } ].map(item => {
+          {[ { id: 'DASHBOARD', label: 'Inicio', icon: Trophy }, { id: 'PLAYERS', label: 'Plantilla', icon: Users }, { id: 'MATCHES', label: 'Jornadas', icon: Calendar }, { id: 'LINEUP', label: 'Alineación', icon: LayoutGrid }, { id: 'QUICK_LINEUP', label: 'Alineación Rápida', icon: Sparkles }, { id: 'PAIRS', label: 'Parejas', icon: Activity }, { id: 'SETTINGS', label: 'Ajustes', icon: Settings, role: 'CAPTAIN' } ].map(item => {
              if (item.role && item.role !== sessionRole) return null;
              const isActive = currentView === item.id;
              return ( <button key={item.id} onClick={() => { setCurrentView(item.id as ViewState); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group ${isActive ? 'bg-lime-400 text-blue-950 shadow-lg shadow-lime-400/20' : 'hover:bg-blue-900 hover:text-white'}`}><item.icon size={22} className={isActive ? 'text-blue-950' : 'text-slate-400 group-hover:text-lime-400'} /><span className="font-bold text-xs uppercase tracking-wider">{item.label}</span>{isActive && <ChevronRight size={16} className="ml-auto opacity-50" />}</button> )
@@ -860,6 +861,12 @@ const App = () => {
             )}
             {currentView === 'QUICK_LINEUP' && (
                 <QuickLineupView />
+            )}
+            {currentView === 'PAIRS' && (
+                <PairsView 
+                    data={data}
+                    viewSeasonId={viewSeasonId}
+                />
             )}
             {currentView === 'SETTINGS' && (
                 <SettingsView 
