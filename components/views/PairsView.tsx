@@ -27,6 +27,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     const [selectedPlayerId, setSelectedPlayerId] = useState<string>('all');
     const [viewMode, setViewMode] = useState<'list' | 'matrix'>('list');
     const [activeTab, setActiveTab] = useState<'PAIRS' | 'POSITION' | 'NEMESIS' | 'STREAKS'>('PAIRS');
+    const [selectedNemesisTeam, setSelectedNemesisTeam] = useState<string>('all');
 
     const pairStats = useMemo(() => {
         if (!data) return [];
@@ -167,24 +168,47 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
 
-        const rivalsMap = new Map<string, { name: string, matches: number, wins: number, losses: number, winRate: number }>();
+        const rivalsMap = new Map<string, { name: string, team: string, matches: number, wins: number, losses: number, winRate: number }>();
+        
         filteredMatches.forEach(matchDay => {
+            const teamName = matchDay.opponent || 'Desconocido';
+            
             matchDay.lineups.forEach(lineup => {
-                if (!lineup.opponent1Name && !lineup.opponent2Name) return;
-                const names = [lineup.opponent1Name || '?', lineup.opponent2Name || '?'].sort();
-                const key = `${names[0]} & ${names[1]}`;
-                if (!rivalsMap.has(key)) {
-                    rivalsMap.set(key, { name: key, matches: 0, wins: 0, losses: 0, winRate: 0 });
-                }
-                const stat = rivalsMap.get(key)!;
-                stat.matches += 1;
-                if (lineup.result === MatchResult.WIN) stat.wins += 1;
-                if (lineup.result === MatchResult.LOSS) stat.losses += 1;
-                stat.winRate = Math.round((stat.wins / stat.matches) * 100);
+                const opponents = [lineup.opponent1Name, lineup.opponent2Name].filter(Boolean) as string[];
+                
+                opponents.forEach(oppName => {
+                    const key = `${oppName}_${teamName}`;
+                    if (!rivalsMap.has(key)) {
+                        rivalsMap.set(key, { name: oppName, team: teamName, matches: 0, wins: 0, losses: 0, winRate: 0 });
+                    }
+                    const stat = rivalsMap.get(key)!;
+                    stat.matches += 1;
+                    if (lineup.result === MatchResult.WIN) stat.wins += 1;
+                    if (lineup.result === MatchResult.LOSS) stat.losses += 1;
+                    stat.winRate = Math.round((stat.wins / stat.matches) * 100);
+                });
             });
         });
-        return Array.from(rivalsMap.values()).filter(r => r.matches > 0).sort((a, b) => b.losses - a.losses || a.winRate - b.winRate);
-    }, [data, viewSeasonId]);
+        
+        let statsArray = Array.from(rivalsMap.values());
+        if (selectedNemesisTeam !== 'all') {
+            statsArray = statsArray.filter(s => s.team === selectedNemesisTeam);
+        }
+        
+        return statsArray.filter(r => r.matches > 0).sort((a, b) => b.losses - a.losses || a.winRate - b.winRate);
+    }, [data, viewSeasonId, selectedNemesisTeam]);
+
+    const nemesisTeamOptions = useMemo(() => {
+        if (!data) return [{ value: 'all', label: 'Todos los equipos' }];
+        const teams = new Set<string>();
+        data.matches.forEach(m => {
+            if (m.opponent) teams.add(m.opponent);
+        });
+        return [
+            { value: 'all', label: 'Todos los equipos' },
+            ...Array.from(teams).sort().map(t => ({ value: t, label: t }))
+        ];
+    }, [data]);
 
     // --- STREAKS ---
     const streaks = useMemo(() => {
@@ -240,6 +264,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     if (!data) return null;
 
     if (selectedPair) {
+        let cumulativeDiff = 0;
         const chartData = selectedPair.matches.map((m, idx) => {
             let gamesWon = 0;
             let gamesLost = 0;
@@ -250,12 +275,15 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                     gamesLost += l;
                 }
             });
+            const matchDiff = gamesWon - gamesLost;
+            cumulativeDiff += matchDiff;
             return {
                 name: `P${idx + 1}`,
                 date: new Date(m.matchDay.date).toLocaleDateString(),
                 gamesWon,
                 gamesLost,
-                diff: gamesWon - gamesLost
+                matchDiff,
+                cumulativeDiff
             };
         });
 
@@ -306,9 +334,14 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
 
                 {chartData.length > 1 && (
                     <Card className="p-6">
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                            <TrendingUp className="text-blue-500" /> Evolución de Juegos (Diferencia)
-                        </h3>
+                        <div className="mb-6">
+                            <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                <TrendingUp className="text-blue-500" /> Evolución de Juegos (Diferencia Acumulada)
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                Muestra si la pareja va ganando o perdiendo más juegos a lo largo del tiempo. Una línea ascendente significa que ganan más juegos de los que pierden en total.
+                            </p>
+                        </div>
                         <div className="h-64 w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -319,8 +352,9 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                         contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
                                         itemStyle={{ color: '#fff' }}
                                         labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
+                                        formatter={(value: number) => [value > 0 ? `+${value}` : value, 'Diferencia Acumulada']}
                                     />
-                                    <Line type="monotone" dataKey="diff" name="Diferencia de Juegos" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                                    <Line type="monotone" dataKey="cumulativeDiff" name="Diferencia Acumulada" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
@@ -602,28 +636,41 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             {activeTab === 'NEMESIS' && (
                 <div className="space-y-6 animate-in fade-in">
                     <Card className="p-6">
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                            <Target className="text-red-500" /> Rivalidades (Némesis)
-                        </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Parejas rivales contra las que más habéis jugado o perdido.</p>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                                    <Target className="text-red-500" /> Rivalidades (Némesis)
+                                </h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Jugadores rivales individuales contra los que más habéis jugado o perdido.</p>
+                            </div>
+                            <div className="w-full md:w-64 shrink-0">
+                                <Select 
+                                    value={selectedNemesisTeam} 
+                                    onChange={(e) => setSelectedNemesisTeam(e.target.value)}
+                                    options={nemesisTeamOptions}
+                                />
+                            </div>
+                        </div>
                         
                         {nemesisStats.length === 0 ? (
-                            <div className="text-center py-10 text-slate-500">No hay suficientes datos de rivales.</div>
+                            <div className="text-center py-10 text-slate-500">No hay suficientes datos de rivales para el filtro seleccionado.</div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="border-b border-slate-200 dark:border-slate-700">
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase">Pareja Rival</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase">Jugador Rival</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase">Equipo</th>
                                             <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Partidos</th>
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Derrotas</th>
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">% Victorias vs Ellos</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Nuestras Derrotas</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">% Nuestras Victorias</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {nemesisStats.map((stat, i) => (
                                             <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                                 <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{stat.name}</td>
+                                                <td className="p-3 text-sm text-slate-500 dark:text-slate-400">{stat.team}</td>
                                                 <td className="p-3 text-center font-medium text-slate-600 dark:text-slate-400">{stat.matches}</td>
                                                 <td className="p-3 text-center font-black text-red-500">{stat.losses}</td>
                                                 <td className="p-3 text-center font-black text-slate-700 dark:text-slate-300">{stat.winRate}%</td>
