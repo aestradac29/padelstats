@@ -28,6 +28,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     const [viewMode, setViewMode] = useState<'list' | 'matrix'>('list');
     const [activeTab, setActiveTab] = useState<'PAIRS' | 'POSITION' | 'NEMESIS' | 'STREAKS'>('PAIRS');
     const [selectedNemesisTeam, setSelectedNemesisTeam] = useState<string>('all');
+    const [nemesisSort, setNemesisSort] = useState<{key: 'name' | 'team' | 'matches' | 'wins' | 'losses', direction: 'asc' | 'desc'}>({key: 'losses', direction: 'desc'});
 
     const pairStats = useMemo(() => {
         if (!data) return [];
@@ -195,8 +196,15 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             statsArray = statsArray.filter(s => s.team === selectedNemesisTeam);
         }
         
-        return statsArray.filter(r => r.matches > 0).sort((a, b) => b.losses - a.losses || a.winRate - b.winRate);
-    }, [data, viewSeasonId, selectedNemesisTeam]);
+        return statsArray.filter(r => r.matches > 0).sort((a, b) => {
+            const { key, direction } = nemesisSort;
+            let valA = a[key];
+            let valB = b[key];
+            
+            if (direction === 'asc') return valA > valB ? 1 : -1;
+            return valA < valB ? 1 : -1;
+        });
+    }, [data, viewSeasonId, selectedNemesisTeam, nemesisSort]);
 
     const nemesisTeamOptions = useMemo(() => {
         if (!data) return [{ value: 'all', label: 'Todos los equipos' }];
@@ -659,11 +667,11 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="border-b border-slate-200 dark:border-slate-700">
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase">Jugador Rival</th>
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase">Equipo</th>
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Partidos</th>
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Nuestras Derrotas</th>
-                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">% Nuestras Victorias</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase cursor-pointer hover:text-blue-500" onClick={() => setNemesisSort({key: 'name', direction: nemesisSort.key === 'name' && nemesisSort.direction === 'asc' ? 'desc' : 'asc'})}>Jugador Rival</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase cursor-pointer hover:text-blue-500" onClick={() => setNemesisSort({key: 'team', direction: nemesisSort.key === 'team' && nemesisSort.direction === 'asc' ? 'desc' : 'asc'})}>Equipo</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center cursor-pointer hover:text-blue-500" onClick={() => setNemesisSort({key: 'matches', direction: nemesisSort.key === 'matches' && nemesisSort.direction === 'asc' ? 'desc' : 'asc'})}>Partidos</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center cursor-pointer hover:text-blue-500" onClick={() => setNemesisSort({key: 'wins', direction: nemesisSort.key === 'wins' && nemesisSort.direction === 'asc' ? 'desc' : 'asc'})}>Victorias</th>
+                                            <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center cursor-pointer hover:text-blue-500" onClick={() => setNemesisSort({key: 'losses', direction: nemesisSort.key === 'losses' && nemesisSort.direction === 'asc' ? 'desc' : 'asc'})}>Derrotas</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -672,8 +680,8 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                                 <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{stat.name}</td>
                                                 <td className="p-3 text-sm text-slate-500 dark:text-slate-400">{stat.team}</td>
                                                 <td className="p-3 text-center font-medium text-slate-600 dark:text-slate-400">{stat.matches}</td>
+                                                <td className="p-3 text-center font-black text-lime-600 dark:text-lime-400">{stat.wins}</td>
                                                 <td className="p-3 text-center font-black text-red-500">{stat.losses}</td>
-                                                <td className="p-3 text-center font-black text-slate-700 dark:text-slate-300">{stat.winRate}%</td>
                                             </tr>
                                         ))}
                                     </tbody>
