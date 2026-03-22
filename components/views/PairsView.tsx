@@ -285,7 +285,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
 
         const playerStats = new Map<string, { name: string, positions: { [key: number]: { matches: number, wins: number } } }>();
-        const pairStatsMap = new Map<string, { name: string, positions: { [key: number]: { matches: number, wins: number } } }>();
+        const pairStatsMap = new Map<string, { name: string, player1Id?: string, player2Id?: string, positions: { [key: number]: { matches: number, wins: number } } }>();
 
         filteredMatches.forEach(matchDay => {
             matchDay.lineups.forEach((lineup, idx) => {
@@ -312,7 +312,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                 if (p1 && p2) {
                     const pairId = [p1.id, p2.id].sort().join('_');
                     const pairName = `${p1.name} / ${p2.name}`;
-                    if (!pairStatsMap.has(pairId)) pairStatsMap.set(pairId, { name: pairName, positions: {} });
+                    if (!pairStatsMap.has(pairId)) pairStatsMap.set(pairId, { name: pairName, player1Id: p1.id, player2Id: p2.id, positions: {} });
                     const stat = pairStatsMap.get(pairId)!;
                     if (!stat.positions[pairNum]) stat.positions[pairNum] = { matches: 0, wins: 0 };
                     stat.positions[pairNum].matches += 1;
@@ -903,11 +903,21 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
 
             {activeTab === 'ORDER' && (
                 <div className="space-y-6 animate-in fade-in">
-                    <div className="flex justify-center mb-6">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                         <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl inline-flex shadow-inner">
                             <button onClick={() => setOrderViewType('PLAYERS')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${orderViewType === 'PLAYERS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Jugadores</button>
                             <button onClick={() => setOrderViewType('PAIRS')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${orderViewType === 'PAIRS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Parejas</button>
                         </div>
+                        
+                        {orderViewType === 'PAIRS' && (
+                            <div className="w-full md:w-64">
+                                <Select 
+                                    value={selectedPlayerId} 
+                                    onChange={(e) => setSelectedPlayerId(e.target.value)}
+                                    options={playerOptions}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <Card className="p-0 overflow-hidden">
@@ -923,7 +933,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(orderViewType === 'PLAYERS' ? orderStats.players : orderStats.pairs).map((stat, i) => (
+                                    {(orderViewType === 'PLAYERS' ? orderStats.players : orderStats.pairs.filter(p => selectedPlayerId === 'all' || p.player1Id === selectedPlayerId || p.player2Id === selectedPlayerId)).map((stat, i) => (
                                         <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                             <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{stat.name}</td>
                                             {[1, 2, 3, 4, 5].map(pos => {
