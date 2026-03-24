@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Activity, Trophy, Calendar, X, ChevronRight, CheckCircle, XCircle, Table, LayoutGrid, TrendingUp, TrendingDown, Target, Users, ListOrdered, Clock } from '../Icons';
+import React, { useState, useMemo, useRef } from 'react';
+import { Activity, Trophy, Calendar, X, ChevronRight, CheckCircle, XCircle, Table, LayoutGrid, TrendingUp, TrendingDown, Target, Users, ListOrdered, Clock, Download } from '../Icons';
 import { AppState, MatchDay, MatchLineup, MatchResult, Position } from '../../types';
 import { Card, Select, Button } from '../UIComponents';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import html2canvas from 'html2canvas';
 
 interface PairsViewProps {
     data: AppState | null;
@@ -31,6 +32,84 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     const [nemesisSort, setNemesisSort] = useState<{key: 'name' | 'team' | 'matches' | 'wins' | 'losses', direction: 'asc' | 'desc'}>({key: 'losses', direction: 'desc'});
     const [selectedNemesis, setSelectedNemesis] = useState<any | null>(null);
     const [orderViewType, setOrderViewType] = useState<'PLAYERS' | 'PAIRS'>('PLAYERS');
+    const [isCopying, setIsCopying] = useState(false);
+    
+    const matrixRef = useRef<HTMLDivElement>(null);
+
+    const copyMatrixToClipboard = async () => {
+        if (!matrixRef.current) return;
+        setIsCopying(true);
+        
+        const container = matrixRef.current;
+        const scrollContainer = container.querySelector('.overflow-x-auto') as HTMLElement;
+        const table = container.querySelector('table') as HTMLElement;
+        const card = container.querySelector('.shadow-lg') as HTMLElement;
+        
+        let originalOverflow = '';
+        let originalWidth = '';
+        let originalContainerWidth = '';
+        let originalContainerMaxWidth = '';
+        let originalCardOverflow = '';
+        
+        if (scrollContainer && table && card) {
+            originalOverflow = scrollContainer.style.overflow;
+            originalWidth = scrollContainer.style.width;
+            originalContainerWidth = container.style.width;
+            originalContainerMaxWidth = container.style.maxWidth;
+            originalCardOverflow = card.style.overflow;
+            
+            const fullWidth = table.scrollWidth;
+            
+            container.style.width = `${fullWidth}px`;
+            container.style.maxWidth = 'none';
+            
+            scrollContainer.style.overflow = 'visible';
+            scrollContainer.style.width = `${fullWidth}px`;
+            
+            card.style.overflow = 'visible';
+        }
+
+        // Dar tiempo al DOM para que aplique los estilos antes de capturar
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        try {
+            const canvas = await html2canvas(container, {
+                backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                width: table ? table.scrollWidth : undefined,
+                windowWidth: table ? table.scrollWidth + 100 : undefined
+            });
+            
+            canvas.toBlob(async (blob) => {
+                if (blob) {
+                    try {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({
+                                'image/png': blob
+                            })
+                        ]);
+                        alert('¡Matriz copiada al portapapeles!');
+                    } catch (err) {
+                        console.error('Error copying to clipboard', err);
+                        alert('No se pudo copiar al portapapeles. Intenta de nuevo.');
+                    }
+                }
+            }, 'image/png');
+        } catch (error) {
+            console.error('Error generating image', error);
+        } finally {
+            if (scrollContainer && card) {
+                scrollContainer.style.overflow = originalOverflow;
+                scrollContainer.style.width = originalWidth;
+                container.style.width = originalContainerWidth;
+                container.style.maxWidth = originalContainerMaxWidth;
+                card.style.overflow = originalCardOverflow;
+            }
+            setIsCopying(false);
+        }
+    };
 
     const pairStats = useMemo(() => {
         if (!data) return [];
@@ -642,6 +721,17 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                 </div>
                             </div>
                         )}
+                        {viewMode === 'matrix' && (
+                            <Button 
+                                variant="secondary" 
+                                className="flex items-center gap-2 py-2 px-4 text-sm"
+                                onClick={copyMatrixToClipboard}
+                                disabled={isCopying}
+                            >
+                                <Download size={16} />
+                                {isCopying ? 'Copiando...' : 'Copiar Matriz'}
+                            </Button>
+                        )}
                     </div>
 
                     {pairStats.length === 0 ? (
@@ -651,18 +741,17 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                     <p className="text-slate-500 max-w-md mx-auto">Añade resultados de partidos para empezar a ver las estadísticas de las diferentes parejas que han jugado juntas.</p>
                 </div>
             ) : viewMode === 'matrix' ? (
-                <Card className="p-0 overflow-hidden border-0 shadow-lg">
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
+                <div ref={matrixRef}>
+                    <Card className="p-0 overflow-hidden border-0 shadow-lg">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
                             <thead>
                                 <tr>
                                     <th className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-2 sm:p-3 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]"></th>
                                     {activePlayers.map(p => (
-                                        <th key={p.id} className="p-1 sm:p-2 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 align-bottom h-24 sm:h-32 min-w-[48px] sm:min-w-[64px]">
-                                            <div className="flex justify-center items-end h-full pb-1">
-                                                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="whitespace-nowrap">
-                                                    {p.name}
-                                                </span>
+                                        <th key={p.id} className="p-1 sm:p-2 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 align-bottom h-24 sm:h-32 min-w-[48px] sm:min-w-[64px] relative overflow-hidden">
+                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap">
+                                                {p.name}
                                             </div>
                                         </th>
                                     ))}
@@ -723,6 +812,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                         </table>
                     </div>
                 </Card>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pairStats.map((pair) => (
