@@ -126,8 +126,11 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                 hasContent = true;
                 const name1 = p1 ? p1.name : '___';
                 const name2 = p2 ? p2.name : '___';
+                const points1 = p1 && data ? getPoints(p1, data.matches, viewSeasonId, data) : 0;
+                const points2 = p2 && data ? getPoints(p2, data.matches, viewSeasonId, data) : 0;
+                const totalPoints = points1 + points2;
                 // Swapped order: Revés (Left) / Drive (Right) to match visual layout
-                text += `${index + 1}️⃣ ${name2} / ${name1}\n`;
+                text += `${index + 1}️⃣ ${name2} / ${name1} (${totalPoints} pts)\n`;
             }
         });
 
@@ -290,9 +293,6 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                <div className="flex gap-2">
                                     <button onClick={handleCopyLineup} className="text-slate-400 hover:text-lime-400 transition-colors p-2 bg-slate-800 rounded-lg" title="Copiar alineación">
                                         <Copy size={16}/>
-                                    </button>
-                                    <button onClick={handleSortByPoints} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800 rounded-lg" title="Reordenar por fuerza">
-                                        <ArrowUpDown size={16}/>
                                     </button>
                                     <button onClick={() => setDraftLineup(Array(5).fill({ player1Id: '', player2Id: '' }))} className="text-slate-400 hover:text-red-400 transition-colors p-2 bg-slate-800 rounded-lg" title="Limpiar todo">
                                         <Trash2 size={16}/>
