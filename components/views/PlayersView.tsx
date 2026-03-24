@@ -1,9 +1,10 @@
 
 
-import React, { useState } from 'react';
-import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy } from '../Icons';
+import React, { useState, useMemo } from 'react';
+import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy, TrendingUp } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, Player, Position, MatchResult, MatchDay } from '../../types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface PlayersViewProps {
     data: AppState | null;
@@ -89,9 +90,10 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
 const PlayersView: React.FC<PlayersViewProps> = ({ 
     data, sessionRole, viewSeasonId, setTempPlayer, setModalType, setImportMode, setIsModalOpen, deletePlayer, setTempPlayersList 
 }) => {
-    const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>('TABLE');
+    const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE' | 'EVOLUTION'>('TABLE');
     const [sortField, setSortField] = useState<string>('points');
     const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
+    const [hiddenPlayers, setHiddenPlayers] = useState<Record<string, boolean>>({});
 
     if (!data) return null;
 
@@ -104,7 +106,107 @@ const PlayersView: React.FC<PlayersViewProps> = ({
     const matches = getFilteredMatches();
     const matchesForStats = matches.filter(m => m.lineups && m.lineups.length > 0);
     
+    const getInitialPointsForEdit = (pid: string) => {
+        if (viewSeasonId === 'all') {
+            const p = data.players.find(pl => pl.id === pid);
+            return p?.initialPoints || 0;
+        } else {
+            const season = data.seasons?.find(s => s.id === viewSeasonId);
+            const p = data.players.find(pl => pl.id === pid);
+            if (season?.playerStartPoints && typeof season.playerStartPoints[pid] !== 'undefined') {
+                return season.playerStartPoints[pid];
+            }
+            if (viewSeasonId === 'default') return p?.initialPoints || 0;
+            return 0;
+        }
+    };
+
     // --- ADVANCED STATS CALCULATION ---
+    const getSeasonEvolutionData = () => {
+        if (!data) return [];
+        
+        // Initialize points for all players
+        const currentPoints: Record<string, number> = {};
+        data.players.forEach(p => {
+            currentPoints[p.id] = getInitialPointsForEdit(p.id);
+        });
+
+        const evolutionData: any[] = [];
+        
+        // Initial state
+        const initialDataPoint: any = { name: 'Inicio' };
+        data.players.forEach(p => {
+            initialDataPoint[p.id] = currentPoints[p.id];
+        });
+        evolutionData.push(initialDataPoint);
+
+        const matchesToScore = matches.filter(m => !m.ignorePoints);
+        const sortedMatches = [...matchesToScore].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        sortedMatches.forEach((match, index) => {
+            // Determine settings for this match
+            let matchSettings = data.settings;
+            if (match.seasonId) {
+                const season = data.seasons?.find(s => s.id === match.seasonId);
+                if (season?.settings) matchSettings = season.settings;
+            } else if (viewSeasonId !== 'all' && viewSeasonId !== 'default') {
+                const season = data.seasons?.find(s => s.id === viewSeasonId);
+                if (season?.settings) matchSettings = season.settings;
+            }
+
+            if (matchSettings.scoringSystem !== 'NONE') {
+                data.players.forEach(p => {
+                    let played = false;
+                    let result: MatchResult | undefined;
+                    let matchPointsAdded = 0;
+
+                    match.lineups.forEach(lineup => {
+                        if (lineup.player1Id === p.id || lineup.player2Id === p.id) {
+                            played = true;
+                            result = lineup.result;
+                            if (matchSettings.scoringSystem === 'SIMPLE') {
+                                matchPointsAdded += matchSettings.pointsAttendance;
+                                if (result === MatchResult.WIN) matchPointsAdded += matchSettings.pointsPerWin;
+                                else if (result === MatchResult.LOSS) matchPointsAdded += matchSettings.pointsPerLoss;
+                                else if (result === MatchResult.DRAW) matchPointsAdded += matchSettings.pointsPerDraw;
+                            }
+                        }
+                    });
+
+                    if (played) {
+                        if (matchSettings.scoringSystem === 'RANGES' && matchSettings.ranges && result) {
+                            const range = matchSettings.ranges.find(r => currentPoints[p.id] >= r.min && currentPoints[p.id] <= r.max);
+                            if (range) {
+                                if (result === MatchResult.WIN) currentPoints[p.id] += range.win;
+                                else if (result === MatchResult.LOSS) currentPoints[p.id] -= range.loss;
+                            } else {
+                                if (result === MatchResult.WIN) currentPoints[p.id] += matchSettings.pointsPerWin;
+                                else if (result === MatchResult.LOSS) currentPoints[p.id] -= matchSettings.pointsPerLoss;
+                            }
+                        } else if (matchSettings.scoringSystem === 'SIMPLE') {
+                            currentPoints[p.id] += matchPointsAdded;
+                        }
+                        currentPoints[p.id] = Math.max(0, currentPoints[p.id]);
+                    }
+                });
+            }
+
+            const dataPoint: any = { 
+                name: `J${index + 1}`,
+                fullDate: new Date(match.date).toLocaleDateString(),
+                opponent: match.opponent
+            };
+            data.players.forEach(p => {
+                dataPoint[p.id] = currentPoints[p.id];
+            });
+            evolutionData.push(dataPoint);
+        });
+
+        return evolutionData;
+    };
+
+    const evolutionData = useMemo(() => getSeasonEvolutionData(), [data, viewSeasonId, matches]);
+
     const playersStats = data.players.map(p => {
         let played = 0;
         let wins = 0;
@@ -141,6 +243,9 @@ const PlayersView: React.FC<PlayersViewProps> = ({
         });
 
         const totalPotentialMatches = matchesForStats.length; 
+        const currentPoints = getPoints(p, matches, viewSeasonId, data);
+        const initialPoints = getInitialPointsForEdit(p.id);
+        const pointsDiff = currentPoints - initialPoints;
         
         return {
             ...p,
@@ -156,7 +261,8 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                 winsAway,
                 total: totalPotentialMatches
             },
-            points: getPoints(p, matches, viewSeasonId, data) 
+            points: currentPoints,
+            pointsDiff: pointsDiff
         };
     });
 
@@ -175,22 +281,21 @@ const PlayersView: React.FC<PlayersViewProps> = ({
              const availB = b.stats.played + b.stats.bench;
              return availB - availA;
         }
+        if (sortField === 'unavailable') return b.stats.unavailable - a.stats.unavailable;
+        if (sortField === 'losses') return b.stats.losses - a.stats.losses;
+        if (sortField === 'homeWinRate') {
+             const wa = a.stats.playedHome ? a.stats.winsHome / a.stats.playedHome : 0;
+             const wb = b.stats.playedHome ? b.stats.winsHome / b.stats.playedHome : 0;
+             return wb - wa;
+        }
+        if (sortField === 'awayWinRate') {
+             const wa = a.stats.playedAway ? a.stats.winsAway / a.stats.playedAway : 0;
+             const wb = b.stats.playedAway ? b.stats.winsAway / b.stats.playedAway : 0;
+             return wb - wa;
+        }
+        if (sortField === 'pointsDiff') return (b.pointsDiff || 0) - (a.pointsDiff || 0);
         return 0;
     });
-
-    const getInitialPointsForEdit = (pid: string) => {
-        if (viewSeasonId === 'all') {
-            const p = data.players.find(pl => pl.id === pid);
-            return p?.initialPoints || 0;
-        } else {
-            const season = data.seasons?.find(s => s.id === viewSeasonId);
-            const p = data.players.find(pl => pl.id === pid);
-            if (season?.playerStartPoints && typeof season.playerStartPoints[pid] !== 'undefined') {
-                return season.playerStartPoints[pid];
-            }
-            return p?.initialPoints || 0;
-        }
-    };
 
     const toggleExpand = (id: string) => {
         setExpandedPlayerId(expandedPlayerId === id ? null : id);
@@ -224,6 +329,7 @@ const PlayersView: React.FC<PlayersViewProps> = ({
             <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex items-center shadow-sm">
                 <button onClick={() => setViewMode('CARDS')} className={`p-2 rounded-md transition-all ${viewMode === 'CARDS' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutGrid size={18} /></button>
                 <button onClick={() => setViewMode('TABLE')} className={`p-2 rounded-md transition-all ${viewMode === 'TABLE' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><List size={18} /></button>
+                <button onClick={() => setViewMode('EVOLUTION')} className={`p-2 rounded-md transition-all ${viewMode === 'EVOLUTION' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><TrendingUp size={18} /></button>
             </div>
             {sessionRole === 'CAPTAIN' && (
             <Button onClick={() => { setTempPlayer({}); setTempPlayersList([]); setImportMode('MANUAL'); setModalType('ADD_PLAYER'); setIsModalOpen(true); }} className="px-3 md:px-4"><Plus size={18} /> <span className="hidden md:inline">Nuevo</span></Button>
@@ -245,13 +351,14 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('availability')}>Disp.</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('matches')}>Jugados</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('bench')}>Banquillo</th>
-                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center text-red-300 dark:text-red-400/70">No Disp.</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('unavailable')}>No Disp.</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('wins')}>Vic</th>
-                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center text-red-400">Der</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('losses')}>Der</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('winRate')}>% Vic Global</th>
-                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">% Casa</th>
-                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">% Fuera</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('homeWinRate')}>Casa (J / %)</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('awayWinRate')}>Fuera (J / %)</th>
                             <th className="p-4 font-bold text-slate-900 dark:text-white uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('points')}>Puntos</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('pointsDiff')}>Dif.</th>
                             {sessionRole === 'CAPTAIN' && <th className="p-4 text-right"></th>}
                         </tr>
                     </thead>
@@ -282,9 +389,14 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                      <td className="p-4 text-center text-lime-600 dark:text-lime-400 font-bold">{s.wins}</td>
                                      <td className="p-4 text-center text-red-400 font-medium">{s.losses}</td>
                                      <td className="p-4 text-center"><span className={`font-black ${winRate >= 50 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>{winRate}%</span></td>
-                                     <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">{s.playedHome > 0 ? <span className={winRateHome > 50 ? 'text-lime-600 dark:text-lime-400 font-bold' : ''}>{winRateHome}%</span> : '-'}</td>
-                                     <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">{s.playedAway > 0 ? <span className={winRateAway > 50 ? 'text-lime-600 dark:text-lime-400 font-bold' : ''}>{winRateAway}%</span> : '-'}</td>
+                                     <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">{s.playedHome > 0 ? <span>{s.playedHome}J / <span className={winRateHome >= 50 ? 'text-lime-600 dark:text-lime-400 font-bold' : ''}>{winRateHome}%</span></span> : '-'}</td>
+                                     <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">{s.playedAway > 0 ? <span>{s.playedAway}J / <span className={winRateAway >= 50 ? 'text-lime-600 dark:text-lime-400 font-bold' : ''}>{winRateAway}%</span></span> : '-'}</td>
                                      <td className="p-4 text-center font-black text-lg text-slate-900 dark:text-white">{player.points}</td>
+                                     <td className="p-4 text-center">
+                                         <span className={`text-xs font-bold ${player.pointsDiff > 0 ? 'text-lime-500' : player.pointsDiff < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                             {player.pointsDiff > 0 ? '+' : ''}{player.pointsDiff}
+                                         </span>
+                                     </td>
                                      {sessionRole === 'CAPTAIN' && (
                                          <td className="p-4 text-right">
                                              <button onClick={() => { setTempPlayer({...player, initialPoints: getInitialPointsForEdit(player.id)}); setModalType('EDIT_PLAYER'); setImportMode('MANUAL'); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><Edit2 size={16}/></button>
@@ -327,6 +439,9 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                         <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight">{player.name} {player.surname}</h3>
                                         <div className="flex items-center gap-2 mt-0.5">
                                             <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold">{player.points} pts</span>
+                                            <span className={`text-[10px] font-bold ${player.pointsDiff > 0 ? 'text-lime-500' : player.pointsDiff < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                ({player.pointsDiff > 0 ? '+' : ''}{player.pointsDiff})
+                                            </span>
                                             {s.played > 0 && (
                                                 <span className={`text-[10px] font-bold ${winRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-slate-400'}`}>{winRate}% WR</span>
                                             )}
@@ -372,8 +487,8 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                     <div className="flex gap-2">
                                         <div className="flex-1 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700 text-xs">
                                             <div className="flex justify-between mb-1">
-                                                <span className="text-slate-400 font-bold">Casa</span>
-                                                <span className={s.playedHome > 0 && (s.winsHome/s.playedHome) > 0.5 ? 'text-lime-600 dark:text-lime-400 font-bold' : 'dark:text-slate-200'}>
+                                                <span className="text-slate-400 font-bold">Casa ({s.playedHome}J)</span>
+                                                <span className={s.playedHome > 0 && (s.winsHome/s.playedHome) >= 0.5 ? 'text-lime-600 dark:text-lime-400 font-bold' : 'dark:text-slate-200'}>
                                                     {s.playedHome > 0 ? Math.round((s.winsHome/s.playedHome)*100) : 0}%
                                                 </span>
                                             </div>
@@ -381,8 +496,8 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                         </div>
                                         <div className="flex-1 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700 text-xs">
                                             <div className="flex justify-between mb-1">
-                                                <span className="text-slate-400 font-bold">Fuera</span>
-                                                <span className={s.playedAway > 0 && (s.winsAway/s.playedAway) > 0.5 ? 'text-lime-600 dark:text-lime-400 font-bold' : 'dark:text-slate-200'}>
+                                                <span className="text-slate-400 font-bold">Fuera ({s.playedAway}J)</span>
+                                                <span className={s.playedAway > 0 && (s.winsAway/s.playedAway) >= 0.5 ? 'text-lime-600 dark:text-lime-400 font-bold' : 'dark:text-slate-200'}>
                                                     {s.playedAway > 0 ? Math.round((s.winsAway/s.playedAway)*100) : 0}%
                                                 </span>
                                             </div>
@@ -407,6 +522,82 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                 })}
              </div>
 
+          </div>
+      ) : viewMode === 'EVOLUTION' ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800 p-4 md:p-6 mb-20">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Evolución de Puntos</h3>
+                  <div className="flex gap-2 w-full md:w-auto">
+                      <Button 
+                          variant="secondary" 
+                          className="flex-1 md:flex-none text-xs py-1 px-3"
+                          onClick={() => {
+                              const allHidden: Record<string, boolean> = {};
+                              sortedPlayers.forEach(p => allHidden[p.id] = true);
+                              setHiddenPlayers(allHidden);
+                          }}
+                      >
+                          Ocultar Todos
+                      </Button>
+                      <Button 
+                          variant="secondary" 
+                          className="flex-1 md:flex-none text-xs py-1 px-3"
+                          onClick={() => setHiddenPlayers({})}
+                      >
+                          Mostrar Todos
+                      </Button>
+                  </div>
+              </div>
+              <div className="h-[500px] md:h-[600px] w-full overflow-x-auto">
+                  <div className="min-w-[700px] h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={evolutionData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
+                              <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickMargin={10} />
+                              <YAxis stroke="#64748b" fontSize={12} tickMargin={10} />
+                              <Tooltip 
+                                  contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#f8fafc' }}
+                                  itemStyle={{ fontSize: '12px' }}
+                                  labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontWeight: 'bold' }}
+                                  formatter={(value: number, name: string) => [`${value} pts`, name]}
+                                  labelFormatter={(label, payload) => {
+                                      if (payload && payload.length > 0) {
+                                          const data = payload[0].payload;
+                                          if (data.fullDate) {
+                                              return `${label} - ${data.fullDate}${data.opponent ? ` vs ${data.opponent}` : ''}`;
+                                          }
+                                      }
+                                      return label;
+                                  }}
+                              />
+                              <Legend 
+                                  wrapperStyle={{ fontSize: '12px', paddingTop: '20px', cursor: 'pointer' }} 
+                                  onClick={(e: any) => {
+                                      if (e && typeof e.dataKey === 'string') {
+                                          setHiddenPlayers(prev => ({
+                                              ...prev,
+                                              [e.dataKey]: !prev[e.dataKey]
+                                          }));
+                                      }
+                                  }}
+                              />
+                              {sortedPlayers.map((player, index) => (
+                                  <Line 
+                                      key={player.id} 
+                                      type="monotone" 
+                                      dataKey={player.id} 
+                                      name={player.name} 
+                                      stroke={`hsl(${(index * 137.5) % 360}, 70%, 50%)`} 
+                                      strokeWidth={2}
+                                      dot={{ r: 3, strokeWidth: 2 }}
+                                      activeDot={{ r: 6 }}
+                                      hide={hiddenPlayers[player.id]}
+                                  />
+                              ))}
+                          </LineChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
           </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 pb-20">
@@ -443,7 +634,12 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                         <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
                              <div>
                                 <span className="text-[10px] text-slate-400 font-bold uppercase block">Puntos</span>
-                                <span className="text-lg font-black text-slate-900 dark:text-white">{player.points}</span>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-lg font-black text-slate-900 dark:text-white">{player.points}</span>
+                                    <span className={`text-[10px] font-bold ${player.pointsDiff > 0 ? 'text-lime-500' : player.pointsDiff < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                        {player.pointsDiff > 0 ? '+' : ''}{player.pointsDiff}
+                                    </span>
+                                </div>
                              </div>
                              <div>
                                 <span className="text-[10px] text-slate-400 font-bold uppercase block">% Victoria</span>
