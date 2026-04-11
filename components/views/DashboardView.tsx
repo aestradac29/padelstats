@@ -234,7 +234,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             return { ...p, winRate, performanceScore };
         })
         .sort((a, b) => b.performanceScore - a.performanceScore)
-        .slice(0, 5);
+        .slice(0, 6);
     
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
