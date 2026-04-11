@@ -50,6 +50,7 @@ export interface MatchDay {
   seasonId?: string; // New field to link match to a season
   availablePlayers?: string[]; // Array of player IDs who were available/called up for this match
   ignorePoints?: boolean; // If true, stats count but points are not added (Historical matches)
+  isRestDay?: boolean; // New field: True if it's a rest day
 }
 
 export interface ScoringRange {

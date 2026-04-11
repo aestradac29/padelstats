@@ -151,7 +151,10 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                     let rowBg = "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"; 
                                     let resultStyle = "text-slate-400 dark:text-slate-500";
                                     
-                                    if (status === 'WIN') {
+                                    if (match.isRestDay) {
+                                        rowBg = "bg-slate-100 dark:bg-slate-800 opacity-60";
+                                        resultStyle = "text-slate-500 italic";
+                                    } else if (status === 'WIN') {
                                         rowBg = "bg-lime-50 dark:bg-lime-900/10 hover:bg-lime-100 dark:hover:bg-lime-900/20";
                                         resultStyle = "text-lime-700 dark:text-lime-400 font-black";
                                     } else if (status === 'LOSS') {
@@ -180,26 +183,26 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                             <td className="p-3 border-r border-slate-200/50 dark:border-slate-700/50">
                                                 <div className="flex flex-col">
                                                      <div className="flex gap-1 mb-1">
-                                                         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit ${match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
-                                                            {match.isHome ? 'CASA' : 'FUERA'}
+                                                         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit ${match.isRestDay ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
+                                                            {match.isRestDay ? 'DESCANSO' : match.isHome ? 'CASA' : 'FUERA'}
                                                          </span>
-                                                         {match.ignorePoints && (
+                                                         {match.ignorePoints && !match.isRestDay && (
                                                              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" title="Histórico: No suma puntos">
                                                                  HIST
                                                              </span>
                                                          )}
                                                      </div>
                                                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate max-w-[120px]" title={match.notes || (match.isHome ? 'Local' : match.opponent)}>
-                                                         {match.notes?.replace('Sede: ', '') || (match.isHome ? 'Local' : match.opponent)}
+                                                         {match.isRestDay ? 'Jornada de descanso' : (match.notes?.replace('Sede: ', '') || (match.isHome ? 'Local' : match.opponent))}
                                                      </span>
                                                 </div>
                                             </td>
                                             <td className="p-3 border-r border-slate-200/50 dark:border-slate-700/50">
-                                                <span className="font-bold text-slate-900 dark:text-white text-sm uppercase">{match.opponent}</span>
+                                                <span className="font-bold text-slate-900 dark:text-white text-sm uppercase">{match.isRestDay ? '-' : match.opponent}</span>
                                             </td>
                                             <td className="p-3 text-center">
                                                 <span className={`text-lg ${resultStyle}`}>
-                                                    {status === 'PENDING' ? '-' : getMatchScore(match)}
+                                                    {match.isRestDay ? '---' : (status === 'PENDING' ? '-' : getMatchScore(match))}
                                                 </span>
                                             </td>
                                             {sessionRole === 'CAPTAIN' && (
@@ -245,6 +248,22 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                         PENDING: { border: 'border-l-slate-200 dark:border-l-slate-700', bg: '', dot: 'bg-slate-300 dark:bg-slate-600', scoreColor: 'text-slate-400', label: 'Pendiente' },
                     };
                     const cfg = statusConfig[status] || statusConfig.PENDING;
+
+                    if (match.isRestDay) {
+                        return (
+                            <div key={match.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 border-l-4 border-l-slate-300 bg-slate-100 dark:bg-slate-900 opacity-70 transition-all shadow-sm">
+                                <div className="p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">DESCANSO</span>
+                                        <h3 className="text-base font-black text-slate-500 dark:text-slate-400">Jornada de descanso</h3>
+                                    </div>
+                                    <span className="text-slate-400 dark:text-slate-500 text-[10px] font-medium">
+                                        {new Date(match.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    }
 
                     return (
                         <div key={match.id} className={`rounded-2xl border border-slate-200 dark:border-slate-800 border-l-4 ${cfg.border} overflow-hidden bg-white dark:bg-slate-900 ${cfg.bg} transition-all shadow-sm hover:shadow-md`}>

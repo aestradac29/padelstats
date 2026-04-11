@@ -498,6 +498,7 @@ const App = () => {
             tandas: tempMatch.tandas || '5',
             seasonId: tempMatch.seasonId || activeSeason.id,
             availablePlayers: finalAvailablePlayers,
+            isRestDay: tempMatch.isRestDay || false,
             ignorePoints: tempMatch.ignorePoints || false
         };
 
@@ -1143,6 +1144,18 @@ const App = () => {
                                     />
                                     <p className="text-[10px] text-yellow-700 dark:text-yellow-400 mt-1 ml-9 leading-tight">
                                         Activa esto si ya has incluido los puntos de este partido en los "Puntos Iniciales". El partido contará para estadísticas pero no duplicará puntos.
+                                    </p>
+                                </div>
+
+                                {/* REST DAY TOGGLE */}
+                                <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-200 dark:border-blue-900/30">
+                                    <Checkbox
+                                        label="Jornada de Descanso"
+                                        checked={tempMatch.isRestDay || false}
+                                        onChange={(c) => setTempMatch(m => ({ ...m, isRestDay: c }))}
+                                    />
+                                    <p className="text-[10px] text-blue-700 dark:text-blue-400 mt-1 ml-9 leading-tight">
+                                        Activa esto si en esta jornada el equipo no juega (descanso).
                                     </p>
                                 </div>
 
