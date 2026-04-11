@@ -69,12 +69,21 @@ export const DEFAULT_SEASON: Season = {
 };
 
 export const TANDA_OPTIONS = [
-    { value: '5', label: '5 (Turno único)' },
-    { value: '4-1', label: '4 - 1 (Dos turnos)' },
-    { value: '1-4', label: '1 - 4 (Dos turnos)' },
-    { value: '3-2', label: '3 - 2 (Dos turnos)' },
-    { value: '2-3', label: '2 - 3 (Dos turnos)' },
-    { value: '2-2-1', label: '2 - 2 - 1 (Tres turnos)' },
-    { value: '1-2-2', label: '1 - 2 - 2 (Tres turnos)' },
-    { value: '2-1-2', label: '2 - 1 - 2 (Tres turnos)' },
+    // Masculino (5 partidos)
+    { value: '5', label: '5 (Turno único) - Masculino' },
+    { value: '4-1', label: '4 - 1 (Dos turnos) - Masculino' },
+    { value: '1-4', label: '1 - 4 (Dos turnos) - Masculino' },
+    { value: '3-2', label: '3 - 2 (Dos turnos) - Masculino' },
+    { value: '2-3', label: '2 - 3 (Dos turnos) - Masculino' },
+    { value: '2-2-1', label: '2 - 2 - 1 (Tres turnos) - Masculino' },
+    { value: '1-2-2', label: '1 - 2 - 2 (Tres turnos) - Masculino' },
+    { value: '2-1-2', label: '2 - 1 - 2 (Tres turnos) - Masculino' },
+    // Femenino (4 partidos)
+    { value: '4', label: '4 (Turno único) - Femenino' },
+    { value: '3-1', label: '3 - 1 (Dos turnos) - Femenino' },
+    { value: '1-3', label: '1 - 3 (Dos turnos) - Femenino' },
+    { value: '2-2', label: '2 - 2 (Dos turnos) - Femenino' },
+    { value: '2-1-1', label: '2 - 1 - 1 (Tres turnos) - Femenino' },
+    { value: '1-2-1', label: '1 - 2 - 1 (Tres turnos) - Femenino' },
+    { value: '1-1-2', label: '1 - 1 - 2 (Tres turnos) - Femenino' },
 ];
