@@ -201,13 +201,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                         
                         if (a > b) setsStats.won += 1;
                         else if (b > a) setsStats.lost += 1;
+                        setsStats.total += 1;
                     }
                 }
             });
         });
     });
     gamesStats.total = gamesStats.won + gamesStats.lost;
-    setsStats.total = setsStats.won + setsStats.lost;
 
     // Home / Away split
     const homeMatches = playedMatches.filter(m => m.isHome);
@@ -435,9 +435,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Sets stats */}
           <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <Target size={15} className="text-slate-400" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sets Totales</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Target size={15} className="text-slate-400" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sets</span>
+              </div>
+              <span className="text-xs font-bold text-slate-500">{setsStats.total} totales</span>
             </div>
             <div className="flex items-end gap-3">
               <div className="flex-1">
@@ -458,9 +461,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* Games stats */}
           <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart2 size={15} className="text-slate-400" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juegos Totales</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BarChart2 size={15} className="text-slate-400" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juegos</span>
+              </div>
+              <span className="text-xs font-bold text-slate-500">{gamesStats.total} totales</span>
             </div>
             <div className="flex items-end gap-3">
               <div className="flex-1">
