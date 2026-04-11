@@ -18,6 +18,7 @@ interface PairStats {
     matchesPlayed: number;
     wins: number;
     losses: number;
+    draws: number;
     winRate: number;
     matches: { matchDay: MatchDay; lineup: MatchLineup }[];
 }
@@ -140,6 +141,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                         matchesPlayed: 0,
                         wins: 0,
                         losses: 0,
+                        draws: 0,
                         winRate: 0,
                         matches: []
                     });
@@ -149,6 +151,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                 stats.matchesPlayed += 1;
                 if (lineup.result === MatchResult.WIN) stats.wins += 1;
                 if (lineup.result === MatchResult.LOSS) stats.losses += 1;
+                if (lineup.result === MatchResult.DRAW) stats.draws += 1;
                 stats.matches.push({ matchDay, lineup });
                 stats.winRate = Math.round((stats.wins / stats.matchesPlayed) * 100);
             });
@@ -366,7 +369,8 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
 
         filteredMatches.forEach(matchDay => {
             matchDay.lineups.forEach((lineup, idx) => {
-                const pairNum = idx + 1;
+                // Use the explicit pairNumber field if set, otherwise fall back to array index+1
+                const pairNum = lineup.pairNumber ?? (idx + 1);
                 const p1 = data.players.find(p => p.id === lineup.player1Id);
                 const p2 = data.players.find(p => p.id === lineup.player2Id);
                 
@@ -415,9 +419,22 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             }).sort((a, b) => b.totalMatches - a.totalMatches);
         };
 
+        // Calculate the maximum pair position used across all matches
+        const allPositions = new Set<number>();
+        filteredMatches.forEach(matchDay => {
+            matchDay.lineups.forEach((lineup, idx) => {
+                const pairNum = lineup.pairNumber ?? (idx + 1);
+                allPositions.add(pairNum);
+            });
+        });
+        const maxPairPos = allPositions.size > 0 ? Math.max(...Array.from(allPositions)) : (data?.settings?.gender === 'FEMENINO' ? 4 : 5);
+        // Use a contiguous range 1..max so columns are consistent across all rows
+        const pairPositions = Array.from({ length: maxPairPos }, (_, i) => i + 1);
+
         return {
             players: formatStats(playerStats),
-            pairs: formatStats(pairStatsMap)
+            pairs: formatStats(pairStatsMap),
+            pairPositions
         };
     }, [data, viewSeasonId]);
 
@@ -476,7 +493,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4 mt-10">
+                        <div className="grid grid-cols-4 gap-4 mt-10">
                             <div className="bg-slate-800/50 rounded-2xl p-4 text-center border border-slate-700/50">
                                 <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Partidos</p>
                                 <p className="text-3xl font-black">{selectedPair.matchesPlayed}</p>
@@ -484,6 +501,10 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                             <div className="bg-slate-800/50 rounded-2xl p-4 text-center border border-slate-700/50">
                                 <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Victorias</p>
                                 <p className="text-3xl font-black text-lime-400">{selectedPair.wins}</p>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-2xl p-4 text-center border border-slate-700/50">
+                                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Derrotas</p>
+                                <p className="text-3xl font-black text-red-400">{selectedPair.losses}</p>
                             </div>
                             <div className="bg-slate-800/50 rounded-2xl p-4 text-center border border-slate-700/50">
                                 <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Efectividad</p>
@@ -540,8 +561,13 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                             <span className={`text-xs font-black uppercase px-2 py-0.5 rounded ${isWin ? 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-400' : isLoss ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}>
                                                 {isWin ? 'Victoria' : isLoss ? 'Derrota' : 'Empate'}
                                             </span>
+                                            {m.lineup.pairNumber && (
+                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                                    P{m.lineup.pairNumber}
+                                                </span>
+                                            )}
                                             <span className="text-xs font-bold text-slate-500">
-                                                {new Date(m.matchDay.date).toLocaleDateString()}
+                                                {new Date(m.matchDay.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             </span>
                                         </div>
                                         <p className="font-bold text-slate-900 dark:text-white">vs {m.matchDay.opponent}</p>
@@ -833,17 +859,21 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                 </div>
                             </div>
                             
-                            <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                            <div className="grid grid-cols-4 gap-2 pt-4 border-t border-slate-100 dark:border-slate-700/50">
                                 <div>
-                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Partidos</p>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">PJ</p>
                                     <p className="font-black text-lg text-slate-700 dark:text-slate-300">{pair.matchesPlayed}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Victorias</p>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">V</p>
                                     <p className="font-black text-lg text-lime-600 dark:text-lime-400">{pair.wins}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Efectividad</p>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">D</p>
+                                    <p className="font-black text-lg text-red-500 dark:text-red-400">{pair.losses}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">%</p>
                                     <p className={`font-black text-lg ${pair.winRate >= 50 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}`}>{pair.winRate}%</p>
                                 </div>
                             </div>
@@ -1013,13 +1043,23 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                     </div>
 
                     <Card className="p-0 overflow-hidden">
+                        <div className="px-4 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                Muestra el rendimiento según la posición de pareja asignada en cada jornada (Pareja 1 = primera pareja, etc.). El número de pareja se establece al registrar los resultados.
+                            </p>
+                        </div>
+                        {(orderViewType === 'PLAYERS' ? orderStats.players : orderStats.pairs).length === 0 ? (
+                            <div className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
+                                No hay datos de orden de parejas registrados aún.
+                            </div>
+                        ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase">{orderViewType === 'PLAYERS' ? 'Jugador' : 'Pareja'}</th>
-                                        {(data?.settings?.gender === 'FEMENINO' ? [1, 2, 3, 4] : [1, 2, 3, 4, 5]).map(pos => (
-                                            <th key={pos} className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Pareja {pos}</th>
+                                        <th className="p-3 text-xs font-bold text-slate-500 uppercase sticky left-0 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[120px]">{orderViewType === 'PLAYERS' ? 'Jugador' : 'Pareja'}</th>
+                                        {orderStats.pairPositions.map(pos => (
+                                            <th key={pos} className="p-3 text-xs font-bold text-slate-500 uppercase text-center whitespace-nowrap">Pareja {pos}</th>
                                         ))}
                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Total</th>
                                     </tr>
@@ -1027,20 +1067,20 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                 <tbody>
                                     {(orderViewType === 'PLAYERS' ? orderStats.players : orderStats.pairs.filter(p => selectedPlayerId === 'all' || p.player1Id === selectedPlayerId || p.player2Id === selectedPlayerId)).map((stat, i) => (
                                         <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{stat.name}</td>
-                                            {(data?.settings?.gender === 'FEMENINO' ? [1, 2, 3, 4] : [1, 2, 3, 4, 5]).map(pos => {
+                                            <td className="p-3 font-bold text-slate-800 dark:text-slate-200 sticky left-0 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 min-w-[120px]">{stat.name}</td>
+                                            {orderStats.pairPositions.map(pos => {
                                                 const posStat = stat.positions[pos];
                                                 if (!posStat) return <td key={pos} className="p-3 text-center text-slate-300 dark:text-slate-600">-</td>;
                                                 const winRate = Math.round((posStat.wins / posStat.matches) * 100);
                                                 return (
-                                                    <td key={pos} className="p-3 text-center">
-                                                        <div className="font-bold text-slate-700 dark:text-slate-300">{posStat.wins}V - {posStat.matches - posStat.wins}D</div>
+                                                    <td key={pos} className="p-3 text-center min-w-[90px]">
+                                                        <div className="font-bold text-slate-700 dark:text-slate-300 text-sm">{posStat.wins}V - {posStat.matches - posStat.wins}D</div>
                                                         <div className={`text-[10px] font-black ${winRate >= 50 ? 'text-lime-500' : 'text-red-500'}`}>{winRate}%</div>
                                                     </td>
                                                 );
                                             })}
-                                            <td className="p-3 text-center">
-                                                <div className="font-black text-slate-900 dark:text-white">{stat.totalWins}V - {stat.totalMatches - stat.totalWins}D</div>
+                                            <td className="p-3 text-center min-w-[90px]">
+                                                <div className="font-black text-slate-900 dark:text-white text-sm">{stat.totalWins}V - {stat.totalMatches - stat.totalWins}D</div>
                                                 <div className={`text-[10px] font-black ${stat.winRate >= 50 ? 'text-lime-500' : 'text-red-500'}`}>{stat.winRate}%</div>
                                             </td>
                                         </tr>
@@ -1048,6 +1088,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                 </tbody>
                             </table>
                         </div>
+                        )}
                     </Card>
                 </div>
             )}

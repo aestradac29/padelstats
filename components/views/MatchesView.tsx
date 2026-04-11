@@ -54,6 +54,11 @@ const MatchesView: React.FC<MatchesViewProps> = ({
 
     const sortedMatches = [...filteredBySearch].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
+    // Build a map of matchId -> real jornada number (based on full season, not search-filtered list)
+    const allSortedMatches = [...matches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const matchJornadaNumber = new Map<string, number>();
+    allSortedMatches.forEach((m, i) => matchJornadaNumber.set(m.id, i + 1));
+    
     const getMatchStatus = (m: MatchDay) => {
          const wins = m.lineups.filter(l => l.result === MatchResult.WIN).length;
          const losses = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
@@ -75,6 +80,30 @@ const MatchesView: React.FC<MatchesViewProps> = ({
             prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
         );
     };
+
+    // Summary stats over ALL season matches (not just filtered by search)
+    const summaryStats = (() => {
+        const played = allSortedMatches.filter(m => m.lineups && m.lineups.length > 0 && !m.isRestDay);
+        const wins = played.filter(m => {
+            const w = m.lineups.filter(l => l.result === MatchResult.WIN).length;
+            const l = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
+            return w > l;
+        }).length;
+        const losses = played.filter(m => {
+            const w = m.lineups.filter(l => l.result === MatchResult.WIN).length;
+            const l = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
+            return l > w;
+        }).length;
+        const draws = played.length - wins - losses;
+        const pending = allSortedMatches.filter(m => (!m.lineups || m.lineups.length === 0) && !m.isRestDay).length;
+        // Last 5 played form
+        const last5 = played.slice(-5).map(m => {
+            const w = m.lineups.filter(l => l.result === MatchResult.WIN).length;
+            const l = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
+            return w > l ? 'W' : l > w ? 'L' : 'D';
+        });
+        return { wins, losses, draws, pending, total: played.length, last5 };
+    })();
 
     return (
       <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300 pb-2">
@@ -118,6 +147,37 @@ const MatchesView: React.FC<MatchesViewProps> = ({
            </div>
         </header>
         
+        {summaryStats.total > 0 && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-4 gap-2 md:gap-3">
+              {[
+                { label: 'Victorias', value: summaryStats.wins, color: 'bg-lime-50 dark:bg-lime-900/10 border-lime-200 dark:border-lime-800/50', textColor: 'text-lime-700 dark:text-lime-400', pct: summaryStats.total > 0 ? Math.round((summaryStats.wins / summaryStats.total) * 100) : 0 },
+                { label: 'Derrotas',  value: summaryStats.losses, color: 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/50', textColor: 'text-red-600 dark:text-red-400', pct: summaryStats.total > 0 ? Math.round((summaryStats.losses / summaryStats.total) * 100) : 0 },
+                { label: 'Empates',  value: summaryStats.draws, color: 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800/50', textColor: 'text-blue-600 dark:text-blue-400', pct: summaryStats.total > 0 ? Math.round((summaryStats.draws / summaryStats.total) * 100) : 0 },
+                { label: 'Pendientes', value: summaryStats.pending, color: 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700', textColor: 'text-slate-500 dark:text-slate-400', pct: null },
+              ].map(({ label, value, color, textColor, pct }) => (
+                <div key={label} className={`rounded-xl border ${color} p-3 text-center`}>
+                  <p className={`text-2xl font-black ${textColor}`}>{value}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{label}</p>
+                  {pct !== null && <p className={`text-[10px] font-bold mt-0.5 ${textColor} opacity-70`}>{pct}%</p>}
+                </div>
+              ))}
+            </div>
+            {summaryStats.last5.length > 0 && (
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Últimas {summaryStats.last5.length}</span>
+                <div className="flex gap-1.5">
+                  {summaryStats.last5.map((r, i) => (
+                    <span key={i} className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white ${r === 'W' ? 'bg-lime-500' : r === 'L' ? 'bg-red-500' : 'bg-blue-400'}`}>
+                      {r === 'W' ? 'V' : r === 'L' ? 'D' : 'E'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {sortedMatches.length === 0 ? (
             <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                 <div className="inline-flex bg-white dark:bg-slate-800 p-3 rounded-full mb-3 shadow-sm">
@@ -147,6 +207,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {sortedMatches.map((match, idx) => {
+                                    const jornadaNum = matchJornadaNumber.get(match.id) ?? (idx + 1);
                                     const status = getMatchStatus(match);
                                     let rowBg = "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"; 
                                     let resultStyle = "text-slate-400 dark:text-slate-500";
@@ -172,7 +233,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                     return (
                                         <tr key={match.id} className={`${rowBg} transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0`}>
                                             <td className="p-3 text-center border-r border-slate-200/50 dark:border-slate-700/50">
-                                                <span className="font-black text-slate-700 dark:text-slate-300 text-lg">{idx + 1}</span>
+                                                <span className="font-black text-slate-700 dark:text-slate-300 text-lg">{jornadaNum}</span>
                                             </td>
                                             <td className="p-3 border-r border-slate-200/50 dark:border-slate-700/50">
                                                 <div className="flex flex-col">
@@ -237,6 +298,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
             {/* LIST VIEW (Optimized for Mobile) & Fallback for Table on Mobile */}
             <div className={`space-y-3 pb-24 ${viewMode === 'TABLE' ? 'md:hidden block' : 'block'}`}>
                 {sortedMatches.map((match, matchIdx) => {
+                                    const jornadaNum = matchJornadaNumber.get(match.id) ?? (matchIdx + 1);
                     const status = getMatchStatus(match);
                     const isExpanded = expandedMatches.includes(match.id);
                     const score = getMatchScore(match);
@@ -286,7 +348,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">J{matchIdx + 1}</span>
+                                            <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">J{jornadaNum}</span>
                                             <h3 className="text-base font-black text-slate-900 dark:text-white truncate">
                                                 vs {match.opponent.toUpperCase()}
                                             </h3>
@@ -362,7 +424,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                     <div className="px-3 py-2 flex items-center justify-between gap-2">
                                                         {/* Pair names */}
                                                         <div className="min-w-0">
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Pareja {idx + 1}</p>
+                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Pareja {lineup.pairNumber ?? (idx + 1)}</p>
                                                             <p className={`text-xs font-bold truncate ${isWin ? 'text-lime-800 dark:text-lime-300' : isLoss ? 'text-red-700 dark:text-red-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                                                 {p1?.name || '?'} <span className="opacity-50">/</span> {p2?.name || '?'}
                                                             </p>

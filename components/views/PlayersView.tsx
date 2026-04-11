@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy, TrendingUp } from '../Icons';
+import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy, TrendingUp, Search } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, Player, Position, MatchResult, MatchDay } from '../../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -92,6 +92,7 @@ const PlayersView: React.FC<PlayersViewProps> = ({
 }) => {
     const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE' | 'EVOLUTION'>('TABLE');
     const [sortField, setSortField] = useState<string>('points');
+    const [searchTerm, setSearchTerm] = useState<string>('');
     const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
     const [hiddenPlayers, setHiddenPlayers] = useState<Record<string, boolean>>({});
 
@@ -295,6 +296,10 @@ const PlayersView: React.FC<PlayersViewProps> = ({
         }
         if (sortField === 'pointsDiff') return (b.pointsDiff || 0) - (a.pointsDiff || 0);
         return 0;
+    }).filter(p => {
+        if (!searchTerm.trim()) return true;
+        const term = searchTerm.toLowerCase();
+        return p.name.toLowerCase().includes(term) || (p.surname && p.surname.toLowerCase().includes(term));
     });
 
     const toggleExpand = (id: string) => {
@@ -320,21 +325,40 @@ const PlayersView: React.FC<PlayersViewProps> = ({
 
     return (
     <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300">
-      <header className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4 md:pb-6 sticky top-0 bg-slate-50 dark:bg-slate-950 z-20 pt-2">
-        <div>
-            <h2 className="text-xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Estadísticas</h2>
-            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 hidden md:block mt-1">Análisis detallado de rendimiento y disponibilidad</p>
-        </div>
-        <div className="flex gap-2">
-            <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex items-center shadow-sm">
-                <button onClick={() => setViewMode('CARDS')} className={`p-2 rounded-md transition-all ${viewMode === 'CARDS' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutGrid size={18} /></button>
-                <button onClick={() => setViewMode('TABLE')} className={`p-2 rounded-md transition-all ${viewMode === 'TABLE' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><List size={18} /></button>
-                <button onClick={() => setViewMode('EVOLUTION')} className={`p-2 rounded-md transition-all ${viewMode === 'EVOLUTION' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><TrendingUp size={18} /></button>
+      <header className="flex flex-col gap-3 border-b border-slate-200 dark:border-slate-800 pb-4 md:pb-6 sticky top-0 bg-slate-50 dark:bg-slate-950 z-20 pt-2">
+        <div className="flex justify-between items-center">
+            <div>
+                <h2 className="text-xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Estadísticas</h2>
+                <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 hidden md:block mt-1">Análisis detallado de rendimiento y disponibilidad</p>
             </div>
-            {sessionRole === 'CAPTAIN' && (
-            <Button onClick={() => { setTempPlayer({}); setTempPlayersList([]); setImportMode('MANUAL'); setModalType('ADD_PLAYER'); setIsModalOpen(true); }} className="px-3 md:px-4"><Plus size={18} /> <span className="hidden md:inline">Nuevo</span></Button>
-            )}
+            <div className="flex gap-2">
+                <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex items-center shadow-sm">
+                    <button onClick={() => setViewMode('CARDS')} className={`p-2 rounded-md transition-all ${viewMode === 'CARDS' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><LayoutGrid size={18} /></button>
+                    <button onClick={() => setViewMode('TABLE')} className={`p-2 rounded-md transition-all ${viewMode === 'TABLE' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><List size={18} /></button>
+                    <button onClick={() => setViewMode('EVOLUTION')} className={`p-2 rounded-md transition-all ${viewMode === 'EVOLUTION' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><TrendingUp size={18} /></button>
+                </div>
+                {sessionRole === 'CAPTAIN' && (
+                <Button onClick={() => { setTempPlayer({}); setTempPlayersList([]); setImportMode('MANUAL'); setModalType('ADD_PLAYER'); setIsModalOpen(true); }} className="px-3 md:px-4"><Plus size={18} /> <span className="hidden md:inline">Nuevo</span></Button>
+                )}
+            </div>
         </div>
+        {viewMode !== 'EVOLUTION' && (
+            <div className="relative w-full md:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                    type="text"
+                    placeholder="Buscar jugador..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-lime-400 outline-none transition-all shadow-sm"
+                />
+                {searchTerm && (
+                    <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        ×
+                    </button>
+                )}
+            </div>
+        )}
       </header>
       
       {/* View Mode: TABLE (DETAILED STATS) - Adapted for Mobile as List */}

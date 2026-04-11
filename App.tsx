@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity
 } from './components/Icons';
@@ -40,6 +40,8 @@ const App = () => {
     const [checkingTeam, setCheckingTeam] = useState(true);
     const [data, setData] = useState<AppState | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const mainRef = useRef<HTMLElement>(null);
+    const [showScrollTop, setShowScrollTop] = useState(false);
 
     // Theme State
     const [darkMode, setDarkMode] = useState(() => {
@@ -113,6 +115,14 @@ const App = () => {
     });
 
     // --- Initialization & Auth Listener ---
+    useEffect(() => {
+        const el = mainRef.current;
+        if (!el) return;
+        const onScroll = () => setShowScrollTop(el.scrollTop > 400);
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+    }, []);
+
     useEffect(() => {
         // Theme initialization
         if (darkMode) {
@@ -917,7 +927,7 @@ const App = () => {
                 <NavContent />
             </aside>
 
-            <main className="flex-1 overflow-y-auto h-[calc(100vh-56px)] md:h-screen bg-slate-50 dark:bg-slate-950 relative scroll-smooth">
+            <main ref={mainRef} className="flex-1 overflow-y-auto h-[calc(100vh-56px)] md:h-screen bg-slate-50 dark:bg-slate-950 relative scroll-smooth">
                 <div className="max-w-6xl mx-auto pb-24 md:pb-0 p-4 md:p-10">
                     {currentView === 'DASHBOARD' && (
                         <DashboardView
@@ -982,6 +992,17 @@ const App = () => {
                     )}
                 </div>
             </main>
+
+            {/* ===== SCROLL TO TOP BUTTON ===== */}
+            {showScrollTop && (
+                <button
+                    onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-600/30 flex items-center justify-center hover:bg-blue-700 dark:hover:bg-blue-400 transition-all hover:scale-110 active:scale-95"
+                    title="Volver arriba"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+            )}
 
             {/* ===== MOBILE BOTTOM NAVIGATION BAR ===== */}
             <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/20">

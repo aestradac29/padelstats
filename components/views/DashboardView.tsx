@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock } from '../Icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2 } from '../Icons';
 import { Card, Button, Avatar, ProgressBar, ResultBadge } from '../UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AppState, MatchResult, Player, MatchDay } from '../../types';
@@ -88,6 +88,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
     const [visiblePlayerIds, setVisiblePlayerIds] = useState<string[]>([]);
+    const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
     
     // Initialize visible players
     useEffect(() => {
@@ -165,15 +166,51 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const nextMatch = upcomingMatches[0];
 
+    // Countdown to next match
+    useEffect(() => {
+        if (!nextMatch) { setCountdown(null); return; }
+        const update = () => {
+            const diff = new Date(nextMatch.date).getTime() - Date.now();
+            if (diff <= 0) { setCountdown(null); return; }
+            setCountdown({
+                days: Math.floor(diff / 86400000),
+                hours: Math.floor((diff % 86400000) / 3600000),
+                minutes: Math.floor((diff % 3600000) / 60000),
+                seconds: Math.floor((diff % 60000) / 1000),
+            });
+        };
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [nextMatch?.date]);
+
+    // Sets stats (global)
+    const setsStats = (() => {
+        let won = 0, lost = 0;
+        playedMatches.forEach(m => {
+            m.lineups.forEach(l => {
+                [l.set1, l.set2, l.set3].filter(Boolean).forEach(set => {
+                    const [a, b] = set!.split('-').map(Number);
+                    if (!isNaN(a) && !isNaN(b)) { won += a; lost += b; }
+                });
+            });
+        });
+        return { won, lost, total: won + lost };
+    })();
+
+    // Home / Away split
+    const homeMatches = playedMatches.filter(m => m.isHome);
+    const awayMatches = playedMatches.filter(m => !m.isHome);
+    const homeWins = homeMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
+    const awayWins = awayMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
+    const homeWinRate = homeMatches.length > 0 ? Math.round((homeWins / homeMatches.length) * 100) : 0;
+    const awayWinRate = awayMatches.length > 0 ? Math.round((awayWins / awayMatches.length) * 100) : 0;
+
     useEffect(() => { setAiAnalysis(null); }, [viewSeasonId, data?.matches.length]);
 
     const handleRunAnalysis = () => {
         if (!data) return;
         setLoadingAi(true);
-        const homeMatches = playedMatches.filter(m => m.isHome);
-        const awayMatches = playedMatches.filter(m => !m.isHome);
-        const homeWins = homeMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
-        const awayWins = awayMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
         const sortedMatchesDesc = [...playedMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         const chronologicalStreak = sortedMatchesDesc.slice(0, 5).map(m => getMatchDayResult(m)).reverse();
         const activePlayers = stats.filter(p => p.matchesPlayed > 0);
@@ -277,18 +314,33 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 <Clock size={14} className="text-lime-400" />
                 <span className="text-xs font-black uppercase tracking-widest text-blue-300">Próxima Jornada</span>
               </div>
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-2xl font-black text-white">{nextMatch.opponent.toUpperCase()}</p>
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-2xl font-black text-white truncate">{nextMatch.opponent.toUpperCase()}</p>
                   <p className="text-blue-300 text-sm mt-1 font-medium">
                     {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                     {' · '}
                     {new Date(nextMatch.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
                   </p>
+                  <span className={`inline-block mt-2 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl ${nextMatch.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
+                    {nextMatch.isHome ? '🏠 Casa' : '✈️ Fuera'}
+                  </span>
                 </div>
-                <span className={`text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-xl ${nextMatch.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
-                  {nextMatch.isHome ? '🏠 Casa' : '✈️ Fuera'}
-                </span>
+                {countdown && (
+                  <div className="flex gap-2 flex-shrink-0">
+                    {[
+                      { v: countdown.days, l: 'días' },
+                      { v: countdown.hours, l: 'h' },
+                      { v: countdown.minutes, l: 'min' },
+                      { v: countdown.seconds, l: 'seg' },
+                    ].map(({ v, l }) => (
+                      <div key={l} className="bg-blue-900/60 border border-blue-700/50 rounded-xl px-2 py-1.5 text-center min-w-[40px]">
+                        <span className="block text-lg font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
+                        <span className="block text-[9px] font-bold text-blue-400 uppercase mt-0.5">{l}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {upcomingMatches.length > 1 && (
                 <p className="mt-3 text-xs text-blue-400 font-medium">+{upcomingMatches.length - 1} partidos más pendientes</p>
@@ -366,6 +418,72 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             subtitle={`${totalLineupsWonDirect}/${totalLineupsPlayed} ganados`}
           />
         </div>
+
+        {/* Sets & Home/Away stats row */}
+        {playedMatches.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Sets stats */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart2 size={15} className="text-slate-400" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juegos Totales</span>
+            </div>
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="font-bold text-lime-600 dark:text-lime-400">{setsStats.won} ganados</span>
+                  <span className="font-bold text-red-500">{setsStats.lost} perdidos</span>
+                </div>
+                <div className="h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-lime-400 rounded-l-full transition-all" style={{ width: setsStats.total > 0 ? `${(setsStats.won / setsStats.total) * 100}%` : '0%' }} />
+                  <div className="h-full bg-red-400 rounded-r-full transition-all" style={{ width: setsStats.total > 0 ? `${(setsStats.lost / setsStats.total) * 100}%` : '0%' }} />
+                </div>
+              </div>
+              <span className={`text-2xl font-black ${setsStats.won > setsStats.lost ? 'text-lime-600 dark:text-lime-400' : 'text-red-500'}`}>
+                {setsStats.total > 0 ? Math.round((setsStats.won / setsStats.total) * 100) : 0}%
+              </span>
+            </div>
+          </div>
+
+          {/* Home split */}
+          <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Home size={14} className="text-blue-500" />
+              <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Como Local</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{homeWinRate}%</p>
+                <p className="text-xs font-bold text-blue-400 mt-0.5">{homeWins}V / {homeMatches.length - homeWins}D — {homeMatches.length} jornadas</p>
+              </div>
+              {homeMatches.length > 0 && (
+                <div className="text-right">
+                  <div className="text-2xl">{homeWinRate >= 50 ? '🏠✅' : '🏠⚠️'}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Away split */}
+          <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Plane size={14} className="text-orange-500" />
+              <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Como Visitante</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-3xl font-black text-orange-600 dark:text-orange-400">{awayWinRate}%</p>
+                <p className="text-xs font-bold text-orange-400 mt-0.5">{awayWins}V / {awayMatches.length - awayWins}D — {awayMatches.length} jornadas</p>
+              </div>
+              {awayMatches.length > 0 && (
+                <div className="text-right">
+                  <div className="text-2xl">{awayWinRate >= 50 ? '✈️✅' : '✈️💪'}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        )}
 
         {/* Gráfico + Top jugadores */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

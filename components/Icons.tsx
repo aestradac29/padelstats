@@ -49,7 +49,10 @@ import {
   Target,
   ListOrdered,
   Flame,
-  Minus
+  Minus,
+  Home,
+  Plane,
+  BarChart2
 } from 'lucide-react';
 
 export { 
@@ -102,5 +105,8 @@ export {
   Target,
   ListOrdered,
   Flame,
-  Minus
+  Minus,
+  Home,
+  Plane,
+  BarChart2
 };
