@@ -186,6 +186,38 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona temporadas y sistema de puntuación.</p>
             </header>
 
+            {/* Team Settings */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">
+                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                        <Shield size={15} className="text-blue-600 dark:text-blue-400"/>
+                    </div>
+                    <h3 className="font-black text-base text-slate-900 dark:text-white">Ajustes Generales</h3>
+                </div>
+                <div className="p-6 space-y-5">
+                    <Select
+                        label="Categoría del Equipo (Masculino / Femenino)"
+                        value={data?.settings?.gender || 'MASCULINO'}
+                        onChange={async (e) => {
+                            const newGender = e.target.value as 'MASCULINO' | 'FEMENINO';
+                            setLocalSettings(s => ({ ...s, gender: newGender }));
+                            if (teamId) {
+                                await updateTeamData(teamId, { 
+                                    settings: { ...(data?.settings || DEFAULT_SETTINGS), gender: newGender } 
+                                });
+                            }
+                        }}
+                        options={[
+                            { label: 'Masculino (5 partidos por jornada)', value: 'MASCULINO' },
+                            { label: 'Femenino (4 partidos por jornada)', value: 'FEMENINO' }
+                        ]}
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Esto ajustará automáticamente las opciones de "Tandas" al crear o editar jornadas.
+                    </p>
+                </div>
+            </div>
+
             {/* Temporadas */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">
                 <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center gap-2">

@@ -118,7 +118,7 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
         text += `\n`;
 
         let hasContent = false;
-        draftLineup.forEach((pair, index) => {
+        draftLineup.slice(0, data?.settings?.gender === 'FEMENINO' ? 4 : 5).forEach((pair, index) => {
             const p1 = data?.players.find(p => p.id === pair.player1Id);
             const p2 = data?.players.find(p => p.id === pair.player2Id);
 
@@ -332,7 +332,7 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                         </div>
 
                         <div className="space-y-3 relative z-10">
-                           {draftLineup.map((pair, idx) => {
+                           {draftLineup.slice(0, data?.settings?.gender === 'FEMENINO' ? 4 : 5).map((pair, idx) => {
                                const p1 = data?.players.find(p => p.id === pair.player1Id);
                                const p2 = data?.players.find(p => p.id === pair.player2Id);
                                const points1 = p1 ? getPoints(p1, matchesForPoints, viewSeasonId, data!) : 0;

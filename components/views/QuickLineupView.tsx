@@ -87,6 +87,8 @@ const QuickLineupView: React.FC = () => {
         if (opponentDesc) text += `🆚 Rival: ${opponentDesc}\n`;
         text += `\n`;
         let hasContent = false;
+        // In QuickLineupView we don't have team settings, but we can check if there are 4 or 5 pairs filled
+        // Or just output all non-empty pairs
         draftLineup.forEach((pair, index) => {
             const p1 = players.find(p => p.id === pair.player1Id);
             const p2 = players.find(p => p.id === pair.player2Id);

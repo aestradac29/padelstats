@@ -65,6 +65,7 @@ export interface TeamSettings {
   pointsPerDraw: number;
   pointsAttendance: number;
   ranges: ScoringRange[]; // Array of ranges for RANGES system
+  gender?: 'MASCULINO' | 'FEMENINO'; // New field for team gender
 }
 
 export interface Season {

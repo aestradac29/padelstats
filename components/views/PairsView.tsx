@@ -1018,7 +1018,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                 <thead>
                                     <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase">{orderViewType === 'PLAYERS' ? 'Jugador' : 'Pareja'}</th>
-                                        {[1, 2, 3, 4, 5].map(pos => (
+                                        {(data?.settings?.gender === 'FEMENINO' ? [1, 2, 3, 4] : [1, 2, 3, 4, 5]).map(pos => (
                                             <th key={pos} className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Pareja {pos}</th>
                                         ))}
                                         <th className="p-3 text-xs font-bold text-slate-500 uppercase text-center">Total</th>
@@ -1028,7 +1028,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                     {(orderViewType === 'PLAYERS' ? orderStats.players : orderStats.pairs.filter(p => selectedPlayerId === 'all' || p.player1Id === selectedPlayerId || p.player2Id === selectedPlayerId)).map((stat, i) => (
                                         <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                             <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{stat.name}</td>
-                                            {[1, 2, 3, 4, 5].map(pos => {
+                                            {(data?.settings?.gender === 'FEMENINO' ? [1, 2, 3, 4] : [1, 2, 3, 4, 5]).map(pos => {
                                                 const posStat = stat.positions[pos];
                                                 if (!posStat) return <td key={pos} className="p-3 text-center text-slate-300 dark:text-slate-600">-</td>;
                                                 const winRate = Math.round((posStat.wins / posStat.matches) * 100);

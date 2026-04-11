@@ -607,21 +607,27 @@ const App = () => {
             alert("Selecciona dos jugadores");
             return;
         }
-        const calculateSetWinner = (left: string, right: string) => {
+        const calculateSetWinner = (left: string, right: string, isHome: boolean) => {
             const l = Number(left);
             const r = Number(right);
-            if (l > r) return 'win';
-            if (l < r) return 'loss';
-            return 'draw';
+            if (isHome) {
+                if (l > r) return 'win';
+                if (l < r) return 'loss';
+                return 'draw';
+            } else {
+                if (r > l) return 'win';
+                if (r < l) return 'loss';
+                return 'draw';
+            }
         }
         let setsWon = 0;
         let setsLost = 0;
-        const r1 = calculateSetWinner(s1We, s1They);
+        const r1 = calculateSetWinner(s1We, s1They, tempMatch.isHome ?? true);
         if (r1 === 'win') setsWon++; else if (r1 === 'loss') setsLost++;
-        const r2 = calculateSetWinner(s2We, s2They);
+        const r2 = calculateSetWinner(s2We, s2They, tempMatch.isHome ?? true);
         if (r2 === 'win') setsWon++; else if (r2 === 'loss') setsLost++;
         if (s3We && s3They) {
-            const r3 = calculateSetWinner(s3We, s3They);
+            const r3 = calculateSetWinner(s3We, s3They, tempMatch.isHome ?? true);
             if (r3 === 'win') setsWon++; else if (r3 === 'loss') setsLost++;
         }
         let result = MatchResult.DRAW;
@@ -1111,7 +1117,7 @@ const App = () => {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 gap-4 items-end"><Input type="datetime-local" label="Fecha y Hora" value={tempMatch.date} onChange={e => setTempMatch(m => ({ ...m, date: e.target.value }))} /><div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl flex"><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({ ...m, isHome: true }))}>Casa</button><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${!tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-orange-500 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({ ...m, isHome: false }))}>Fuera</button></div></div>
+                                <div className="grid grid-cols-2 gap-4 items-end"><Input type="datetime-local" label="Fecha y Hora" value={tempMatch.date} onChange={e => setTempMatch(m => ({ ...m, date: e.target.value }))} /><div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl flex"><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({ ...m, isHome: true }))}>Local</button><button className={`flex-1 py-3 text-xs font-black uppercase rounded-lg ${!tempMatch.isHome ? 'bg-white dark:bg-slate-700 text-orange-500 shadow-sm' : 'text-slate-400'}`} onClick={() => setTempMatch(m => ({ ...m, isHome: false }))}>Visitante</button></div></div>
                                 <div className="grid grid-cols-2 gap-4"><Input label="Rival" value={tempMatch.opponent} onChange={e => setTempMatch(m => ({ ...m, opponent: e.target.value }))} /><Input label="Sede / Notas" value={tempMatch.notes || ''} onChange={e => setTempMatch(m => ({ ...m, notes: e.target.value }))} /></div>
 
                                 {/* HISTORICAL MATCH TOGGLE */}
@@ -1126,7 +1132,19 @@ const App = () => {
                                     </p>
                                 </div>
 
-                                <div className="w-full"><Select label="Tandas" value={tempMatch.tandas || '5'} onChange={(e) => setTempMatch(m => ({ ...m, tandas: e.target.value }))} options={TANDA_OPTIONS} /></div>
+                                <div className="w-full">
+                                    <Select 
+                                        label="Tandas" 
+                                        value={tempMatch.tandas || (data?.settings?.gender === 'FEMENINO' ? '4' : '5')} 
+                                        onChange={(e) => setTempMatch(m => ({ ...m, tandas: e.target.value }))} 
+                                        options={TANDA_OPTIONS.filter(o => {
+                                            if (data?.settings?.gender === 'FEMENINO') {
+                                                return o.label.includes('Femenino');
+                                            }
+                                            return o.label.includes('Masculino');
+                                        })} 
+                                    />
+                                </div>
 
                                 {/* AVAILABILITY SECTION */}
                                 <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 mt-2">
@@ -1257,8 +1275,8 @@ const App = () => {
                                                     onChange={(e) => setGenHomeAway(e.target.value as any)}
                                                     options={[
                                                         { label: 'Alternar (C/F)', value: 'ALTERNATE' },
-                                                        { label: 'Siempre Casa', value: 'HOME' },
-                                                        { label: 'Siempre Fuera', value: 'AWAY' }
+                                                        { label: 'Siempre Local', value: 'HOME' },
+                                                        { label: 'Siempre Visitante', value: 'AWAY' }
                                                     ]}
                                                 />
                                             </div>
