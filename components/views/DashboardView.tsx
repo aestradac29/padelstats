@@ -184,19 +184,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         return () => clearInterval(interval);
     }, [nextMatch?.date]);
 
-    // Sets stats (global)
-    const setsStats = (() => {
-        let won = 0, lost = 0;
-        playedMatches.forEach(m => {
-            m.lineups.forEach(l => {
-                [l.set1, l.set2, l.set3].filter(Boolean).forEach(set => {
-                    const [a, b] = set!.split('-').map(Number);
-                    if (!isNaN(a) && !isNaN(b)) { won += a; lost += b; }
-                });
+    // Games and Sets stats (global)
+    const gamesStats = { won: 0, lost: 0, total: 0 };
+    const setsStats = { won: 0, lost: 0, total: 0 };
+    
+    playedMatches.forEach(m => {
+        m.lineups.forEach(l => {
+            [l.set1, l.set2, l.set3].filter(Boolean).forEach(set => {
+                const parts = set!.split('-');
+                if (parts.length >= 2) {
+                    const a = parseInt(parts[0], 10);
+                    const b = parseInt(parts[1], 10);
+                    if (!isNaN(a) && !isNaN(b)) { 
+                        gamesStats.won += a; 
+                        gamesStats.lost += b; 
+                        
+                        if (a > b) setsStats.won += 1;
+                        else if (b > a) setsStats.lost += 1;
+                    }
+                }
             });
         });
-        return { won, lost, total: won + lost };
-    })();
+    });
+    gamesStats.total = gamesStats.won + gamesStats.lost;
+    setsStats.total = setsStats.won + setsStats.lost;
 
     // Home / Away split
     const homeMatches = playedMatches.filter(m => m.isHome);
@@ -421,12 +432,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Sets & Home/Away stats row */}
         {playedMatches.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Sets stats */}
           <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <BarChart2 size={15} className="text-slate-400" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juegos Totales</span>
+              <Target size={15} className="text-slate-400" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sets Totales</span>
             </div>
             <div className="flex items-end gap-3">
               <div className="flex-1">
@@ -441,6 +452,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <span className={`text-2xl font-black ${setsStats.won > setsStats.lost ? 'text-lime-600 dark:text-lime-400' : 'text-red-500'}`}>
                 {setsStats.total > 0 ? Math.round((setsStats.won / setsStats.total) * 100) : 0}%
+              </span>
+            </div>
+          </div>
+
+          {/* Games stats */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart2 size={15} className="text-slate-400" />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Juegos Totales</span>
+            </div>
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="font-bold text-lime-600 dark:text-lime-400">{gamesStats.won} ganados</span>
+                  <span className="font-bold text-red-500">{gamesStats.lost} perdidos</span>
+                </div>
+                <div className="h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-lime-400 rounded-l-full transition-all" style={{ width: gamesStats.total > 0 ? `${(gamesStats.won / gamesStats.total) * 100}%` : '0%' }} />
+                  <div className="h-full bg-red-400 rounded-r-full transition-all" style={{ width: gamesStats.total > 0 ? `${(gamesStats.lost / gamesStats.total) * 100}%` : '0%' }} />
+                </div>
+              </div>
+              <span className={`text-2xl font-black ${gamesStats.won > gamesStats.lost ? 'text-lime-600 dark:text-lime-400' : 'text-red-500'}`}>
+                {gamesStats.total > 0 ? Math.round((gamesStats.won / gamesStats.total) * 100) : 0}%
               </span>
             </div>
           </div>
