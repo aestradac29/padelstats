@@ -36,6 +36,7 @@ export interface MatchLineup {
   opponent1Name?: string;
   opponent2Name?: string;
   opponentPoints?: number; // Points of the rival pair for dynamic scoring
+  pairNumber?: number; // New field
 }
 
 export interface MatchDay {

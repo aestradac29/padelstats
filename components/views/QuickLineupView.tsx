@@ -111,7 +111,7 @@ const QuickLineupView: React.FC = () => {
 
     const playerOptions = [
         { label: 'Seleccionar...', value: '' },
-        ...[...players].sort((a, b) => b.initialPoints - a.initialPoints).map(p => ({
+        ...[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({
             label: `${p.name} (${p.position === Position.DRIVE ? 'D' : p.position === Position.REVES ? 'R' : 'A'}) — ${p.initialPoints} pts`,
             value: p.id
         }))

@@ -108,7 +108,8 @@ const App = () => {
         opponent1Name: '', opponent2Name: '',
         s1We: '', s1They: '',
         s2We: '', s2They: '',
-        s3We: '', s3They: ''
+        s3We: '', s3They: '',
+        pairNumber: ''
     });
 
     // --- Initialization & Auth Listener ---
@@ -162,6 +163,15 @@ const App = () => {
                         else if (teamData.seasons && teamData.seasons.length > 0) setViewSeasonId(teamData.seasons[0].id);
                         else setViewSeasonId('default');
                     }
+
+                    // Migration for pairNumber
+                    teamData.matches?.forEach(match => {
+                        match.lineups?.forEach((lineup, index) => {
+                            if (lineup.pairNumber === undefined) {
+                                lineup.pairNumber = index + 1;
+                            }
+                        });
+                    });
 
                 } else {
                     console.error("Team document not found");
@@ -602,7 +612,7 @@ const App = () => {
     };
 
     const addLineupToTempMatch = () => {
-        const { player1Id, player2Id, s1We, s1They, s2We, s2They, s3We, s3They, opponent1Name, opponent2Name } = tempLineupScores;
+        const { player1Id, player2Id, s1We, s1They, s2We, s2They, s3We, s3They, opponent1Name, opponent2Name, pairNumber } = tempLineupScores;
         if (!player1Id || !player2Id) {
             alert("Selecciona dos jugadores");
             return;
@@ -640,7 +650,8 @@ const App = () => {
             opponent2Name: opponent2Name || undefined,
             set1: `${s1We}-${s1They}`,
             set2: `${s2We}-${s2They}`,
-            result
+            result,
+            pairNumber: pairNumber ? Number(pairNumber) : undefined
         };
         if (s3We && s3They) {
             newLineup.set3 = `${s3We}-${s3They}`;
@@ -654,7 +665,8 @@ const App = () => {
             opponent1Name: '', opponent2Name: '',
             s1We: '', s1They: '',
             s2We: '', s2They: '',
-            s3We: '', s3They: ''
+            s3We: '', s3They: '',
+            pairNumber: ''
         });
     };
 
@@ -681,7 +693,8 @@ const App = () => {
             opponent2Name: lineup.opponent2Name || '',
             s1We: s1We || '', s1They: s1They || '',
             s2We: s2We || '', s2They: s2They || '',
-            s3We: s3We || '', s3They: s3They || ''
+            s3We: s3We || '', s3They: s3They || '',
+            pairNumber: lineup.pairNumber?.toString() || ''
         });
         removeLineupFromTempMatch(index);
     };
@@ -851,7 +864,8 @@ const App = () => {
 
     // Calculate filtered options based on availability
     const availablePlayersForSelect = data?.players.filter(p => (tempMatch.availablePlayers || []).includes(p.id)) || [];
-    const playerOptionsForSelect = [{ label: '...', value: '' }, ...availablePlayersForSelect.map(p => ({ label: `${p.name} ${p.surname || ''}`, value: p.id }))];
+    const sortedAvailablePlayers = [...availablePlayersForSelect].sort((a, b) => a.name.localeCompare(b.name));
+    const playerOptionsForSelect = [{ label: '...', value: '' }, ...sortedAvailablePlayers.map(p => ({ label: `${p.name} ${p.surname || ''}`, value: p.id }))];
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-900 dark:text-slate-100 transition-colors duration-200">
@@ -1219,9 +1233,10 @@ const App = () => {
                                         </div>
                                     ))}</div>
                                     <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-3 gap-3">
                                             <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({ ...l, player1Id: e.target.value }))} />
                                             <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({ ...l, player2Id: e.target.value }))} />
+                                            <Input type="number" label="Pareja Nº" value={tempLineupScores.pairNumber} onChange={e => setTempLineupScores(l => ({ ...l, pairNumber: e.target.value }))} />
                                         </div>
                                         {(tempMatch.availablePlayers || []).length === 0 && (
                                             <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/20 p-2 rounded text-center">
