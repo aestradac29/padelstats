@@ -359,7 +359,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
 
     // --- ORDER ---
     const orderStats = useMemo(() => {
-        if (!data) return { players: [], pairs: [] };
+        if (!data) return { players: [], pairs: [], pairPositions: [] };
         const filteredMatches = viewSeasonId === 'all' 
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
