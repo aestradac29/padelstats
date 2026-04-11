@@ -1223,51 +1223,57 @@ const App = () => {
                                     <p className="text-[10px] text-slate-400 mt-2 italic">* Los jugadores en la alineación se marcarán como disponibles automáticamente.</p>
                                 </div>
 
-                                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 mt-4"><h4 className="font-black text-xs uppercase text-slate-400 mb-6 tracking-widest">Partidos y Parejas</h4>
-                                    <div className="space-y-3 mb-6">{(tempMatch.lineups || []).map((l, i) => (
-                                        <div key={i} className="flex justify-between items-center p-4 rounded-xl text-sm shadow-sm border bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-2.5 h-2.5 rounded-full ${l.result === MatchResult.WIN ? 'bg-lime-500' : l.result === MatchResult.LOSS ? 'bg-red-500' : 'bg-slate-400'}`}></div>
-                                                <div>
-                                                    <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Pareja {i + 1}</div>
-                                                    <div className="font-black text-slate-800 dark:text-white">{data?.players.find(p => p.id === l.player1Id)?.name} / {data?.players.find(p => p.id === l.player2Id)?.name}</div>
-                                                    {l.opponent1Name && <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">vs {l.opponent1Name} / {l.opponent2Name}</div>}
+                                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 mt-4">
+                                    <h4 className="font-black text-xs uppercase text-slate-400 mb-6 tracking-widest">Partidos y Parejas</h4>
+                                    <div className="space-y-3 mb-6">
+                                        {(tempMatch.lineups || [])
+                                            .map((l, originalIndex) => ({ ...l, originalIndex }))
+                                            .sort((a, b) => (a.pairNumber || 99) - (b.pairNumber || 99))
+                                            .map((l, i) => (
+                                                <div key={l.originalIndex} className="flex justify-between items-center p-4 rounded-xl text-sm shadow-sm border bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-2.5 h-2.5 rounded-full ${l.result === MatchResult.WIN ? 'bg-lime-500' : l.result === MatchResult.LOSS ? 'bg-red-500' : 'bg-slate-400'}`}></div>
+                                                        <div>
+                                                            <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Pareja {l.pairNumber || l.originalIndex + 1}</div>
+                                                            <div className="font-black text-slate-800 dark:text-white">{data?.players.find(p => p.id === l.player1Id)?.name} / {data?.players.find(p => p.id === l.player2Id)?.name}</div>
+                                                            {l.opponent1Name && <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">vs {l.opponent1Name} / {l.opponent2Name}</div>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`font-mono font-black text-xs px-2 py-1 rounded shadow-sm ${l.result === MatchResult.WIN ? 'text-lime-700 bg-lime-100 dark:bg-lime-900/30 dark:text-lime-400 border border-lime-200 dark:border-lime-800' : l.result === MatchResult.LOSS ? 'text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800' : 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800'}`}>
+                                                            {l.set1} {l.set2} {l.set3}
+                                                        </div>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => editLineupInTempMatch(l.originalIndex)} className="text-slate-400 hover:text-blue-500 p-1"><Edit2 size={16} /></button>
+                                                            <button onClick={() => removeLineupFromTempMatch(l.originalIndex)} className="text-slate-400 hover:text-red-500 p-1"><Trash2 size={16} /></button>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`font-mono font-black text-xs px-2 py-1 rounded shadow-sm ${l.result === MatchResult.WIN ? 'text-lime-700 bg-lime-100 dark:bg-lime-900/30 dark:text-lime-400 border border-lime-200 dark:border-lime-800' : l.result === MatchResult.LOSS ? 'text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800' : 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800'}`}>
-                                                    {l.set1} {l.set2} {l.set3}
-                                                </div>
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => editLineupInTempMatch(i)} className="text-slate-400 hover:text-blue-500 p-1"><Edit2 size={16} /></button>
-                                                    <button onClick={() => removeLineupFromTempMatch(i)} className="text-slate-400 hover:text-red-500 p-1"><Trash2 size={16} /></button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}</div>
-                                    <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                            <div className="md:col-span-1">
-                                                <Input type="number" label="Pareja Nº" value={tempLineupScores.pairNumber} onChange={e => setTempLineupScores(l => ({ ...l, pairNumber: e.target.value }))} />
-                                            </div>
-                                            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({ ...l, player1Id: e.target.value }))} />
-                                                <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({ ...l, player2Id: e.target.value }))} />
-                                            </div>
-                                        </div>
-                                        {(tempMatch.availablePlayers || []).length === 0 && (
-                                            <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/20 p-2 rounded text-center">
-                                                No hay jugadores disponibles seleccionados arriba.
-                                            </div>
-                                        )}
-                                        <div className="grid grid-cols-2 gap-3"><Input label="Rival 1 (Opcional)" value={tempLineupScores.opponent1Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent1Name: e.target.value }))} /><Input label="Rival 2 (Opcional)" value={tempLineupScores.opponent2Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent2Name: e.target.value }))} /></div>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 1</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1We} onChange={e => setTempLineupScores(l => ({ ...l, s1We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1They} onChange={e => setTempLineupScores(l => ({ ...l, s1They: e.target.value }))} /></div></div>
-                                            <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 2</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2We} onChange={e => setTempLineupScores(l => ({ ...l, s2We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2They} onChange={e => setTempLineupScores(l => ({ ...l, s2They: e.target.value }))} /></div></div>
-                                            <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 3</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s3We} onChange={e => setTempLineupScores(l => ({ ...l, s3We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s3They} onChange={e => setTempLineupScores(l => ({ ...l, s3They: e.target.value }))} /></div></div>
-                                        </div>
-                                        <Button variant="secondary" className="w-full text-xs font-black py-3 border-2 border-dashed border-blue-200 dark:border-slate-600 text-blue-600 dark:text-blue-300" onClick={addLineupToTempMatch}><Plus size={16} /> Añadir Pareja al Listado</Button>
+                                            ))}
                                     </div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                        <div className="md:col-span-1">
+                                            <Input type="number" label="Pareja Nº" value={tempLineupScores.pairNumber} onChange={e => setTempLineupScores(l => ({ ...l, pairNumber: e.target.value }))} />
+                                        </div>
+                                        <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({ ...l, player1Id: e.target.value }))} />
+                                            <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({ ...l, player2Id: e.target.value }))} />
+                                        </div>
+                                    </div>
+                                    {(tempMatch.availablePlayers || []).length === 0 && (
+                                        <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/20 p-2 rounded text-center">
+                                            No hay jugadores disponibles seleccionados arriba.
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-3"><Input label="Rival 1 (Opcional)" value={tempLineupScores.opponent1Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent1Name: e.target.value }))} /><Input label="Rival 2 (Opcional)" value={tempLineupScores.opponent2Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent2Name: e.target.value }))} /></div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 1</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1We} onChange={e => setTempLineupScores(l => ({ ...l, s1We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1They} onChange={e => setTempLineupScores(l => ({ ...l, s1They: e.target.value }))} /></div></div>
+                                        <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 2</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2We} onChange={e => setTempLineupScores(l => ({ ...l, s2We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2They} onChange={e => setTempLineupScores(l => ({ ...l, s2They: e.target.value }))} /></div></div>
+                                        <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 3</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s3We} onChange={e => setTempLineupScores(l => ({ ...l, s3We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s3They} onChange={e => setTempLineupScores(l => ({ ...l, s3They: e.target.value }))} /></div></div>
+                                    </div>
+                                    <Button variant="secondary" className="w-full text-xs font-black py-3 border-2 border-dashed border-blue-200 dark:border-slate-600 text-blue-600 dark:text-blue-300" onClick={addLineupToTempMatch}><Plus size={16} /> Añadir Pareja al Listado</Button>
                                 </div>
                             </>)}
 
