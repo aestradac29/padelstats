@@ -1233,10 +1233,14 @@ const App = () => {
                                         </div>
                                     ))}</div>
                                     <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({ ...l, player1Id: e.target.value }))} />
-                                            <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({ ...l, player2Id: e.target.value }))} />
-                                            <Input type="number" label="Pareja Nº" value={tempLineupScores.pairNumber} onChange={e => setTempLineupScores(l => ({ ...l, pairNumber: e.target.value }))} />
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                            <div className="md:col-span-1">
+                                                <Input type="number" label="Pareja Nº" value={tempLineupScores.pairNumber} onChange={e => setTempLineupScores(l => ({ ...l, pairNumber: e.target.value }))} />
+                                            </div>
+                                            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <Select label="Jugador Revés" options={playerOptionsForSelect} value={tempLineupScores.player1Id} onChange={e => setTempLineupScores(l => ({ ...l, player1Id: e.target.value }))} />
+                                                <Select label="Jugador Drive" options={playerOptionsForSelect} value={tempLineupScores.player2Id} onChange={e => setTempLineupScores(l => ({ ...l, player2Id: e.target.value }))} />
+                                            </div>
                                         </div>
                                         {(tempMatch.availablePlayers || []).length === 0 && (
                                             <div className="text-[10px] text-red-500 font-bold bg-red-50 dark:bg-red-900/20 p-2 rounded text-center">
