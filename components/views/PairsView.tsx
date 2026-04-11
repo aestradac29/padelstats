@@ -431,13 +431,9 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             [m.lineup.set1, m.lineup.set2, m.lineup.set3].filter(Boolean).forEach(set => {
                 const [left, right] = set!.split('-').map(Number);
                 if (!isNaN(left) && !isNaN(right)) {
-                    if (m.matchDay.isHome ?? true) {
-                        gamesWon += left;
-                        gamesLost += right;
-                    } else {
-                        gamesWon += right;
-                        gamesLost += left;
-                    }
+                    // In this app, scores are always stored as [OurScore]-[TheirScore]
+                    gamesWon += left;
+                    gamesLost += right;
                 }
             });
             const matchDiff = gamesWon - gamesLost;
@@ -453,7 +449,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
         });
 
         return (
-            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in pb-20">
+            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in pb-24">
                 <button 
                     onClick={() => setSelectedPair(null)}
                     className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors font-bold text-sm mb-4"
@@ -575,7 +571,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
 
     if (selectedNemesis) {
         return (
-            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in pb-20">
+            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in pb-24">
                 <button 
                     onClick={() => setSelectedNemesis(null)}
                     className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors font-bold text-sm mb-4"
@@ -655,33 +651,34 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in pb-20">
-            <header className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in pb-24">
+            <header className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
                 <div className="flex-1">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Estadísticas</p>
                     <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                        <Activity className="text-blue-500" /> Análisis Avanzado
+                        <Activity className="text-blue-500" size={28}/> Análisis Avanzado
                     </h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Sinergia, rivalidades, rachas y más.</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Sinergia, rivalidades, rachas y más.</p>
                 </div>
             </header>
 
-            <div className="flex overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
-                <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl min-w-max">
-                    <button onClick={() => setActiveTab('PAIRS')} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'PAIRS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                        <Users size={16} /> Parejas
-                    </button>
-                    <button onClick={() => setActiveTab('POSITION')} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'POSITION' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                        <LayoutGrid size={16} /> Posición
-                    </button>
-                    <button onClick={() => setActiveTab('NEMESIS')} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'NEMESIS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                        <Target size={16} /> Némesis
-                    </button>
-                    <button onClick={() => setActiveTab('STREAKS')} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'STREAKS' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                        <TrendingUp size={16} /> Rachas
-                    </button>
-                    <button onClick={() => setActiveTab('ORDER')} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'ORDER' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                        <ListOrdered size={16} /> Orden
-                    </button>
+            <div className="flex overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
+                <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-2xl min-w-max gap-0.5">
+                    {[
+                        { id: 'PAIRS',    label: 'Parejas',   icon: Users },
+                        { id: 'POSITION', label: 'Posición',  icon: LayoutGrid },
+                        { id: 'NEMESIS',  label: 'Némesis',   icon: Target },
+                        { id: 'STREAKS',  label: 'Rachas',    icon: TrendingUp },
+                        { id: 'ORDER',    label: 'Orden',     icon: ListOrdered },
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        >
+                            <tab.icon size={15}/> {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -738,10 +735,12 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                     </div>
 
                     {pairStats.length === 0 ? (
-                <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 border-dashed">
-                    <Activity size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-2">No hay datos de parejas</h3>
-                    <p className="text-slate-500 max-w-md mx-auto">Añade resultados de partidos para empezar a ver las estadísticas de las diferentes parejas que han jugado juntas.</p>
+                <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Activity size={28} className="text-slate-300 dark:text-slate-500" />
+                    </div>
+                    <h3 className="text-base font-black text-slate-700 dark:text-slate-300 mb-1">No hay datos de parejas</h3>
+                    <p className="text-slate-400 dark:text-slate-500 text-sm max-w-xs mx-auto">Añade resultados de partidos para ver las estadísticas de parejas.</p>
                 </div>
             ) : viewMode === 'matrix' ? (
                 <div ref={matrixRef}>

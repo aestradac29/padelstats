@@ -607,27 +607,21 @@ const App = () => {
             alert("Selecciona dos jugadores");
             return;
         }
-        const calculateSetWinner = (left: string, right: string, isHome: boolean) => {
+        const calculateSetWinner = (left: string, right: string) => {
             const l = Number(left);
             const r = Number(right);
-            if (isHome) {
-                if (l > r) return 'win';
-                if (l < r) return 'loss';
-                return 'draw';
-            } else {
-                if (r > l) return 'win';
-                if (r < l) return 'loss';
-                return 'draw';
-            }
+            if (l > r) return 'win';
+            if (l < r) return 'loss';
+            return 'draw';
         }
         let setsWon = 0;
         let setsLost = 0;
-        const r1 = calculateSetWinner(s1We, s1They, tempMatch.isHome ?? true);
+        const r1 = calculateSetWinner(s1We, s1They);
         if (r1 === 'win') setsWon++; else if (r1 === 'loss') setsLost++;
-        const r2 = calculateSetWinner(s2We, s2They, tempMatch.isHome ?? true);
+        const r2 = calculateSetWinner(s2We, s2They);
         if (r2 === 'win') setsWon++; else if (r2 === 'loss') setsLost++;
         if (s3We && s3They) {
-            const r3 = calculateSetWinner(s3We, s3They, tempMatch.isHome ?? true);
+            const r3 = calculateSetWinner(s3We, s3They);
             if (r3 === 'win') setsWon++; else if (r3 === 'loss') setsLost++;
         }
         let result = MatchResult.DRAW;
@@ -829,7 +823,18 @@ const App = () => {
 
     // --- View Rendering ---
 
-    if (isLoading) return <div className="min-h-screen bg-blue-950 flex items-center justify-center text-lime-400 font-bold text-xl uppercase animate-pulse">Iniciando Padel Stats...</div>;
+    if (isLoading) return (
+        <div className="min-h-screen bg-blue-950 flex flex-col items-center justify-center gap-4">
+            <div className="relative">
+                <div className="w-16 h-16 border-4 border-blue-900 border-t-lime-400 rounded-full animate-spin"/>
+                <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-b-lime-400/30 rounded-full animate-spin" style={{animationDirection:'reverse', animationDuration:'1.5s'}}/>
+            </div>
+            <div className="text-center">
+                <p className="text-white font-black text-lg tracking-tight">Padel <span className="text-lime-400">Stats</span></p>
+                <p className="text-blue-400 text-xs font-medium mt-0.5 animate-pulse">Cargando...</p>
+            </div>
+        </div>
+    );
 
     if (!teamId && !currentUser) {
         return <LoginView currentUser={currentUser} checkingTeam={checkingTeam} teamId={teamId} handleCreateTeam={handleCreateTeam} handleLogout={handleLogout} handleGuestLogin={handleGuestLogin} />;
@@ -843,7 +848,7 @@ const App = () => {
     const playerOptionsForSelect = [{ label: '...', value: '' }, ...availablePlayersForSelect.map(p => ({ label: `${p.name} ${p.surname || ''}`, value: p.id }))];
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-900 dark:text-slate-100 transition-colors duration-200">
 
             {/* Mobile Top Bar */}
             <div className="md:hidden bg-blue-950 px-4 py-3 flex justify-between items-center text-white z-30 sticky top-0 border-b border-blue-900/60">
@@ -1001,27 +1006,29 @@ const App = () => {
 
             {/* --- CONFIRMATION MODAL FOR DELETING MATCH --- */}
             {matchToDelete && (
-                <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 text-center animate-in fade-in">
-                    <Shield className="w-12 h-12 text-red-500 mb-4" />
-                    <h4 className="text-white font-black text-2xl mb-2">¿Eliminar Jornada?</h4>
-                    <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">
-                        Vas a eliminar el partido contra <strong>{matchToDelete.opponent}</strong> ({formatDate(matchToDelete.date)}).<br />
-                        Esta acción borrará todos los resultados y no se puede deshacer.
-                    </p>
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => setMatchToDelete(null)}
-                            className="px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold uppercase tracking-wide transition-all"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={executeDeleteMatch}
-                            className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold uppercase tracking-wide flex items-center gap-2 transition-all shadow-lg shadow-red-600/30"
-                        >
-                            <Trash2 className="w-5 h-5" />
-                            Confirmar
-                        </button>
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-700 text-center">
+                        <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <Shield className="text-red-500" size={24} />
+                        </div>
+                        <h4 className="text-slate-900 dark:text-white font-black text-xl mb-2">¿Eliminar Jornada?</h4>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
+                            Se eliminará el partido contra <strong className="text-slate-800 dark:text-slate-200">{matchToDelete.opponent}</strong> ({formatDate(matchToDelete.date)}) y todos sus resultados.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setMatchToDelete(null)}
+                                className="flex-1 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={executeDeleteMatch}
+                                className="flex-1 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/20"
+                            >
+                                <Trash2 size={15} /> Eliminar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1029,16 +1036,26 @@ const App = () => {
             {/* --- MAIN MODAL RENDERING LOGIC --- */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-blue-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 animate-in zoom-in-95">
-                        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
-                            <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase tracking-tighter">
-                                {modalType.includes('PLAYER') ? 'Gestionar Jugador' :
-                                    modalType === 'GENERATE_CALENDAR' ? 'Generador de Calendario' :
-                                        modalType.includes('MATCH') ? 'Gestionar Jornada' : 'Editar Equipo'}
-                            </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-2"><X size={24} /></button>
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 my-4">
+                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
+                            <div>
+                                <h3 className="font-black text-lg text-slate-900 dark:text-white tracking-tight">
+                                    {modalType.includes('PLAYER') ? 'Jugador' :
+                                        modalType === 'GENERATE_CALENDAR' ? 'Calendario' :
+                                            modalType.includes('MATCH') ? 'Jornada' : 'Equipo'}
+                                </h3>
+                                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                                    {modalType === 'ADD_PLAYER' ? 'Añadir jugador al equipo' :
+                                     modalType === 'EDIT_PLAYER' ? 'Editar datos del jugador' :
+                                     modalType === 'ADD_MATCH' ? 'Crear nueva jornada' :
+                                     modalType === 'EDIT_MATCH' ? 'Editar jornada existente' :
+                                     modalType === 'GENERATE_CALENDAR' ? 'Generar jornadas automáticamente' :
+                                     'Cambiar nombre del equipo'}
+                                </p>
+                            </div>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><X size={20} /></button>
                         </div>
-                        <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto">
+                        <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
                             {modalType.includes('PLAYER') && (<>
                                 {modalType === 'ADD_PLAYER' && (<div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-4"><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'MANUAL' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => setImportMode('MANUAL')}>Manual</button><button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${importMode === 'BULK' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`} onClick={() => setImportMode('BULK')}>Lista</button></div>)}
                                 {importMode === 'MANUAL' ? (<>
@@ -1194,11 +1211,6 @@ const App = () => {
                                             </div>
                                         )}
                                         <div className="grid grid-cols-2 gap-3"><Input label="Rival 1 (Opcional)" value={tempLineupScores.opponent1Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent1Name: e.target.value }))} /><Input label="Rival 2 (Opcional)" value={tempLineupScores.opponent2Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent2Name: e.target.value }))} /></div>
-                                        
-                                        <div className="flex justify-between px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                            <span>{tempMatch.isHome ? 'Nosotros (Local)' : 'Ellos (Local)'}</span>
-                                            <span>{tempMatch.isHome ? 'Ellos (Visita)' : 'Nosotros (Visita)'}</span>
-                                        </div>
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 1</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1We} onChange={e => setTempLineupScores(l => ({ ...l, s1We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1They} onChange={e => setTempLineupScores(l => ({ ...l, s1They: e.target.value }))} /></div></div>
                                             <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 2</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2We} onChange={e => setTempLineupScores(l => ({ ...l, s2We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2They} onChange={e => setTempLineupScores(l => ({ ...l, s2They: e.target.value }))} /></div></div>
@@ -1327,22 +1339,25 @@ const App = () => {
 
                             {modalType === 'EDIT_TEAM' && (<Input label="Nuevo Nombre del Equipo" value={tempTeamName} onChange={(e) => setTempTeamName(e.target.value)} />)}
                         </div>
-                        <div className="p-6 bg-slate-100 dark:bg-slate-900 flex justify-end gap-3"><Button variant="ghost" className="font-bold" onClick={() => setIsModalOpen(false)}>Cancelar</Button><Button className="px-10 h-12 font-black" onClick={() => {
-                            if (modalType === 'ADD_PLAYER') {
-                                if (importMode === 'MANUAL') addPlayer(tempPlayer); else addPlayersBulk();
-                            } else if (modalType === 'EDIT_PLAYER') {
-                                updatePlayer(tempPlayer);
-                            } else if (modalType === 'ADD_MATCH' || modalType === 'EDIT_MATCH') {
-                                saveMatch();
-                            } else if (modalType === 'GENERATE_CALENDAR') {
-                                if (calendarMode === 'PATTERN') handleGenerateCalendar();
-                                else saveImportedMatches();
-                            } else if (modalType === 'EDIT_TEAM') {
-                                handleUpdateTeamName();
-                            }
-                        }}>
-                            {modalType === 'GENERATE_CALENDAR' ? 'Confirmar' : 'Guardar Cambios'}
-                        </Button></div>
+                        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+                            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                            <Button className="px-8 font-black" onClick={() => {
+                                if (modalType === 'ADD_PLAYER') {
+                                    if (importMode === 'MANUAL') addPlayer(tempPlayer); else addPlayersBulk();
+                                } else if (modalType === 'EDIT_PLAYER') {
+                                    updatePlayer(tempPlayer);
+                                } else if (modalType === 'ADD_MATCH' || modalType === 'EDIT_MATCH') {
+                                    saveMatch();
+                                } else if (modalType === 'GENERATE_CALENDAR') {
+                                    if (calendarMode === 'PATTERN') handleGenerateCalendar();
+                                    else saveImportedMatches();
+                                } else if (modalType === 'EDIT_TEAM') {
+                                    handleUpdateTeamName();
+                                }
+                            }}>
+                                {modalType === 'GENERATE_CALENDAR' ? 'Confirmar' : 'Guardar'}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
