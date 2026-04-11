@@ -600,70 +600,122 @@ const PlayersView: React.FC<PlayersViewProps> = ({
               </div>
           </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 pb-20">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5 pb-24">
             {sortedPlayers.map((player, index) => {
                 const s = player.stats;
                 const winRate = s.played > 0 ? Math.round((s.wins / s.played) * 100) : 0;
+                const winRateHome = s.playedHome > 0 ? Math.round((s.winsHome / s.playedHome) * 100) : 0;
+                const winRateAway = s.playedAway > 0 ? Math.round((s.winsAway / s.playedAway) * 100) : 0;
+                const posColors: Record<string, string> = {
+                  [Position.DRIVE]: 'from-blue-500 to-blue-700',
+                  [Position.REVES]: 'from-orange-500 to-orange-700',
+                  [Position.AMBOS]: 'from-slate-500 to-slate-700',
+                };
+                const posBg = posColors[player.position] || posColors[Position.AMBOS];
+                const medalEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
+
                 return (
-                    <Card key={player.id} className="relative group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-l-4 border-l-transparent border-t-0 md:border-t-4 md:border-l-0 md:hover:border-t-lime-400 border-slate-200 dark:border-slate-700 overflow-hidden p-3 md:p-6 flex flex-col gap-4">
-                        <div className="md:hidden absolute left-0 top-0 bottom-0 w-1 bg-lime-400"></div>
-                        <div className="md:absolute md:top-0 md:left-0 md:bg-blue-600 md:text-white md:text-[10px] md:font-black md:px-2 md:py-1 md:rounded-br-lg md:shadow-sm md:z-10 block">#{index + 1}</div>
-                        
-                        {/* Avatar & Name Section */}
-                        <div className="flex items-center gap-3 md:gap-4 w-full">
-                            <div className="relative flex-shrink-0">
-                                {player.photoUrl ? ( 
-                                    <img src={player.photoUrl} alt={player.name} className="w-10 h-10 md:w-16 md:h-16 rounded-full object-cover border-2 md:border-4 border-slate-50 dark:border-slate-700 shadow-md" /> 
-                                ) : ( 
-                                    <div className="w-10 h-10 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 text-blue-800 dark:text-blue-200 flex items-center justify-center font-black text-sm md:text-xl border-2 md:border-4 border-slate-50 dark:border-slate-700 shadow-md">
+                    <div key={player.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col">
+                        {/* Card header with gradient */}
+                        <div className={`bg-gradient-to-r ${posBg} p-4 pb-8 relative`}>
+                            <div className="flex justify-between items-start">
+                                <span className="text-white/60 text-[10px] font-black uppercase tracking-widest">
+                                    {player.position}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {medalEmoji ? (
+                                    <span className="text-base">{medalEmoji}</span>
+                                  ) : (
+                                    <span className="text-white/50 font-black text-xs">#{index + 1}</span>
+                                  )}
+                                </div>
+                            </div>
+                            {/* Floating avatar */}
+                            <div className="absolute -bottom-6 left-4">
+                                {player.photoUrl ? (
+                                    <img src={player.photoUrl} alt={player.name} className="w-14 h-14 rounded-full object-cover border-4 border-white dark:border-slate-800 shadow-lg" />
+                                ) : (
+                                    <div className="w-14 h-14 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center font-black text-xl border-4 border-white dark:border-slate-800 shadow-lg" style={{color: player.position === Position.DRIVE ? '#3b82f6' : player.position === Position.REVES ? '#f97316' : '#64748b'}}>
                                         {player.name.charAt(0)}
-                                    </div> 
+                                    </div>
                                 )}
-                                <div className={`absolute -bottom-1 -right-1 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wide border border-white dark:border-slate-800 shadow-sm ${player.position === Position.REVES ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' : player.position === Position.DRIVE ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}`}>{player.position.substring(0, 1)}<span className="md:inline hidden">{player.position.substring(1, 3)}</span></div>
                             </div>
-                            <div className="overflow-hidden min-w-0">
-                                <h3 className="font-bold text-sm md:text-lg text-slate-900 dark:text-white truncate leading-tight">{player.name} <span className="hidden md:inline">{player.surname}</span></h3>
-                                <div className="flex items-center gap-3 text-[10px] md:text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">
-                                    <span className="flex items-center gap-1"><CheckCircle size={10} className="text-lime-500"/> {s.played} Jug</span>
-                                    <span className="flex items-center gap-1"><Clock size={10} className="text-orange-500"/> {s.bench} Banq</span>
-                                </div>
+                            {/* Points badge */}
+                            <div className="absolute -bottom-4 right-4 bg-white dark:bg-slate-800 rounded-xl px-3 py-1.5 shadow-md border border-slate-100 dark:border-slate-700 flex items-baseline gap-1">
+                                <span className="font-black text-lg text-slate-900 dark:text-white">{player.points}</span>
+                                <span className="text-[10px] text-slate-400 font-bold">pts</span>
                             </div>
                         </div>
 
-                        {/* Stats Section */}
-                        <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
-                             <div>
-                                <span className="text-[10px] text-slate-400 font-bold uppercase block">Puntos</span>
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-lg font-black text-slate-900 dark:text-white">{player.points}</span>
-                                    <span className={`text-[10px] font-bold ${player.pointsDiff > 0 ? 'text-lime-500' : player.pointsDiff < 0 ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {player.pointsDiff > 0 ? '+' : ''}{player.pointsDiff}
-                                    </span>
+                        {/* Card body */}
+                        <div className="pt-9 px-4 pb-4 flex flex-col flex-1 gap-3">
+                            {/* Name & diff */}
+                            <div>
+                                <h3 className="font-black text-slate-900 dark:text-white text-sm leading-tight">{player.name}</h3>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    {player.pointsDiff !== 0 && (
+                                        <span className={`text-[10px] font-bold ${player.pointsDiff > 0 ? 'text-lime-500' : 'text-red-400'}`}>
+                                            {player.pointsDiff > 0 ? '▲' : '▼'} {Math.abs(player.pointsDiff)} pts
+                                        </span>
+                                    )}
+                                    {player.handedness === 'left' && (
+                                        <span className="text-[10px] bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded font-bold">Zurdo</span>
+                                    )}
                                 </div>
-                             </div>
-                             <div>
-                                <span className="text-[10px] text-slate-400 font-bold uppercase block">% Victoria</span>
-                                <span className={`text-lg font-black ${winRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-blue-600 dark:text-blue-400'}`}>{winRate}%</span>
-                             </div>
-                             <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-slate-800 mt-1 flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                                 <span>Casa: <strong className={s.playedHome > 0 && (s.winsHome/s.playedHome) > 0.5 ? 'text-lime-600 dark:text-lime-400' : ''}>{s.playedHome > 0 ? Math.round((s.winsHome/s.playedHome)*100) : 0}%</strong></span>
-                                 <span>Fuera: <strong className={s.playedAway > 0 && (s.winsAway/s.playedAway) > 0.5 ? 'text-lime-600 dark:text-lime-400' : ''}>{s.playedAway > 0 ? Math.round((s.winsAway/s.playedAway)*100) : 0}%</strong></span>
-                             </div>
-                        </div>
+                            </div>
 
-                        {/* Actions */}
-                        {sessionRole === 'CAPTAIN' && (
-                        <div className="md:flex gap-2 mt-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity hidden w-full">
-                            <Button variant="secondary" className="flex-1 text-xs justify-center py-1 h-8 bg-white dark:bg-slate-800" onClick={() => { setTempPlayer({...player, initialPoints: getInitialPointsForEdit(player.id)}); setModalType('EDIT_PLAYER'); setImportMode('MANUAL'); setIsModalOpen(true); }}>Editar</Button>
-                            <button className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900" onClick={() => deletePlayer(player.id)}><Trash2 size={14} /></button>
+                            {/* Win rate bar */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">% Victoria</span>
+                                    <span className={`text-xs font-black ${winRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-slate-500'}`}>{winRate}%</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-500 ${winRate >= 50 ? 'bg-lime-400' : 'bg-blue-400'}`} style={{width: `${winRate}%`}} />
+                                </div>
+                            </div>
+
+                            {/* Mini stats row */}
+                            <div className="grid grid-cols-3 gap-1.5 text-center">
+                                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg py-1.5">
+                                    <p className="font-black text-sm text-slate-900 dark:text-white">{s.played}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Jug</p>
+                                </div>
+                                <div className="bg-lime-50 dark:bg-lime-900/20 rounded-lg py-1.5">
+                                    <p className="font-black text-sm text-lime-700 dark:text-lime-400">{s.wins}</p>
+                                    <p className="text-[9px] font-bold text-lime-400 uppercase">Vic</p>
+                                </div>
+                                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg py-1.5">
+                                    <p className="font-black text-sm text-orange-500">{s.bench}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">Banq</p>
+                                </div>
+                            </div>
+
+                            {/* Home/Away */}
+                            <div className="flex gap-2 text-[10px]">
+                                <div className="flex-1 bg-blue-50 dark:bg-blue-900/10 rounded-lg px-2 py-1.5 text-center">
+                                    <span className="font-black text-blue-600 dark:text-blue-400">{winRateHome}%</span>
+                                    <span className="text-blue-400 block font-bold">🏠 Casa</span>
+                                </div>
+                                <div className="flex-1 bg-orange-50 dark:bg-orange-900/10 rounded-lg px-2 py-1.5 text-center">
+                                    <span className="font-black text-orange-600 dark:text-orange-400">{winRateAway}%</span>
+                                    <span className="text-orange-400 block font-bold">✈️ Fuera</span>
+                                </div>
+                            </div>
+
+                            {/* Actions (captain only) */}
+                            {sessionRole === 'CAPTAIN' && (
+                                <div className="flex gap-2 mt-auto pt-1">
+                                    <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => { setTempPlayer({...player, initialPoints: getInitialPointsForEdit(player.id)}); setModalType('EDIT_PLAYER'); setImportMode('MANUAL'); setIsModalOpen(true); }}>
+                                        <Edit2 size={12} /> Editar
+                                    </Button>
+                                    <button className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900/50" onClick={() => deletePlayer(player.id)}>
+                                        <Trash2 size={13} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
-                        )}
-                         {sessionRole === 'CAPTAIN' && (
-                             <button className="md:hidden ml-auto text-slate-300 absolute top-4 right-4" onClick={() => { setTempPlayer({...player, initialPoints: getInitialPointsForEdit(player.id)}); setModalType('EDIT_PLAYER'); setImportMode('MANUAL'); setIsModalOpen(true); }}>
-                                 <Edit2 size={16} />
-                             </button>
-                         )}
-                    </Card>
+                    </div>
                 )
             })}
         </div>

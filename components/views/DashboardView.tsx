@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect } from 'react';
-import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles } from '../Icons';
-import { Card, Button } from '../UIComponents';
+import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Minus, Target, Flame, Clock } from '../Icons';
+import { Card, Button, Avatar, ProgressBar, ResultBadge } from '../UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AppState, MatchResult, Player, MatchDay } from '../../types';
 import { analyzeTeamStats, AIAnalysisResult } from '../../services/geminiService';
@@ -19,7 +18,6 @@ interface DashboardViewProps {
     isDarkMode: boolean;
 }
 
-// Re-implementing helper here since it depends on AppState context often
 const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
     let calculatedPoints = p.initialPoints || 0;
     let currentSettings = data.settings;
@@ -34,27 +32,17 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
              if (season.settings) currentSettings = season.settings;
         }
     }
-    
-    // If scoring is disabled, just return initial/start points
-    if (currentSettings.scoringSystem === 'NONE') {
-        return calculatedPoints;
-    }
-
+    if (currentSettings.scoringSystem === 'NONE') return calculatedPoints;
     const matches = data.matches.filter(m => m.seasonId === seasonId || (!m.seasonId && seasonId === 'default') || seasonId === 'all');
-    
-    // FILTER IGNORED MATCHES
     const matchesToScore = matches.filter(m => !m.ignorePoints);
     const sortedMatches = [...matchesToScore].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
     if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
         sortedMatches.forEach(match => {
             let played = false;
             let result: MatchResult | undefined;
             for (const lineup of match.lineups) {
                 if (lineup.player1Id === p.id || lineup.player2Id === p.id) {
-                    played = true;
-                    result = lineup.result;
-                    break;
+                    played = true; result = lineup.result; break;
                 }
             }
             if (played && result) {
@@ -66,7 +54,6 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
                     if (result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
                     else if (result === MatchResult.LOSS) calculatedPoints -= currentSettings.pointsPerLoss;
                 }
-                // Clamp to zero after each match result so losses at 0 pts don't create "debt"
                 calculatedPoints = Math.max(0, calculatedPoints);
             }
         });
@@ -78,7 +65,6 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
                     if (lineup.result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
                     else if (lineup.result === MatchResult.LOSS) calculatedPoints += currentSettings.pointsPerLoss;
                     else if (lineup.result === MatchResult.DRAW) calculatedPoints += currentSettings.pointsPerDraw;
-                    
                     calculatedPoints = Math.max(0, calculatedPoints);
                 }
             });
@@ -87,13 +73,21 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
     return calculatedPoints;
 };
 
+const StatCard = ({ label, value, subtitle, icon, accent = false }: { label: string, value: string | number, subtitle?: string, icon?: React.ReactNode, accent?: boolean }) => (
+  <div className={`flex flex-col p-4 rounded-xl border transition-all ${accent ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-200 dark:border-lime-800/50' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 shadow-sm'}`}>
+    {icon && <div className={`mb-2 ${accent ? 'text-lime-600 dark:text-lime-400' : 'text-slate-400'}`}>{icon}</div>}
+    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</span>
+    <span className={`font-black text-2xl mt-0.5 ${accent ? 'text-lime-700 dark:text-lime-300' : 'text-slate-900 dark:text-white'}`}>{value}</span>
+    {subtitle && <span className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">{subtitle}</span>}
+  </div>
+);
+
 const DashboardView: React.FC<DashboardViewProps> = ({ 
     data, sessionRole, viewSeasonId, teamId, setTempTeamName, setModalType, setIsModalOpen, isDarkMode 
 }) => {
     const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
     
-    // Filter helpers
     const getFilteredMatches = () => {
         if (!data) return [];
         if (viewSeasonId === 'all') return data.matches;
@@ -104,8 +98,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         if (!data) return [];
         const matches = getFilteredMatches();
         return data.players.map(p => {
-            let wins = 0;
-            let matchesPlayed = 0;
+            let wins = 0, matchesPlayed = 0;
             matches.forEach(m => {
                 m.lineups.forEach(l => {
                     if (l.player1Id === p.id || l.player2Id === p.id) {
@@ -114,22 +107,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                     }
                 });
             });
-            return {
-                ...p,
-                matchesPlayed,
-                wins,
-                points: getPointsLocal(p, data, viewSeasonId) 
-            };
+            return { ...p, matchesPlayed, wins, points: getPointsLocal(p, data, viewSeasonId) };
         });
     };
 
     const stats = getFilteredStats();
     const filteredMatches = getFilteredMatches();
     
-    // Calculate Match Day results (Win/Loss/Draw based on majority sets)
     const getMatchDayResult = (m: MatchDay) => {
         if (!m.lineups || m.lineups.length === 0) return 'PENDING';
-        
         const wins = m.lineups.filter(l => l.result === MatchResult.WIN).length;
         const losses = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
         if (wins > losses) return 'WIN';
@@ -137,77 +123,66 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         return 'DRAW';
     };
 
-    // Derived Stats
     const playedMatches = filteredMatches.filter(m => m.lineups && m.lineups.length > 0);
+    const pendingMatches = filteredMatches.filter(m => !m.lineups || m.lineups.length === 0);
     const matchDaysTotal = filteredMatches.length;
     const matchDaysPlayedCount = playedMatches.length;
-
     const matchDaysWon = playedMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
-    
-    // Win Rates (Based only on PLAYED matches)
+    const matchDaysLost = playedMatches.filter(m => getMatchDayResult(m) === 'LOSS').length;
+    const matchDaysDraw = playedMatches.filter(m => getMatchDayResult(m) === 'DRAW').length;
     const matchDaysWinRate = matchDaysPlayedCount > 0 ? Math.round((matchDaysWon / matchDaysPlayedCount) * 100) : 0;
-    
     const totalLineupsPlayed = playedMatches.reduce((acc, m) => acc + (m.lineups?.length || 0), 0);
     const totalLineupsWonDirect = playedMatches.reduce((acc, m) => acc + m.lineups.filter(l => l.result === MatchResult.WIN).length, 0);
     const matchesWinRate = totalLineupsPlayed > 0 ? Math.round((totalLineupsWonDirect / totalLineupsPlayed) * 100) : 0;
 
-    // Reset analysis when data or season changes to avoid stale data
-    useEffect(() => {
-        setAiAnalysis(null);
-    }, [viewSeasonId, data?.matches.length]);
+    // Racha actual
+    const getStreak = () => {
+        const sorted = [...playedMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        if (sorted.length === 0) return { type: 'none', count: 0 };
+        let count = 0;
+        const first = getMatchDayResult(sorted[0]);
+        if (first === 'PENDING') return { type: 'none', count: 0 };
+        for (const m of sorted) {
+            if (getMatchDayResult(m) === first) count++;
+            else break;
+        }
+        return { type: first, count };
+    };
+    const streak = getStreak();
+
+    // Próximo partido
+    const now = new Date();
+    const upcomingMatches = pendingMatches
+        .filter(m => new Date(m.date) >= now)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const nextMatch = upcomingMatches[0];
+
+    useEffect(() => { setAiAnalysis(null); }, [viewSeasonId, data?.matches.length]);
 
     const handleRunAnalysis = () => {
         if (!data) return;
         setLoadingAi(true);
-        
-        // 1. Calculate Home vs Away Performance (Only Played)
         const homeMatches = playedMatches.filter(m => m.isHome);
         const awayMatches = playedMatches.filter(m => !m.isHome);
-        
         const homeWins = homeMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
         const awayWins = awayMatches.filter(m => getMatchDayResult(m) === 'WIN').length;
-
-        // 2. Calculate Recent Streak (Last 5 Played)
-        // Sort Newest -> Oldest first to get the last 5
         const sortedMatchesDesc = [...playedMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
-        // Get the last 5 results
-        let recentResults = sortedMatchesDesc.slice(0, 5).map(m => getMatchDayResult(m));
-        
-        // REVERSE it so it reads chronologically (Oldest -> Newest) for the AI context
-        const chronologicalStreak = [...recentResults].reverse(); 
-
-        // 3. Find MVP (Most points)
+        const chronologicalStreak = sortedMatchesDesc.slice(0, 5).map(m => getMatchDayResult(m)).reverse();
         const activePlayers = stats.filter(p => p.matchesPlayed > 0);
         const mvpPlayer = activePlayers.length > 0 ? activePlayers.reduce((prev, current) => (prev.points > current.points) ? prev : current) : null;
-
-        // 4. Construct Full Context
         const context = {
-            teamName: data.teamName,
-            seasonId: viewSeasonId,
-            totalScheduledMatches: matchDaysTotal,
-            matchesPlayed: matchDaysPlayedCount,
-            matchDaysRecord: {
-                won: matchDaysWon,
-                lost: playedMatches.filter(m => getMatchDayResult(m) === 'LOSS').length,
-                draw: playedMatches.filter(m => getMatchDayResult(m) === 'DRAW').length,
-            },
-            individualMatchesRecord: {
-                total: totalLineupsPlayed,
-                won: totalLineupsWonDirect,
-                lost: totalLineupsPlayed - totalLineupsWonDirect,
-            },
+            teamName: data.teamName, seasonId: viewSeasonId,
+            totalScheduledMatches: matchDaysTotal, matchesPlayed: matchDaysPlayedCount,
+            matchDaysRecord: { won: matchDaysWon, lost: matchDaysLost, draw: matchDaysDraw },
+            individualMatchesRecord: { total: totalLineupsPlayed, won: totalLineupsWonDirect, lost: totalLineupsPlayed - totalLineupsWonDirect },
             performanceSplit: {
                 home: `${homeWins} victorias de ${homeMatches.length} jugados`,
                 away: `${awayWins} victorias de ${awayMatches.length} jugados`,
             },
-            recentStreakChronological: chronologicalStreak.length > 0 ? chronologicalStreak.join(' -> ') : "Sin partidos jugados", 
-            mvpPlayer: mvpPlayer ? `${mvpPlayer.name} (${mvpPlayer.points} pts)` : 'N/A (Nadie ha jugado aún)'
+            recentStreakChronological: chronologicalStreak.length > 0 ? chronologicalStreak.join(' -> ') : "Sin partidos jugados",
+            mvpPlayer: mvpPlayer ? `${mvpPlayer.name} (${mvpPlayer.points} pts)` : 'N/A'
         };
-
-        analyzeTeamStats(context)
-            .then(setAiAnalysis)
-            .finally(() => setLoadingAi(false));
+        analyzeTeamStats(context).then(setAiAnalysis).finally(() => setLoadingAi(false));
     };
 
     if (!data) return (
@@ -218,15 +193,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
     );
 
-    const chartData = stats.map(p => ({ name: p.name, points: p.points })).sort((a, b) => b.points - a.points).slice(0, 5);
+    const chartData = stats.map(p => ({ name: p.name.split(' ')[0], points: p.points })).sort((a, b) => b.points - a.points).slice(0, 6);
+    const topPlayers = [...stats].sort((a, b) => b.points - a.points).slice(0, 5);
     
     return (
-      <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="space-y-6 animate-in fade-in duration-500">
+        {/* Header */}
         <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{sessionRole === 'CAPTAIN' ? `Hola, ${data.captainName}` : `Equipo`}</h2>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">
+              {sessionRole === 'CAPTAIN' ? 'Bienvenido de vuelta' : 'Equipo'}
+            </p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              {sessionRole === 'CAPTAIN' ? data.captainName : data.teamName}
+            </h2>
             <div className="flex items-center gap-2 mt-1">
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Resumen de <span className="font-bold text-blue-600 dark:text-blue-400">{data.teamName}</span></p>
+                <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                  Club: <span className="font-bold text-blue-600 dark:text-blue-400">{data.teamName}</span>
+                </p>
                 {sessionRole === 'CAPTAIN' && (
                     <button onClick={() => { setTempTeamName(data.teamName); setModalType('EDIT_TEAM'); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                         <Edit2 size={14} />
@@ -234,139 +218,238 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
             </div>
           </div>
-          {sessionRole === 'CAPTAIN' && (
-            <Button variant="secondary" onClick={() => { if (teamId) { navigator.clipboard.writeText(teamId); alert(`Código copiado: ${teamId}`); } }}>
-              <UserPlus size={18} /> Invitar Jugadores
-            </Button>
-          )}
+          <div className="flex gap-3">
+            {sessionRole === 'CAPTAIN' && (
+              <Button variant="secondary" onClick={() => { if (teamId) { navigator.clipboard.writeText(teamId); alert(`Código copiado: ${teamId}`); } }}>
+                <UserPlus size={18} /> Invitar Jugadores
+              </Button>
+            )}
+          </div>
         </header>
 
-        {/* AI Analysis Section - Improved UI Structure */}
+        {/* Próximo partido + racha */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Próximo partido */}
+          {nextMatch ? (
+            <div className="md:col-span-2 bg-gradient-to-br from-blue-950 to-blue-900 rounded-2xl p-5 text-white border border-blue-800 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400 blur-[60px] opacity-10 rounded-full pointer-events-none" />
+              <div className="flex items-center gap-2 mb-3">
+                <Clock size={14} className="text-lime-400" />
+                <span className="text-xs font-black uppercase tracking-widest text-blue-300">Próxima Jornada</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-2xl font-black text-white">{nextMatch.opponent.toUpperCase()}</p>
+                  <p className="text-blue-300 text-sm mt-1 font-medium">
+                    {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {' · '}
+                    {new Date(nextMatch.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
+                  </p>
+                </div>
+                <span className={`text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-xl ${nextMatch.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
+                  {nextMatch.isHome ? '🏠 Casa' : '✈️ Fuera'}
+                </span>
+              </div>
+              {upcomingMatches.length > 1 && (
+                <p className="mt-3 text-xs text-blue-400 font-medium">+{upcomingMatches.length - 1} partidos más pendientes</p>
+              )}
+            </div>
+          ) : (
+            <div className="md:col-span-2 bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-5 border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-center">
+              <div>
+                <Calendar size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No hay partidos pendientes</p>
+                {sessionRole === 'CAPTAIN' && (
+                  <button onClick={() => { setModalType('GENERATE_CALENDAR'); setIsModalOpen(true); }} className="mt-2 text-xs text-blue-500 font-bold hover:underline">
+                    Generar calendario →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Racha */}
+          <div className={`rounded-2xl p-5 border flex flex-col justify-between ${
+            streak.type === 'WIN' ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-200 dark:border-lime-800' :
+            streak.type === 'LOSS' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' :
+            'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+          }`}>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Flame size={14} className={streak.type === 'WIN' ? 'text-lime-500' : streak.type === 'LOSS' ? 'text-red-400' : 'text-slate-400'} />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Racha Actual</span>
+              </div>
+              {streak.type === 'none' ? (
+                <p className="text-slate-400 text-sm font-medium mt-2">Sin datos aún</p>
+              ) : (
+                <>
+                  <p className={`text-4xl font-black mt-1 ${streak.type === 'WIN' ? 'text-lime-600 dark:text-lime-400' : streak.type === 'LOSS' ? 'text-red-500 dark:text-red-400' : 'text-blue-500'}`}>
+                    {streak.count}
+                  </p>
+                  <p className={`text-sm font-bold ${streak.type === 'WIN' ? 'text-lime-600 dark:text-lime-400' : streak.type === 'LOSS' ? 'text-red-500 dark:text-red-400' : 'text-blue-500'}`}>
+                    {streak.type === 'WIN' ? 'victorias seguidas 🔥' : streak.type === 'LOSS' ? 'derrotas seguidas' : 'empates seguidos'}
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-lg font-black text-lime-600 dark:text-lime-400">{matchDaysWon}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">V</p>
+              </div>
+              <div>
+                <p className="text-lg font-black text-slate-400">{matchDaysDraw}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">E</p>
+              </div>
+              <div>
+                <p className="text-lg font-black text-red-500 dark:text-red-400">{matchDaysLost}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">D</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* KPIs row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Jugadores" value={stats.length} icon={<Activity size={16} />} />
+          <StatCard label="Jornadas" value={`${matchDaysPlayedCount}/${matchDaysTotal}`} subtitle="Jugadas / Totales" />
+          <StatCard 
+            label="WR Jornadas" 
+            value={`${matchDaysWinRate}%`} 
+            accent={matchDaysWinRate >= 50}
+            subtitle={matchDaysWinRate >= 50 ? 'Por encima del 50%' : 'Hay que mejorar'}
+          />
+          <StatCard 
+            label="WR Partidos" 
+            value={`${matchesWinRate}%`} 
+            accent={matchesWinRate >= 50}
+            subtitle={`${totalLineupsWonDirect}/${totalLineupsPlayed} ganados`}
+          />
+        </div>
+
+        {/* Gráfico + Top jugadores */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Gráfico de barras */}
+          <Card className="col-span-1 md:col-span-2">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-black text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                <Trophy className="text-lime-500" size={22} /> Ranking de Puntos
+              </h3>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Top {chartData.length}</span>
+            </div>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#334155' : '#f1f5f9'} />
+                  <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700, fill: isDarkMode ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} dy={8} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: isDarkMode ? '#94a3b8' : '#94a3b8', fontSize: 11}} />
+                  <Tooltip 
+                    cursor={{fill: isDarkMode ? '#1e293b' : '#f8fafc', radius: 8}} 
+                    contentStyle={{
+                        borderRadius: '12px', border: 'none', 
+                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)', 
+                        fontWeight: 'bold',
+                        backgroundColor: isDarkMode ? '#1e293b' : '#fff',
+                        color: isDarkMode ? '#fff' : '#0f172a',
+                        padding: '8px 14px'
+                    }} 
+                  />
+                  <Bar dataKey="points" radius={[8, 8, 0, 0]} barSize={36} label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: isDarkMode ? '#94a3b8' : '#64748b' }}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? '#a3e635' : index === 1 ? '#60a5fa' : (isDarkMode ? '#334155' : '#e2e8f0')} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Top jugadores */}
+          <Card>
+            <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
+              <TrendingUp className="text-blue-500" size={22} /> Top Jugadores
+            </h3>
+            <div className="space-y-3">
+              {topPlayers.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-4">Aún no hay datos</p>
+              ) : topPlayers.map((p, index) => (
+                <div key={p.id} className="flex items-center gap-3">
+                  <span className={`text-xs font-black w-5 text-center ${index === 0 ? 'text-lime-500' : index === 1 ? 'text-blue-400' : index === 2 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                  </span>
+                  <Avatar name={p.name} photoUrl={p.photoUrl} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{p.name}</p>
+                    <div className="mt-0.5">
+                      <ProgressBar value={p.matchesPlayed > 0 ? p.wins : 0} max={Math.max(p.matchesPlayed, 1)} color={index === 0 ? 'lime' : 'blue'} />
+                    </div>
+                  </div>
+                  <span className="font-black text-slate-900 dark:text-white text-sm whitespace-nowrap">{p.points} <span className="text-slate-400 font-normal text-xs">pts</span></span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* AI Analysis Section */}
         <div className="bg-gradient-to-r from-blue-950 to-blue-900 rounded-2xl p-0 text-white shadow-xl relative overflow-hidden border border-blue-800">
             <div className="absolute top-0 right-0 w-48 h-48 bg-lime-400 blur-[80px] opacity-10 rounded-full pointer-events-none"></div>
             
-            <div className="p-6 border-b border-blue-800/50 flex items-center gap-3">
+            <div className="p-5 border-b border-blue-800/50 flex items-center gap-3">
                  <div className="bg-lime-400/10 p-2 rounded-lg border border-lime-400/20 text-lime-400">
-                    <BrainCircuit size={20} />
+                    <BrainCircuit size={18} />
                  </div>
-                 <h3 className="font-bold text-lg text-white">Análisis Técnico IA</h3>
+                 <div>
+                   <h3 className="font-bold text-base text-white">Análisis Técnico IA</h3>
+                   <p className="text-blue-400 text-xs">Powered by Gemini AI</p>
+                 </div>
             </div>
             
             {!aiAnalysis ? (
                 <div className="p-8 flex flex-col items-center justify-center text-center relative z-10">
-                    <Sparkles className="text-lime-400 mb-3 opacity-80" size={32} />
-                    <p className="text-blue-200 text-sm mb-6 max-w-md leading-relaxed">
-                        Utiliza la Inteligencia Artificial para detectar patrones, rachas y áreas de mejora en tu juego basándose en los datos actuales de la temporada.
+                    <Sparkles className="text-lime-400 mb-3 opacity-80" size={28} />
+                    <p className="text-blue-200 text-sm mb-6 max-w-sm leading-relaxed">
+                        Detecta patrones, rachas y áreas de mejora basándose en los datos de la temporada actual.
                     </p>
-                    <Button onClick={handleRunAnalysis} disabled={loadingAi} className="shadow-lg shadow-lime-500/20 px-8 py-3">
+                    <Button onClick={handleRunAnalysis} disabled={loadingAi} className="shadow-lg shadow-lime-500/20 px-8">
                         {loadingAi ? (
                             <>
                                 <div className="w-4 h-4 border-2 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
                                 <span>Analizando...</span>
                             </>
                         ) : (
-                            'Generar Informe Táctico'
+                            <><Sparkles size={16} /> Generar Informe Táctico</>
                         )}
                     </Button>
                 </div>
             ) : (
                 <div className="p-6 grid md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
-                     {/* Column 1: Summary */}
                      <div className="md:col-span-2 space-y-4">
                          <div>
-                            <h4 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2">Situación Actual</h4>
-                            <p className="text-blue-50 text-sm leading-relaxed font-light">
-                                {aiAnalysis.summary}
-                            </p>
+                            <h4 className="text-xs font-black text-blue-300 uppercase tracking-widest mb-2">Situación Actual</h4>
+                            <p className="text-blue-50 text-sm leading-relaxed font-light">{aiAnalysis.summary}</p>
                          </div>
                          <div>
-                            <h4 className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2">Detalles Clave</h4>
-                            <p className="text-blue-50 text-sm leading-relaxed font-light">
-                                 {aiAnalysis.details}
-                            </p>
+                            <h4 className="text-xs font-black text-blue-300 uppercase tracking-widest mb-2">Detalles Clave</h4>
+                            <p className="text-blue-50 text-sm leading-relaxed font-light">{aiAnalysis.details}</p>
                          </div>
                      </div>
-
-                     {/* Column 2: Technical Focus (Real Objective) */}
                      <div className="bg-blue-900/50 rounded-xl p-4 border border-blue-700/50 flex flex-col justify-center relative overflow-hidden">
                          <div className="absolute -right-4 -top-4 text-blue-800/20 rotate-12">
                              <Sparkles size={100} />
                          </div>
                          <h4 className="text-xs font-black text-lime-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <Sparkles size={12} /> Objetivo Prioritario
+                            <Target size={12} /> Objetivo Prioritario
                          </h4>
-                         <p className="text-white font-medium italic text-lg leading-snug relative z-10">
+                         <p className="text-white font-medium italic text-base leading-snug relative z-10">
                             "{aiAnalysis.tip}"
                          </p>
+                         <button onClick={() => setAiAnalysis(null)} className="mt-4 text-xs text-blue-400 hover:text-blue-200 transition-colors text-left">
+                           Regenerar análisis →
+                         </button>
                      </div>
                 </div>
             )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="col-span-1 md:col-span-2">
-            <h3 className="font-black text-lg mb-6 flex items-center gap-2 text-slate-900 dark:text-white"><Trophy className="text-lime-500" size={24} /> Ranking (Top 5)</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
-                  <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 600, fill: isDarkMode ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: isDarkMode ? '#94a3b8' : '#64748b'}} />
-                  <Tooltip 
-                    cursor={{fill: isDarkMode ? '#1e293b' : '#eff6ff'}} 
-                    contentStyle={{
-                        borderRadius: '12px', 
-                        border: 'none', 
-                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', 
-                        fontWeight: 'bold',
-                        backgroundColor: isDarkMode ? '#1e293b' : '#fff',
-                        color: isDarkMode ? '#fff' : '#0f172a'
-                    }} 
-                  />
-                  <Bar dataKey="points" radius={[6, 6, 0, 0]} barSize={40}>
-                    {chartData.map((entry, index) => ( <Cell key={`cell-${index}`} fill={index === 0 ? '#a3e635' : (isDarkMode ? '#60a5fa' : '#1e3a8a')} /> ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-          <Card className="bg-slate-50 dark:bg-slate-900 border-none">
-            <h3 className="font-black text-lg mb-6 flex items-center gap-2 text-slate-900 dark:text-white"><Activity className="text-blue-500" size={24} /> Resumen</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 font-medium text-sm uppercase tracking-wide">Jugadores</span>
-                <span className="font-black text-2xl text-slate-900 dark:text-white">{stats.length}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">Jornadas Jugadas</span>
-                    <div className="flex items-end gap-2 mt-1">
-                        <span className="font-black text-xl text-slate-900 dark:text-white">{matchDaysPlayedCount} <span className="text-sm text-slate-400 dark:text-slate-500 font-normal">/ {matchDaysTotal}</span></span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">WR Jornadas</span>
-                    <div className="flex items-end gap-2 mt-1">
-                        <span className={`font-black text-xl ${matchDaysWinRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-blue-600 dark:text-blue-400'}`}>{matchDaysWinRate}%</span>
-                    </div>
-                  </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">Partidos</span>
-                    <div className="flex items-end gap-2 mt-1">
-                        <span className="font-black text-xl text-slate-900 dark:text-white">{totalLineupsPlayed}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <span className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-wide">WR Partidos</span>
-                    <div className="flex items-end gap-2 mt-1">
-                        <span className={`font-black text-xl ${matchesWinRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-blue-600 dark:text-blue-400'}`}>{matchesWinRate}%</span>
-                    </div>
-                  </div>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
     );

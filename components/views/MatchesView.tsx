@@ -77,7 +77,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
     };
 
     return (
-      <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300">
+      <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300 pb-2">
         <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-6 sticky top-0 bg-slate-50 dark:bg-slate-950 z-20 pt-2">
           <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Jornadas</h2>
            
@@ -232,125 +232,143 @@ const MatchesView: React.FC<MatchesViewProps> = ({
             </div>
 
             {/* LIST VIEW (Optimized for Mobile) & Fallback for Table on Mobile */}
-            <div className={`space-y-4 pb-20 ${viewMode === 'TABLE' ? 'md:hidden block' : 'block'}`}>
-                {sortedMatches.map(match => {
+            <div className={`space-y-3 pb-24 ${viewMode === 'TABLE' ? 'md:hidden block' : 'block'}`}>
+                {sortedMatches.map((match, matchIdx) => {
                     const status = getMatchStatus(match);
                     const isExpanded = expandedMatches.includes(match.id);
-                    const borderColor = status === 'WIN' ? 'border-l-lime-500' : status === 'LOSS' ? 'border-l-red-500' : status === 'DRAW' ? 'border-l-blue-500' : 'border-l-slate-300 dark:border-l-slate-600';
-                    const bgColor = isExpanded ? 'bg-white dark:bg-slate-800' : 'bg-white dark:bg-slate-900';
-                    
+                    const score = getMatchScore(match);
+
+                    const statusConfig: Record<string, { border: string, bg: string, dot: string, scoreColor: string, label: string }> = {
+                        WIN:     { border: 'border-l-lime-400', bg: isExpanded ? 'bg-lime-50/30 dark:bg-lime-900/5' : '', dot: 'bg-lime-400', scoreColor: 'text-lime-600 dark:text-lime-400', label: 'Victoria' },
+                        LOSS:    { border: 'border-l-red-400',  bg: isExpanded ? 'bg-red-50/30 dark:bg-red-900/5'  : '', dot: 'bg-red-400',  scoreColor: 'text-red-500 dark:text-red-400',   label: 'Derrota'  },
+                        DRAW:    { border: 'border-l-blue-400', bg: isExpanded ? 'bg-blue-50/30 dark:bg-blue-900/5' : '', dot: 'bg-blue-400', scoreColor: 'text-blue-500 dark:text-blue-400', label: 'Empate'   },
+                        PENDING: { border: 'border-l-slate-200 dark:border-l-slate-700', bg: '', dot: 'bg-slate-300 dark:bg-slate-600', scoreColor: 'text-slate-400', label: 'Pendiente' },
+                    };
+                    const cfg = statusConfig[status] || statusConfig.PENDING;
+
                     return (
-                        <div key={match.id} className={`rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 border-l-4 ${borderColor} overflow-hidden ${bgColor} transition-all`}>
-                            {/* Card Header (Always Visible) */}
+                        <div key={match.id} className={`rounded-2xl border border-slate-200 dark:border-slate-800 border-l-4 ${cfg.border} overflow-hidden bg-white dark:bg-slate-900 ${cfg.bg} transition-all shadow-sm hover:shadow-md`}>
+                            {/* Card Header */}
                             <div className="p-4 cursor-pointer" onClick={() => toggleMatchExpand(match.id)}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>{match.isHome ? 'Casa' : 'Fuera'}</span>
-                                        {match.ignorePoints && (
-                                             <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">HIST</span>
-                                        )}
-                                        <span className="text-slate-400 font-bold text-[10px] uppercase flex items-center gap-1"><Clock size={10} /> {formatDate(match.date)}</span>
-                                    </div>
-                                    {sessionRole === 'CAPTAIN' && isExpanded && (
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
-                                                className="p-1.5 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 rounded-lg"
-                                            >
-                                                <Edit2 size={14} />
-                                            </button>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); deleteMatch(match.id); }}
-                                                className="p-1.5 text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                <div className="flex justify-between items-center mt-1">
-                                    <h3 className="text-base font-black text-slate-900 dark:text-white truncate pr-2">vs {match.opponent}</h3>
-                                    <div className="flex items-center gap-2">
-                                        {status !== 'PENDING' && (
-                                            <span className={`text-xl font-black ${status === 'WIN' ? 'text-lime-600 dark:text-lime-400' : status === 'LOSS' ? 'text-red-500 dark:text-red-400' : 'text-blue-500 dark:text-blue-400'}`}>
-                                                {getMatchScore(match)}
+                                <div className="flex items-start justify-between gap-3">
+                                    {/* Left: date + badges */}
+                                    <div className="flex flex-col gap-1.5 min-w-0">
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
+                                                {match.isHome ? '🏠 Casa' : '✈️ Fuera'}
                                             </span>
+                                            {match.ignorePoints && (
+                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">Histórico</span>
+                                            )}
+                                            <span className="text-slate-400 dark:text-slate-500 text-[10px] font-medium">
+                                                {new Date(match.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                                {' · '}
+                                                {new Date(match.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wide">J{matchIdx + 1}</span>
+                                            <h3 className="text-base font-black text-slate-900 dark:text-white truncate">
+                                                vs {match.opponent.toUpperCase()}
+                                            </h3>
+                                        </div>
+                                        {match.notes && (
+                                            <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{match.notes}</p>
                                         )}
-                                        {status === 'PENDING' && <span className="text-xs font-bold text-slate-300 dark:text-slate-600 italic">Pendiente</span>}
-                                        <div className="text-slate-300 dark:text-slate-600 ml-1">
-                                            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                    </div>
+
+                                    {/* Right: score + chevron */}
+                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                        <div className="text-right">
+                                            {status !== 'PENDING' ? (
+                                                <>
+                                                    <div className={`text-2xl font-black leading-none ${cfg.scoreColor}`}>{score}</div>
+                                                    <div className={`text-[10px] font-black uppercase mt-0.5 ${cfg.scoreColor} opacity-70`}>{cfg.label}</div>
+                                                </>
+                                            ) : (
+                                                <div className="text-xs font-bold text-slate-300 dark:text-slate-600 italic">—</div>
+                                            )}
+                                        </div>
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isExpanded ? 'bg-slate-100 dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800'} text-slate-400`}>
+                                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Expanded Details (Lineups) */}
+                            {/* Expanded Details */}
                             {isExpanded && (
-                                <div className="bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 p-2 animate-in slide-in-from-top-2 duration-200">
-                                    {match.tandas && match.tandas !== '5' && (
-                                        <div className="flex justify-center mb-2">
-                                            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-slate-200 dark:border-slate-600">
-                                                {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
-                                            </span>
+                                <div className="border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
+                                    {/* Actions row (captain) */}
+                                    {sessionRole === 'CAPTAIN' && (
+                                        <div className="flex gap-2 px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
+                                                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                <Edit2 size={12} /> Editar
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); deleteMatch(match.id); }}
+                                                className="flex items-center gap-1.5 text-xs font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 size={12} /> Eliminar
+                                            </button>
+                                            {match.tandas && match.tandas !== '5' && (
+                                                <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600">
+                                                    {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
+                                                </span>
+                                            )}
                                         </div>
                                     )}
-                                    {match.ignorePoints && (
-                                        <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-100 dark:border-yellow-900/30 flex items-start gap-2">
-                                            <AlertCircle size={14} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                                            <p className="text-[10px] text-yellow-700 dark:text-yellow-300">
-                                                Este partido está marcado como histórico. Cuenta para estadísticas pero no suma puntos a la clasificación.
-                                            </p>
-                                        </div>
-                                    )}
-                                    {(!match.lineups || match.lineups.length === 0) ? (
-                                        <div className="text-center py-3 text-xs text-slate-400 italic">
-                                            Sin resultados registrados.
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {match.lineups.map((lineup, idx) => {
-                                                const p1 = data?.players.find(p => p.id === lineup.player1Id);
-                                                const p2 = data?.players.find(p => p.id === lineup.player2Id);
-                                                
-                                                // Determine Result Colors
-                                                const isWin = lineup.result === MatchResult.WIN;
-                                                const isLoss = lineup.result === MatchResult.LOSS;
-                                                const stripColor = isWin ? 'bg-lime-500' : isLoss ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-600';
-                                                const scoreBg = isWin ? 'bg-lime-50 text-lime-700 border-lime-100 dark:bg-lime-900/20 dark:text-lime-400 dark:border-lime-900/30' : isLoss ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30' : 'bg-slate-50 text-slate-600 border-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
 
-                                                return (
-                                                    <div key={idx} className="flex bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden h-full">
-                                                        {/* Color Strip */}
-                                                        <div className={`w-1 ${stripColor} flex-shrink-0`}></div>
-                                                        
-                                                        {/* Content */}
-                                                        <div className="flex-1 p-2 flex items-center justify-between gap-2 overflow-hidden">
-                                                            <div className="flex flex-col min-w-0 justify-center">
-                                                                <div className="text-[9px] text-slate-400 font-bold uppercase mb-0.5">Pareja {idx + 1}</div>
-                                                                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">
-                                                                    {p1?.name} {p1?.surname || ''} <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span> {p2?.name} {p2?.surname || ''}
-                                                                </div>
-                                                                <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
-                                                                    {(lineup.opponent1Name || lineup.opponent2Name) 
-                                                                        ? <><span className="opacity-50">vs</span> {lineup.opponent1Name || '?'} / {lineup.opponent2Name || '?'}</>
-                                                                        : <span className="opacity-50 italic">Rival no registrado</span>
-                                                                    }
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            {/* Score */}
-                                                            <div className={`flex gap-1 font-mono text-[10px] font-black whitespace-nowrap`}>
-                                                                <span className={`px-1.5 py-0.5 rounded border ${scoreBg}`}>{lineup.set1}</span>
-                                                                <span className={`px-1.5 py-0.5 rounded border ${scoreBg}`}>{lineup.set2}</span>
-                                                                {lineup.set3 && <span className={`px-1.5 py-0.5 rounded border ${scoreBg}`}>{lineup.set3}</span>}
-                                                            </div>
+                                    {/* Lineups */}
+                                    <div className="p-3 space-y-2">
+                                        {match.ignorePoints && (
+                                            <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30 text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                                                <AlertCircle size={12} className="flex-shrink-0" />
+                                                Partido histórico — no suma puntos a la clasificación
+                                            </div>
+                                        )}
+                                        {(!match.lineups || match.lineups.length === 0) ? (
+                                            <p className="text-center py-4 text-xs text-slate-400 italic">Sin resultados registrados aún</p>
+                                        ) : match.lineups.map((lineup, idx) => {
+                                            const p1 = data?.players.find(p => p.id === lineup.player1Id);
+                                            const p2 = data?.players.find(p => p.id === lineup.player2Id);
+                                            const isWin = lineup.result === MatchResult.WIN;
+                                            const isLoss = lineup.result === MatchResult.LOSS;
+
+                                            return (
+                                                <div key={idx} className={`rounded-xl border overflow-hidden ${isWin ? 'border-lime-200 dark:border-lime-800/40 bg-lime-50 dark:bg-lime-900/10' : isLoss ? 'border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
+                                                    <div className="px-3 py-2 flex items-center justify-between gap-2">
+                                                        {/* Pair names */}
+                                                        <div className="min-w-0">
+                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Pareja {idx + 1}</p>
+                                                            <p className={`text-xs font-bold truncate ${isWin ? 'text-lime-800 dark:text-lime-300' : isLoss ? 'text-red-700 dark:text-red-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                                {p1?.name || '?'} <span className="opacity-50">/</span> {p2?.name || '?'}
+                                                            </p>
+                                                            {(lineup.opponent1Name || lineup.opponent2Name) && (
+                                                                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                                                    vs {lineup.opponent1Name || '?'} / {lineup.opponent2Name || '?'}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        {/* Sets */}
+                                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                                            {[lineup.set1, lineup.set2, lineup.set3].filter(Boolean).map((set, si) => (
+                                                                <span key={si} className={`text-[11px] font-black px-2 py-1 rounded-lg border ${isWin ? 'bg-lime-100 text-lime-800 border-lime-200 dark:bg-lime-900/30 dark:text-lime-300 dark:border-lime-800/50' : isLoss ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/50' : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}>
+                                                                    {set}
+                                                                </span>
+                                                            ))}
+                                                            <span className={`text-[10px] font-black uppercase ml-1 ${isWin ? 'text-lime-600 dark:text-lime-400' : isLoss ? 'text-red-500 dark:text-red-400' : 'text-blue-500'}`}>
+                                                                {isWin ? '✓' : isLoss ? '✗' : '~'}
+                                                            </span>
                                                         </div>
                                                     </div>
-                                                )
-                                            })}
-                                        </div>
-                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </div>

@@ -148,143 +148,245 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     if (sessionRole !== 'CAPTAIN') return <div className="p-8 text-center text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl font-bold">Acceso restringido a capitanes.</div>
     
     return (
-        <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in pb-20 relative">
+        <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in pb-24 relative">
             
-            {/* --- DELETE CONFIRMATION MODAL (Based on provided example) --- */}
+            {/* Delete season modal */}
             {seasonToDelete && (
-                <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 text-center animate-in fade-in">
-                      <Shield className="w-12 h-12 text-red-500 mb-4" />
-                      <h4 className="text-white font-black text-2xl mb-2">¿Eliminar Temporada?</h4>
-                      <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto">
-                          Vas a eliminar <strong>"{seasonToDelete.name}"</strong>.<br/>
-                          Esta acción borrará todos los partidos asociados y no se puede deshacer.
-                      </p>
-                      <div className="flex gap-4">
-                          <button 
-                              onClick={() => setSeasonToDelete(null)}
-                              className="px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold uppercase tracking-wide transition-all"
-                          >
-                              Cancelar
-                          </button>
-                          <button 
-                              onClick={executeDeleteSeason}
-                              className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold uppercase tracking-wide flex items-center gap-2 transition-all shadow-lg shadow-red-600/30"
-                          >
-                              <Trash2 className="w-5 h-5" />
-                              Confirmar Borrado
-                          </button>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-4 text-center animate-in fade-in">
+                      <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-700">
+                        <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <Shield className="text-red-500" size={24}/>
+                        </div>
+                        <h4 className="text-slate-900 dark:text-white font-black text-xl mb-2">¿Eliminar Temporada?</h4>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
+                            Se eliminará <strong className="text-slate-800 dark:text-slate-200">"{seasonToDelete.name}"</strong> y todos sus partidos. Esta acción es irreversible.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setSeasonToDelete(null)}
+                                className="flex-1 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={executeDeleteSeason}
+                                className="flex-1 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/20"
+                            >
+                                <Trash2 size={16}/> Eliminar
+                            </button>
+                        </div>
                       </div>
                   </div>
             )}
 
-            <header className="text-center">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase">Ajustes del Equipo</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">Gestiona temporadas y baremos.</p>
+            {/* Header */}
+            <header className="border-b border-slate-200 dark:border-slate-800 pb-5">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Configuración</p>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white">Ajustes del Equipo</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona temporadas y sistema de puntuación.</p>
             </header>
-            <Card className="space-y-4">
-                 <h3 className="font-bold text-lg text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">Temporadas</h3>
-                 <div className="flex gap-2">
-                     <Input placeholder="Nueva temporada (ej. 2025)" value={newSeasonName} onChange={(e) => setNewSeasonName(e.target.value)} />
-                     <Button onClick={addNewSeason} disabled={!newSeasonName}>Crear</Button>
-                 </div>
-                 <div className="space-y-3 mt-4">
-                     {(data.seasons || []).map(s => (
-                         <div key={s.id} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${s.isActive ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-200 dark:border-lime-900/50' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
-                             {editingSeasonId === s.id ? (
-                                <div className="flex gap-2 flex-1 items-center">
-                                    <input type="text" value={tempSeasonName} onChange={(e) => setTempSeasonName(e.target.value)} className="flex-1 px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-lime-400" autoFocus/>
-                                    <button onClick={saveSeasonName} className="bg-lime-500 text-white p-2 rounded-lg"><Check size={18} /></button>
-                                    <button onClick={() => setEditingSeasonId(null)} className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 p-2 rounded-lg"><X size={18} /></button>
-                                </div>
-                             ) : (
-                                <div className="flex-1 flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                      <span className={`font-black text-base ${s.isActive ? 'text-blue-900 dark:text-blue-200' : 'text-slate-700 dark:text-slate-300'}`}>{s.name}</span>
-                                      {s.isActive && <span className="text-[10px] font-black text-lime-600 dark:text-lime-400 uppercase">Activa</span>}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <button onClick={() => startEditingSeason(s)} className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"><Edit2 size={16} /></button>
-                                      <button 
-                                          type="button" 
-                                          onClick={(e) => { 
-                                              e.stopPropagation(); 
-                                              // Prevent deleting if it's the only season
-                                              if ((data.seasons || []).length <= 1) {
-                                                  alert("No puedes borrar la única temporada existente.");
-                                                  return;
-                                              }
-                                              setSeasonToDelete(s); 
-                                          }} 
-                                          className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                                          title="Borrar Temporada"
-                                      >
-                                          <Trash2 size={18} />
-                                      </button>
-                                      {!s.isActive && (
-                                        <button onClick={() => setSeasonActive(s.id)} className="text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-all">Activar</button>
-                                      )}
-                                    </div>
-                                </div>
-                             )}
-                         </div>
-                     ))}
-                 </div>
-            </Card>
-            <Card className="space-y-6">
-                 <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">Baremo de Puntuación {!isGlobalView && <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full uppercase">Temporada: {currentSeason?.name}</span>}</h3>
-                 {isGlobalView ? ( <div className="p-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900"><p className="text-slate-400 font-medium">Selecciona una temporada específica para editar sus puntos.</p></div> ) : (
-                    <>
-                    <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl mb-6">
-                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'NONE' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'NONE'}))}>Desactivado</button>
-                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'SIMPLE' ? 'bg-white dark:bg-slate-700 text-blue-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'SIMPLE'}))}>Simple</button>
-                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === 'RANGES' ? 'bg-white dark:bg-slate-700 text-blue-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} onClick={() => setLocalSettings(s => ({...s, scoringSystem: 'RANGES'}))}>Tramos</button>
+
+            {/* Temporadas */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">
+                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                        <Shield size={15} className="text-blue-600 dark:text-blue-400"/>
                     </div>
-                    {localSettings.scoringSystem === 'SIMPLE' ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input type="number" label="Victoria" value={localSettings.pointsPerWin} onChange={e => setLocalSettings(p => ({...p, pointsPerWin: Number(e.target.value)}))} />
-                            <Input type="number" label="Empate" value={localSettings.pointsPerDraw} onChange={e => setLocalSettings(p => ({...p, pointsPerDraw: Number(e.target.value)}))} />
-                            <Input type="number" label="Derrota" value={localSettings.pointsPerLoss} onChange={e => setLocalSettings(p => ({...p, pointsPerLoss: Number(e.target.value)}))} />
-                            <Input type="number" label="Asistencia" value={localSettings.pointsAttendance} onChange={e => setLocalSettings(p => ({...p, pointsAttendance: Number(e.target.value)}))} />
-                        </div>
-                    ) : localSettings.scoringSystem === 'RANGES' ? (
-                        <div className="space-y-4">
-                            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <Select 
-                                    label="Automatizar Tramos por Categoría"
-                                    value={selectedCategory}
-                                    onChange={(e) => {
-                                        const cat = e.target.value;
-                                        if (cat && PRESET_RANGES[cat]) {
-                                            setLocalSettings(s => ({...s, ranges: PRESET_RANGES[cat]}));
-                                        }
-                                    }}
-                                    options={[
-                                        {label: 'Seleccionar para cargar...', value: ''},
-                                        {label: '1ª Categoría', value: '1ª'},
-                                        {label: '2ª Categoría', value: '2ª'},
-                                        {label: '3ª Categoría', value: '3ª'},
-                                        {label: '4ª Categoría', value: '4ª'},
-                                        {label: '5ª Categoría', value: '5ª'},
-                                        {label: '6ª Categoría', value: '6ª'},
-                                    ]}
-                                />
-                                <p className="text-[10px] text-slate-400 mt-2 italic">* Al seleccionar una categoría se reemplazarán los valores actuales de la tabla.</p>
+                    <h3 className="font-black text-base text-slate-900 dark:text-white">Temporadas</h3>
+                </div>
+                <div className="p-6 space-y-5">
+                    {/* Add season */}
+                    <div className="flex gap-2">
+                        <Input
+                          placeholder="Nombre de la nueva temporada (ej. 2025-26)"
+                          value={newSeasonName}
+                          onChange={(e) => setNewSeasonName(e.target.value)}
+                        />
+                        <Button onClick={addNewSeason} disabled={!newSeasonName} className="flex-shrink-0">
+                          Crear
+                        </Button>
+                    </div>
+
+                    {/* Season list */}
+                    <div className="space-y-2">
+                        {(data.seasons || []).map(s => (
+                            <div key={s.id} className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${s.isActive ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-300 dark:border-lime-700' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700'}`}>
+                                {editingSeasonId === s.id ? (
+                                   <div className="flex gap-2 flex-1 items-center">
+                                       <input
+                                         type="text"
+                                         value={tempSeasonName}
+                                         onChange={(e) => setTempSeasonName(e.target.value)}
+                                         className="flex-1 px-3 py-2 text-sm border-2 border-blue-300 dark:border-blue-600 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-400/40"
+                                         autoFocus
+                                       />
+                                       <button onClick={saveSeasonName} className="bg-lime-400 text-blue-950 p-2 rounded-lg hover:bg-lime-300 transition-colors"><Check size={16}/></button>
+                                       <button onClick={() => setEditingSeasonId(null)} className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 p-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"><X size={16}/></button>
+                                   </div>
+                                ) : (
+                                   <div className="flex-1 flex items-center justify-between gap-2">
+                                       <div>
+                                           <div className="flex items-center gap-2">
+                                             <span className={`font-black text-sm ${s.isActive ? 'text-lime-800 dark:text-lime-300' : 'text-slate-700 dark:text-slate-300'}`}>{s.name}</span>
+                                             {s.isActive && (
+                                               <span className="text-[10px] font-black text-lime-600 dark:text-lime-400 bg-lime-100 dark:bg-lime-900/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Activa</span>
+                                             )}
+                                           </div>
+                                       </div>
+                                       <div className="flex items-center gap-1.5 flex-shrink-0">
+                                           <button onClick={() => startEditingSeason(s)} className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors" title="Renombrar">
+                                             <Edit2 size={14}/>
+                                           </button>
+                                           <button
+                                               onClick={() => {
+                                                   if ((data.seasons || []).length <= 1) { alert("No puedes borrar la única temporada."); return; }
+                                                   setSeasonToDelete(s);
+                                               }}
+                                               className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                               title="Eliminar"
+                                           >
+                                               <Trash2 size={14}/>
+                                           </button>
+                                           {!s.isActive && (
+                                               <button
+                                                 onClick={() => setSeasonActive(s.id)}
+                                                 className="text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-all"
+                                               >
+                                                 Activar
+                                               </button>
+                                           )}
+                                       </div>
+                                   </div>
+                                )}
                             </div>
-                            <div className="overflow-x-auto"><table className="w-full text-xs text-center"><thead className="bg-slate-50 dark:bg-slate-900 text-slate-400 uppercase"><tr><th className="p-2">Desde</th><th className="p-2">Hasta</th><th className="p-2 text-lime-600 dark:text-lime-400">Sumar</th><th className="p-2 text-red-500 dark:text-red-400">Restar</th><th className="p-2"></th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                {(localSettings.ranges || []).map((range, idx) => ( <tr key={idx}><td><input type="number" className="w-16 p-2 border dark:border-slate-700 rounded-lg text-center bg-white dark:bg-slate-800 dark:text-white" value={range.min} onChange={(e) => updateRange(idx, 'min', Number(e.target.value))} /></td><td><input type="number" className="w-16 p-2 border dark:border-slate-700 rounded-lg text-center bg-white dark:bg-slate-800 dark:text-white" value={range.max} onChange={(e) => updateRange(idx, 'max', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border dark:border-lime-900/50 rounded-lg text-center font-black text-lime-700 dark:text-lime-400 bg-lime-50 dark:bg-lime-900/20" value={range.win} onChange={(e) => updateRange(idx, 'win', Number(e.target.value))} /></td><td><input type="number" className="w-20 p-2 border dark:border-red-900/50 rounded-lg text-center font-black text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20" value={range.loss} onChange={(e) => updateRange(idx, 'loss', Number(e.target.value))} /></td><td><button onClick={() => removeRange(idx)} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td></tr> ))}
-                            </tbody></table><div className="mt-4"><Button variant="secondary" onClick={addRange} className="w-full text-xs border-dashed border-2 py-3">Añadir Nuevo Tramo</Button></div></div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Scoring system */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">
+                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-lime-50 dark:bg-lime-900/30 rounded-lg flex items-center justify-center">
+                            <Check size={15} className="text-lime-600 dark:text-lime-400"/>
+                        </div>
+                        <h3 className="font-black text-base text-slate-900 dark:text-white">Baremo de Puntuación</h3>
+                    </div>
+                    {!isGlobalView && currentSeason && (
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full uppercase tracking-wide">
+                            {currentSeason.name}
+                        </span>
+                    )}
+                </div>
+
+                <div className="p-6">
+                    {isGlobalView ? (
+                        <div className="py-12 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900">
+                            <Shield size={28} className="mx-auto text-slate-300 dark:text-slate-600 mb-3"/>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Selecciona una temporada específica</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Elige una temporada en el selector de la barra lateral para editar su baremo.</p>
                         </div>
                     ) : (
-                        <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900">
-                            <Shield size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2"/>
-                            <p className="text-slate-500 dark:text-slate-400 font-medium">Puntuación Automática Desactivada</p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs mx-auto">Los partidos no sumarán ni restarán puntos. Solo se mostrarán los puntos iniciales.</p>
+                        <div className="space-y-6">
+                            {/* System toggle */}
+                            <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl flex">
+                                {(['NONE', 'SIMPLE', 'RANGES'] as const).map((mode) => (
+                                    <button
+                                        key={mode}
+                                        className={`flex-1 py-2.5 text-xs font-black uppercase rounded-lg transition-all ${localSettings.scoringSystem === mode ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                        onClick={() => setLocalSettings(s => ({...s, scoringSystem: mode}))}
+                                    >
+                                        {mode === 'NONE' ? 'Desactivado' : mode === 'SIMPLE' ? 'Simple' : 'Tramos'}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {localSettings.scoringSystem === 'SIMPLE' && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input type="number" label="Puntos por Victoria" value={localSettings.pointsPerWin} onChange={e => setLocalSettings(p => ({...p, pointsPerWin: Number(e.target.value)}))} />
+                                    <Input type="number" label="Puntos por Empate" value={localSettings.pointsPerDraw} onChange={e => setLocalSettings(p => ({...p, pointsPerDraw: Number(e.target.value)}))} />
+                                    <Input type="number" label="Puntos por Derrota" value={localSettings.pointsPerLoss} onChange={e => setLocalSettings(p => ({...p, pointsPerLoss: Number(e.target.value)}))} />
+                                    <Input type="number" label="Puntos por Asistencia" value={localSettings.pointsAttendance} onChange={e => setLocalSettings(p => ({...p, pointsAttendance: Number(e.target.value)}))} />
+                                </div>
+                            )}
+
+                            {localSettings.scoringSystem === 'RANGES' && (
+                                <div className="space-y-4">
+                                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                                        <Select
+                                            label="Cargar tramos por categoría"
+                                            value={selectedCategory}
+                                            onChange={(e) => {
+                                                const cat = e.target.value;
+                                                if (cat && PRESET_RANGES[cat]) setLocalSettings(s => ({...s, ranges: PRESET_RANGES[cat]}));
+                                            }}
+                                            options={[
+                                                {label: 'Seleccionar categoría...', value: ''},
+                                                {label: '1ª Categoría', value: '1ª'},
+                                                {label: '2ª Categoría', value: '2ª'},
+                                                {label: '3ª Categoría', value: '3ª'},
+                                                {label: '4ª Categoría', value: '4ª'},
+                                                {label: '5ª Categoría', value: '5ª'},
+                                                {label: '6ª Categoría', value: '6ª'},
+                                            ]}
+                                        />
+                                        <p className="text-[10px] text-slate-400 mt-2 italic">Al seleccionar una categoría se reemplazarán los valores actuales.</p>
+                                    </div>
+
+                                    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                                        <table className="w-full text-xs text-center">
+                                            <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                                <tr>
+                                                    <th className="p-3 font-black">Desde</th>
+                                                    <th className="p-3 font-black">Hasta</th>
+                                                    <th className="p-3 font-black text-lime-600 dark:text-lime-400">+ Victoria</th>
+                                                    <th className="p-3 font-black text-red-500 dark:text-red-400">− Derrota</th>
+                                                    <th className="p-3"/>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                {(localSettings.ranges || []).map((range, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                        <td className="p-2"><input type="number" className="w-20 p-2 border-2 border-slate-200 dark:border-slate-700 rounded-lg text-center bg-white dark:bg-slate-800 dark:text-white text-xs font-medium focus:outline-none focus:border-blue-400" value={range.min} onChange={(e) => updateRange(idx, 'min', Number(e.target.value))}/></td>
+                                                        <td className="p-2"><input type="number" className="w-20 p-2 border-2 border-slate-200 dark:border-slate-700 rounded-lg text-center bg-white dark:bg-slate-800 dark:text-white text-xs font-medium focus:outline-none focus:border-blue-400" value={range.max} onChange={(e) => updateRange(idx, 'max', Number(e.target.value))}/></td>
+                                                        <td className="p-2"><input type="number" className="w-20 p-2 border-2 border-lime-200 dark:border-lime-800/40 rounded-lg text-center font-black text-lime-700 dark:text-lime-400 bg-lime-50 dark:bg-lime-900/20 text-xs focus:outline-none focus:border-lime-400" value={range.win} onChange={(e) => updateRange(idx, 'win', Number(e.target.value))}/></td>
+                                                        <td className="p-2"><input type="number" className="w-20 p-2 border-2 border-red-200 dark:border-red-800/40 rounded-lg text-center font-black text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 text-xs focus:outline-none focus:border-red-400" value={range.loss} onChange={(e) => updateRange(idx, 'loss', Number(e.target.value))}/></td>
+                                                        <td className="p-2">
+                                                            <button onClick={() => removeRange(idx)} className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                                                <Trash2 size={14}/>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <Button variant="secondary" onClick={addRange} className="w-full border-dashed border-2 py-3">
+                                        + Añadir Tramo
+                                    </Button>
+                                </div>
+                            )}
+
+                            {localSettings.scoringSystem === 'NONE' && (
+                                <div className="py-10 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900">
+                                    <Shield size={28} className="mx-auto text-slate-300 dark:text-slate-600 mb-3"/>
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Puntuación automática desactivada</p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs mx-auto">
+                                        Solo se mostrarán los puntos iniciales de cada jugador.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="pt-2">
+                                <Button onClick={handleSave} className="w-full" size="lg">
+                                    Guardar Configuración
+                                </Button>
+                            </div>
                         </div>
                     )}
-                    <div className="pt-6 border-t border-slate-100 dark:border-slate-700"><Button onClick={handleSave} className="w-full h-14 text-base">Guardar Configuración de Temporada</Button></div>
-                    </>
-                 )}
-            </Card>
+                </div>
+            </div>
         </div>
     )
 };

@@ -186,212 +186,242 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
     })];
 
     return (
-      <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in pb-20">
-           <header className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in pb-24">
+           <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3 border-b border-slate-200 dark:border-slate-800 pb-5">
               <div>
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2"><LayoutGrid className="text-lime-500" /> Pizarra Táctica</h2>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">Diseña la estrategia y las parejas para la jornada.</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Estrategia</p>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <LayoutGrid className="text-lime-500" size={28}/> Pizarra Táctica
+                </h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Diseña las parejas y estrategia para la jornada.</p>
               </div>
-              <div className="flex gap-2">
-                   <Checkbox label="Ordenar por Ranking" checked={autoSort} onChange={setAutoSort} />
+              <div className="flex gap-2 items-center">
+                   <Checkbox label="Auto-ordenar" checked={autoSort} onChange={setAutoSort} />
               </div>
           </header>
           
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
                
-               {/* LEFT COLUMN: Controls & Availability */}
-               <div className="xl:col-span-4 space-y-6">
-                   
-                   {/* 1. Convocatoria (Availability) */}
+               {/* LEFT COLUMN */}
+               <div className="xl:col-span-4 space-y-4">
+
+                   {/* Convocatoria */}
                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                      <div className="flex justify-between items-center p-4 cursor-pointer bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800" onClick={() => setShowAvailability(!showAvailability)}>
-                          <h3 className="font-bold text-sm uppercase tracking-wide text-slate-700 dark:text-slate-200 flex items-center gap-2"><Check size={16} className="text-lime-600"/> Disponibles</h3>
+                      <div
+                        className="flex justify-between items-center px-5 py-4 cursor-pointer bg-slate-50 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-700/60"
+                        onClick={() => setShowAvailability(!showAvailability)}
+                      >
+                          <h3 className="font-bold text-sm uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                            <Check size={15} className="text-lime-500"/> Convocados
+                          </h3>
                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded-md">{availablePlayers.length}</span>
-                             {showAvailability ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                             <span className={`text-xs font-black px-2 py-0.5 rounded-full ${availablePlayers.length > 0 ? 'bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
+                               {availablePlayers.length} / {data?.players.length || 0}
+                             </span>
+                             {showAvailability ? <ChevronUp size={15} className="text-slate-400"/> : <ChevronDown size={15} className="text-slate-400"/>}
                           </div>
                       </div>
                       {showAvailability && (
-                        <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50">
-                            {/* ADDED: p-2 padding to container to prevent clipping of scaled items */}
-                            <div className="flex flex-wrap gap-2 max-h-[250px] overflow-y-auto p-2">
+                        <div className="p-4">
+                            <div className="flex flex-wrap gap-2 max-h-[240px] overflow-y-auto">
                                 {data?.players.map(p => {
                                     const isAvailable = availablePlayers.includes(p.id);
                                     const points = getPoints(p, matchesForPoints, viewSeasonId, data!);
+                                    const posChar = p.position === 'Drive' ? 'D' : p.position === 'Revés' ? 'R' : 'A';
                                     return (
                                         <button
                                             key={p.id}
                                             onClick={() => togglePlayerAvailability(p.id)}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isAvailable ? 'bg-lime-400 text-blue-900 border-lime-500 shadow-md transform scale-105' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 opacity-60 hover:opacity-100'}`}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 ${
+                                              isAvailable
+                                                ? 'bg-lime-400 text-blue-950 border-lime-400 shadow-sm shadow-lime-400/20'
+                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
+                                            }`}
                                         >
-                                            {p.name} <span className="opacity-50 text-[10px]">({points})</span>
+                                            <span className={`text-[9px] font-black ${isAvailable ? 'text-blue-800' : 'text-slate-300 dark:text-slate-600'}`}>{posChar}</span>
+                                            {p.name.split(' ')[0]}
+                                            <span className={`text-[10px] opacity-60`}>({points})</span>
                                         </button>
                                     )
                                 })}
                             </div>
-                            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between">
-                                <button onClick={() => setAvailablePlayers(data?.players.map(p => p.id) || [])} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded">Marcar Todos</button>
-                                <button onClick={() => setAvailablePlayers([])} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded">Desmarcar</button>
+                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex justify-between">
+                                <button onClick={() => setAvailablePlayers(data?.players.map(p => p.id) || [])} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline px-1">Todos ✓</button>
+                                <button onClick={() => setAvailablePlayers([])} className="text-[10px] font-bold text-slate-400 hover:text-red-500 px-1">Limpiar ×</button>
                             </div>
                         </div>
                       )}
                    </div>
 
-                   {/* 2. Tactical Assistant */}
-                   <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl shadow-xl relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-lime-500 blur-[50px] opacity-20 rounded-full pointer-events-none"></div>
-                       <div className="flex justify-between items-center p-5 cursor-pointer relative z-20 border-b border-slate-700/50" onClick={() => setShowAI(!showAI)}>
-                           <h3 className="font-bold text-sm uppercase tracking-wide flex items-center gap-2"><BrainCircuit size={18} className="text-lime-400"/> IA Táctica</h3>
-                           {showAI ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
+                   {/* IA Táctica */}
+                   <div className="bg-gradient-to-br from-blue-950 via-slate-900 to-slate-900 text-white rounded-2xl shadow-xl relative overflow-hidden border border-blue-900/50">
+                       <div className="absolute top-0 right-0 w-28 h-28 bg-lime-400 blur-[60px] opacity-15 rounded-full pointer-events-none"/>
+                       <div className="flex justify-between items-center px-5 py-4 cursor-pointer relative z-20 border-b border-blue-900/40" onClick={() => setShowAI(!showAI)}>
+                           <h3 className="font-bold text-sm uppercase tracking-widest flex items-center gap-2 text-white">
+                             <BrainCircuit size={16} className="text-lime-400"/> Asistente IA
+                           </h3>
+                           {showAI ? <ChevronUp size={16} className="text-slate-500"/> : <ChevronDown size={16} className="text-slate-500"/>}
                        </div>
-                       
-                       {(showAI || window.innerWidth >= 1280) && (
+                       {showAI && (
                        <div className="p-5 pt-4 space-y-4 relative z-10">
                            <div>
-                               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Análisis del Rival</label>
-                               <textarea 
-                                  className="w-full p-3 rounded-xl border border-slate-600 bg-slate-900/50 text-sm text-blue-100 focus:ring-1 focus:ring-lime-400 focus:border-lime-400 outline-none min-h-[80px] placeholder:text-slate-600 resize-none transition-all" 
-                                  placeholder="Ej. Pista rápida, rivales jóvenes..." 
-                                  value={opponentDesc} 
+                               <label className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-2 block">Descripción del Rival</label>
+                               <textarea
+                                  className="w-full p-3 rounded-xl border border-blue-800/50 bg-blue-950/50 text-sm text-blue-100 focus:ring-2 focus:ring-lime-400/50 focus:border-lime-400/50 outline-none min-h-[80px] placeholder:text-slate-600 resize-none transition-all"
+                                  placeholder="Ej. Pista rápida, rivales agresivos al fondo..."
+                                  value={opponentDesc}
                                   onChange={(e) => setOpponentDesc(e.target.value)}
-                               ></textarea>
+                               />
                            </div>
-                           <Button 
-                              className="w-full justify-center h-10 text-xs font-black bg-lime-400 hover:bg-lime-300 text-blue-900 shadow-lg shadow-lime-900/20" 
-                              onClick={handleAIAutoFill} 
+                           <Button
+                              className="w-full justify-center font-black"
+                              onClick={handleAIAutoFill}
                               disabled={!opponentDesc || isThinking || availablePlayers.length < 2}
                            >
-                               {isThinking ? 'Generando Estrategia...' : <><Sparkles size={14} /> Calcular Alineación Óptima</>}
+                               {isThinking
+                                 ? <><div className="w-4 h-4 border-2 border-blue-900 border-t-transparent rounded-full animate-spin"/> Calculando...</>
+                                 : <><Sparkles size={14}/> Calcular Alineación Óptima</>
+                               }
                            </Button>
+                           {availablePlayers.length < 2 && (
+                             <p className="text-[10px] text-amber-400 text-center font-medium">Marca al menos 2 jugadores como disponibles</p>
+                           )}
                        </div>
                        )}
                    </div>
 
-                   {/* AI Reasoning Display */}
+                   {/* AI Reasoning */}
                    {lineupAdvice && (
-                       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-900/50 p-5 animate-in slide-in-from-top-4">
-                           <h4 className="font-bold text-xs uppercase text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-2"><Shield size={14}/> Informe Técnico</h4>
-                           <p className="text-xs text-blue-900/80 dark:text-blue-200/80 leading-relaxed whitespace-pre-wrap font-medium">{lineupAdvice}</p>
+                       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-900/40 p-5 animate-in slide-in-from-bottom-4">
+                           <h4 className="font-bold text-xs uppercase text-blue-700 dark:text-blue-300 mb-2.5 flex items-center gap-2">
+                             <Shield size={13}/> Informe Técnico IA
+                           </h4>
+                           <p className="text-xs text-blue-900/80 dark:text-blue-200/80 leading-relaxed whitespace-pre-wrap">{lineupAdvice}</p>
                        </div>
                    )}
                </div>
 
                {/* RIGHT COLUMN: The Board */}
-               <div className="xl:col-span-8">
-                   {/* CHANGED: Reduced min-h from 600px to 500px and added flex-col justify-center to vertically center content */}
-                   <div className="bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden md:min-h-[500px] border border-slate-800 flex flex-col justify-center">
-                        {/* Background Decor */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] border-2 border-slate-800/50 rounded-xl pointer-events-none"></div>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[1px] bg-slate-800/50 pointer-events-none"></div>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] border border-slate-800/50 rounded-full pointer-events-none"></div>
+               <div className="xl:col-span-8 space-y-3">
+                   {/* Pista */}
+                   <div className="bg-slate-900 rounded-3xl p-5 md:p-7 shadow-2xl relative overflow-hidden border border-slate-800">
+                        {/* Court markings */}
+                        <div className="absolute inset-6 border border-slate-800/60 rounded-xl pointer-events-none"/>
+                        <div className="absolute top-1/2 left-6 right-6 h-px bg-slate-800/60 pointer-events-none"/>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-slate-800/40 rounded-full pointer-events-none"/>
 
-                        <div className="space-y-4 relative z-10 w-full">
-                           <div className="flex justify-between items-center mb-4 px-2">
-                               <h3 className="text-white font-black text-lg uppercase tracking-widest flex items-center gap-2">
-                                   <Trophy size={18} className="text-yellow-500"/> Pista Central
-                               </h3>
-                               <div className="flex gap-2">
-                                    <button onClick={handleCopyLineup} className="text-slate-400 hover:text-lime-400 transition-colors p-2 bg-slate-800 rounded-lg" title="Copiar alineación">
-                                        <Copy size={16}/>
+                        {/* Board header */}
+                        <div className="flex justify-between items-center mb-5 relative z-10">
+                               <div className="flex items-center gap-2">
+                                 <Trophy size={16} className="text-amber-400"/>
+                                 <h3 className="text-white font-black text-sm uppercase tracking-widest">Pista Central</h3>
+                                 <span className="text-[10px] text-slate-500 font-medium">
+                                   {draftLineup.filter(p => p.player1Id || p.player2Id).length} parejas
+                                 </span>
+                               </div>
+                               <div className="flex gap-1.5">
+                                    <button onClick={handleCopyLineup} title="Copiar al portapapeles"
+                                      className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-lime-400 transition-colors px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 uppercase tracking-wide">
+                                        <Copy size={12}/> Copiar
                                     </button>
-                                    <button onClick={() => setDraftLineup(Array(5).fill({ player1Id: '', player2Id: '' }))} className="text-slate-400 hover:text-red-400 transition-colors p-2 bg-slate-800 rounded-lg" title="Limpiar todo">
-                                        <Trash2 size={16}/>
+                                    <button onClick={handleSortByPoints} title="Ordenar por puntos"
+                                      className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-blue-400 transition-colors px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 uppercase tracking-wide">
+                                        <ArrowUpDown size={12}/> Ordenar
+                                    </button>
+                                    <button onClick={() => setDraftLineup(Array(5).fill({ player1Id: '', player2Id: '' }))} title="Limpiar todo"
+                                      className="p-1.5 text-slate-600 hover:text-red-400 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors">
+                                        <Trash2 size={14}/>
                                     </button>
                                </div>
-                           </div>
+                        </div>
 
+                        <div className="space-y-3 relative z-10">
                            {draftLineup.map((pair, idx) => {
-                               // Calculate Combined Points for the Pair
                                const p1 = data?.players.find(p => p.id === pair.player1Id);
                                const p2 = data?.players.find(p => p.id === pair.player2Id);
                                const points1 = p1 ? getPoints(p1, matchesForPoints, viewSeasonId, data!) : 0;
                                const points2 = p2 ? getPoints(p2, matchesForPoints, viewSeasonId, data!) : 0;
                                const totalPairPoints = points1 + points2;
-                               const isEmpty = !pair.player1Id && !pair.player2Id;
+                               const isFilled = pair.player1Id || pair.player2Id;
 
                                return (
-                                   <div key={idx} className={`relative group transition-all duration-300 ${isEmpty ? 'opacity-70' : 'opacity-100'}`}>
-                                       {/* Card Container - CHANGED: Increased padding (md:p-3) to give more presence */}
-                                       <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-slate-500 rounded-xl p-2 md:p-3 flex flex-col md:flex-row items-center gap-2 md:gap-4 shadow-lg">
-                                           
-                                           {/* Position Number */}
-                                           <div className="hidden md:flex flex-col items-center justify-center w-12 h-full border-r border-slate-700/50 pr-2">
-                                               <span className="text-2xl font-black text-slate-600 group-hover:text-lime-500 transition-colors">{idx + 1}</span>
-                                           </div>
-                                            
-                                           {/* Mobile Header */}
-                                           <div className="md:hidden w-full flex justify-between items-center px-2 pt-1">
-                                                <span className="text-xs font-black text-slate-500 uppercase">Pareja {idx + 1}</span>
-                                                <button onClick={() => clearPair(idx)} className="text-slate-500"><X size={14}/></button>
+                                   <div key={idx} className={`group transition-all duration-200 ${!isFilled ? 'opacity-50 hover:opacity-75' : 'opacity-100'}`}>
+                                       <div className={`bg-slate-800/60 border rounded-2xl p-3 flex flex-col md:flex-row items-center gap-3 transition-all duration-200 ${isFilled ? 'border-slate-600 hover:border-slate-500' : 'border-slate-700/50 border-dashed'}`}>
+
+                                           {/* Pair number */}
+                                           <div className="hidden md:flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900/60 border border-slate-700/50 flex-shrink-0">
+                                               <span className={`text-lg font-black transition-colors ${isFilled ? 'text-lime-400' : 'text-slate-600 group-hover:text-slate-500'}`}>{idx + 1}</span>
                                            </div>
 
-                                           {/* Player 2 (Revés) - MOVED TO LEFT */}
-                                           <div className="flex-1 w-full relative">
-                                                <div className="absolute top-2 left-3 z-10 pointer-events-none">
-                                                    <span className="text-[9px] font-black uppercase tracking-wider text-orange-400 bg-orange-950/80 px-1.5 py-0.5 rounded border border-orange-900/50">Revés</span>
-                                                </div>
-                                                <div className="bg-slate-700/50 rounded-lg p-1">
-                                                    <Select 
-                                                        options={playerOptions} 
-                                                        value={pair.player2Id} 
+                                           {/* Mobile pair label */}
+                                           <div className="md:hidden w-full flex justify-between items-center">
+                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pareja {idx + 1}</span>
+                                                {totalPairPoints > 0 && (
+                                                  <span className="text-[10px] bg-slate-900 text-lime-400 px-2 py-0.5 rounded-full font-mono border border-slate-700">{totalPairPoints} pts</span>
+                                                )}
+                                                <button onClick={() => clearPair(idx)} className="text-slate-600 hover:text-red-400"><X size={13}/></button>
+                                           </div>
+
+                                           {/* Player 2 - Revés (left) */}
+                                           <div className="flex-1 w-full">
+                                                <div className="relative bg-slate-700/40 rounded-xl border border-orange-500/20 overflow-hidden">
+                                                    <div className="absolute top-0 left-0 right-0 flex items-center gap-1 px-3 pt-1.5 pb-0 pointer-events-none">
+                                                        <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0"/>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-orange-400">Revés</span>
+                                                    </div>
+                                                    <Select
+                                                        options={playerOptions}
+                                                        value={pair.player2Id}
                                                         onChange={(e) => updatePair(idx, 'player2Id', e.target.value)}
-                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pl-16 h-11 focus:ring-0 cursor-pointer"
+                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pt-5 pb-2 px-3 h-auto focus:ring-0 cursor-pointer"
                                                     />
                                                 </div>
                                            </div>
 
-                                           {/* VS / Connector */}
-                                           <div className="hidden md:flex flex-col items-center justify-center px-2">
+                                           {/* Center: total pts */}
+                                           <div className="hidden md:flex flex-col items-center gap-0.5 w-14 flex-shrink-0">
                                                {totalPairPoints > 0 ? (
-                                                   <div className="flex flex-col items-center">
-                                                       <span className="text-[10px] text-slate-400 font-bold">PTS</span>
-                                                       <span className="text-sm font-black text-lime-400">{totalPairPoints}</span>
-                                                   </div>
+                                                   <>
+                                                       <span className="text-[9px] text-slate-500 font-bold uppercase">pts</span>
+                                                       <span className="text-base font-black text-lime-400 leading-none">{totalPairPoints}</span>
+                                                   </>
                                                ) : (
-                                                   <span className="text-slate-600 font-bold text-xs">·</span>
+                                                   <span className="text-slate-700 text-xl">·</span>
                                                )}
                                            </div>
 
-                                           {/* Player 1 (Drive) - MOVED TO RIGHT */}
-                                           <div className="flex-1 w-full relative">
-                                                <div className="absolute top-2 left-3 z-10 pointer-events-none">
-                                                    <span className="text-[9px] font-black uppercase tracking-wider text-blue-400 bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-900/50">Drive</span>
-                                                </div>
-                                                <div className="bg-slate-700/50 rounded-lg p-1">
-                                                    <Select 
-                                                        options={playerOptions} 
-                                                        value={pair.player1Id} 
+                                           {/* Player 1 - Drive (right) */}
+                                           <div className="flex-1 w-full">
+                                                <div className="relative bg-slate-700/40 rounded-xl border border-blue-500/20 overflow-hidden">
+                                                    <div className="absolute top-0 left-0 right-0 flex items-center gap-1 px-3 pt-1.5 pb-0 pointer-events-none">
+                                                        <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"/>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Drive</span>
+                                                    </div>
+                                                    <Select
+                                                        options={playerOptions}
+                                                        value={pair.player1Id}
                                                         onChange={(e) => updatePair(idx, 'player1Id', e.target.value)}
-                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pl-14 h-11 focus:ring-0 cursor-pointer"
+                                                        className="w-full bg-transparent border-none text-white text-sm font-bold pt-5 pb-2 px-3 h-auto focus:ring-0 cursor-pointer"
                                                     />
                                                 </div>
                                            </div>
 
-                                           {/* Desktop Actions */}
-                                           <div className="hidden md:flex items-center pl-2 border-l border-slate-700/50">
-                                                <button onClick={() => clearPair(idx)} className="p-2 text-slate-600 hover:text-red-400 transition-colors">
-                                                    <X size={16} />
-                                                </button>
-                                           </div>
-                                            
-                                           {/* Mobile Points Badge */}
-                                           {totalPairPoints > 0 && (
-                                               <div className="md:hidden w-full flex justify-center pb-1">
-                                                   <span className="text-[10px] bg-slate-900 text-lime-400 px-2 py-0.5 rounded-full font-mono border border-slate-700">{totalPairPoints} pts</span>
-                                               </div>
-                                           )}
+                                           {/* Desktop clear */}
+                                           <button onClick={() => clearPair(idx)} className="hidden md:block p-1.5 text-slate-600 hover:text-red-400 flex-shrink-0 transition-colors">
+                                               <X size={15}/>
+                                           </button>
                                        </div>
                                    </div>
                                );
                            })}
                         </div>
                    </div>
-                   
+
                    {/* Legend */}
-                   <div className="mt-4 flex gap-4 justify-center text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div> Revés</span>
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500"></div> Drive</span>
-                        <span className="flex items-center gap-1"><Zap size={10} className="text-lime-500"/> Puntos Totales</span>
+                   <div className="flex gap-6 justify-center text-[10px] uppercase font-bold text-slate-400 tracking-wider py-1">
+                        <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-orange-500"/><span>Revés (izq)</span></span>
+                        <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"/><span>Drive (der)</span></span>
+                        <span className="flex items-center gap-1.5"><Zap size={10} className="text-lime-500"/><span>Puntos totales</span></span>
                    </div>
                </div>
           </div>
