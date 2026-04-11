@@ -324,10 +324,6 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                       className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-lime-400 transition-colors px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 uppercase tracking-wide">
                                         <Copy size={12}/> Copiar
                                     </button>
-                                    <button onClick={handleSortByPoints} title="Ordenar por puntos"
-                                      className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-blue-400 transition-colors px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 uppercase tracking-wide">
-                                        <ArrowUpDown size={12}/> Ordenar
-                                    </button>
                                     <button onClick={() => setDraftLineup(Array(5).fill({ player1Id: '', player2Id: '' }))} title="Limpiar todo"
                                       className="p-1.5 text-slate-600 hover:text-red-400 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors">
                                         <Trash2 size={14}/>

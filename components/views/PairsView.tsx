@@ -40,46 +40,50 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
         if (!matrixRef.current) return;
         setIsCopying(true);
         
-        const container = matrixRef.current;
-        const scrollContainer = container.querySelector('.overflow-x-auto') as HTMLElement;
-        const table = container.querySelector('table') as HTMLElement;
-        const card = container.querySelector('.shadow-lg') as HTMLElement;
+        const originalElement = matrixRef.current;
         
-        let originalOverflow = '';
-        let originalWidth = '';
-        let originalContainerWidth = '';
-        let originalContainerMaxWidth = '';
-        let originalCardOverflow = '';
+        // Create a clone for capturing to avoid messing with the live UI
+        const clone = originalElement.cloneNode(true) as HTMLElement;
+        
+        // Apply styles to the clone to ensure it's fully visible
+        document.body.appendChild(clone);
+        clone.style.position = 'fixed';
+        clone.style.top = '-9999px';
+        clone.style.left = '-9999px';
+        clone.style.width = 'auto';
+        clone.style.maxWidth = 'none';
+        
+        const scrollContainer = clone.querySelector('.overflow-x-auto') as HTMLElement;
+        const table = clone.querySelector('table') as HTMLElement;
+        const card = clone.querySelector('.shadow-lg') as HTMLElement;
         
         if (scrollContainer && table && card) {
-            originalOverflow = scrollContainer.style.overflow;
-            originalWidth = scrollContainer.style.width;
-            originalContainerWidth = container.style.width;
-            originalContainerMaxWidth = container.style.maxWidth;
-            originalCardOverflow = card.style.overflow;
-            
-            const fullWidth = table.scrollWidth;
-            
-            container.style.width = `${fullWidth}px`;
-            container.style.maxWidth = 'none';
-            
             scrollContainer.style.overflow = 'visible';
-            scrollContainer.style.width = `${fullWidth}px`;
-            
+            scrollContainer.style.width = 'auto';
             card.style.overflow = 'visible';
+            card.style.width = 'auto';
+            table.style.width = 'auto';
+            table.style.minWidth = '0';
         }
 
         // Dar tiempo al DOM para que aplique los estilos antes de capturar
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         try {
-            const canvas = await html2canvas(container, {
+            const canvas = await html2canvas(clone, {
                 backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
                 scale: 2,
                 logging: false,
                 useCORS: true,
-                width: table ? table.scrollWidth : undefined,
-                windowWidth: table ? table.scrollWidth + 100 : undefined
+                width: clone.scrollWidth,
+                height: clone.scrollHeight,
+                onclone: (clonedDoc) => {
+                    // Additional fixes for the cloned document if needed
+                    const clonedTable = clonedDoc.querySelector('table');
+                    if (clonedTable) {
+                        clonedTable.style.borderCollapse = 'collapse';
+                    }
+                }
             });
             
             canvas.toBlob(async (blob) => {
@@ -90,7 +94,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                 'image/png': blob
                             })
                         ]);
-                        alert('¡Matriz copiada al portapapeles!');
+                        alert('¡Matriz completa copiada al portapapeles!');
                     } catch (err) {
                         console.error('Error copying to clipboard', err);
                         alert('No se pudo copiar al portapapeles. Intenta de nuevo.');
@@ -100,13 +104,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
         } catch (error) {
             console.error('Error generating image', error);
         } finally {
-            if (scrollContainer && card) {
-                scrollContainer.style.overflow = originalOverflow;
-                scrollContainer.style.width = originalWidth;
-                container.style.width = originalContainerWidth;
-                container.style.maxWidth = originalContainerMaxWidth;
-                card.style.overflow = originalCardOverflow;
-            }
+            document.body.removeChild(clone);
             setIsCopying(false);
         }
     };
@@ -433,13 +431,9 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             [m.lineup.set1, m.lineup.set2, m.lineup.set3].filter(Boolean).forEach(set => {
                 const [left, right] = set!.split('-').map(Number);
                 if (!isNaN(left) && !isNaN(right)) {
-                    if (m.matchDay.isHome ?? true) {
-                        gamesWon += left;
-                        gamesLost += right;
-                    } else {
-                        gamesWon += right;
-                        gamesLost += left;
-                    }
+                    // In this app, scores are always stored as [OurScore]-[TheirScore]
+                    gamesWon += left;
+                    gamesLost += right;
                 }
             });
             const matchDiff = gamesWon - gamesLost;
@@ -755,7 +749,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                                     <th className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-2 sm:p-3 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]"></th>
                                     {activePlayers.map(p => (
                                         <th key={p.id} className="p-1 sm:p-2 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 align-bottom h-24 sm:h-32 min-w-[48px] sm:min-w-[64px] relative overflow-hidden">
-                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap">
+                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 whitespace-nowrap">
                                                 {p.name}
                                             </div>
                                         </th>

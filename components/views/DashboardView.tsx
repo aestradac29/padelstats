@@ -87,6 +87,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
     const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
+    const [visiblePlayerIds, setVisiblePlayerIds] = useState<string[]>([]);
+    
+    // Initialize visible players
+    useEffect(() => {
+        if (data && visiblePlayerIds.length === 0) {
+            setVisiblePlayerIds(data.players.map(p => p.id));
+        }
+    }, [data]);
     
     const getFilteredMatches = () => {
         if (!data) return [];
@@ -193,8 +201,40 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
     );
 
-    const chartData = stats.map(p => ({ name: p.name.split(' ')[0], points: p.points })).sort((a, b) => b.points - a.points).slice(0, 6);
-    const topPlayers = [...stats].sort((a, b) => b.points - a.points).slice(0, 5);
+    const chartData = stats
+        .filter(p => visiblePlayerIds.includes(p.id))
+        .map(p => ({ name: p.name.split(' ')[0], points: p.points, id: p.id }))
+        .sort((a, b) => b.points - a.points);
+    
+    const displayChartData = chartData.slice(0, 10); // Show top 10 of selected
+    
+    const togglePlayerVisibility = (id: string) => {
+        setVisiblePlayerIds(prev => 
+            prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+        );
+    };
+
+    const selectAllPlayers = () => {
+        if (data) setVisiblePlayerIds(data.players.map(p => p.id));
+    };
+
+    const deselectAllPlayers = () => {
+        setVisiblePlayerIds([]);
+    };
+    
+    // Performance-based sorting for Top Players
+    const topPlayers = [...stats]
+        .filter(p => p.matchesPlayed > 0)
+        .map(p => {
+            const winRate = p.wins / p.matchesPlayed;
+            // Performance score: 80% Win Rate + 20% Points (normalized by max points)
+            const maxPoints = Math.max(...stats.map(s => s.points), 1);
+            const normalizedPoints = p.points / maxPoints;
+            const performanceScore = (winRate * 80) + (normalizedPoints * 20);
+            return { ...p, winRate, performanceScore };
+        })
+        .sort((a, b) => b.performanceScore - a.performanceScore)
+        .slice(0, 5);
     
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -331,17 +371,54 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Gráfico de barras */}
           <Card className="col-span-1 md:col-span-2">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
               <h3 className="font-black text-lg flex items-center gap-2 text-slate-900 dark:text-white">
                 <Trophy className="text-lime-500" size={22} /> Ranking de Puntos
               </h3>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Top {chartData.length}</span>
+              <div className="flex items-center gap-2">
+                <button 
+                    onClick={selectAllPlayers}
+                    className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-600 transition-colors"
+                >
+                    Todos
+                </button>
+                <button 
+                    onClick={deselectAllPlayers}
+                    className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-500 transition-colors"
+                >
+                    Ninguno
+                </button>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-2">
+                    {visiblePlayerIds.length} seleccionados
+                </span>
+              </div>
             </div>
-            <div className="h-56">
+
+            {/* Player Toggles */}
+            <div className="flex flex-wrap gap-2 mb-6 max-h-24 overflow-y-auto p-1 hide-scrollbar">
+                {stats.sort((a,b) => a.name.localeCompare(b.name)).map(p => {
+                    const isVisible = visiblePlayerIds.includes(p.id);
+                    return (
+                        <button
+                            key={p.id}
+                            onClick={() => togglePlayerVisibility(p.id)}
+                            className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all border ${
+                                isVisible 
+                                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' 
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'
+                            }`}
+                        >
+                            {p.name.split(' ')[0]}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} barGap={4}>
+                <BarChart data={displayChartData} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#334155' : '#f1f5f9'} />
-                  <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 700, fill: isDarkMode ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} dy={8} />
+                  <XAxis dataKey="name" tick={{fontSize: 10, fontWeight: 700, fill: isDarkMode ? '#94a3b8' : '#64748b'}} axisLine={false} tickLine={false} dy={8} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: isDarkMode ? '#94a3b8' : '#94a3b8', fontSize: 11}} />
                   <Tooltip 
                     cursor={{fill: isDarkMode ? '#1e293b' : '#f8fafc', radius: 8}} 
@@ -354,8 +431,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                         padding: '8px 14px'
                     }} 
                   />
-                  <Bar dataKey="points" radius={[8, 8, 0, 0]} barSize={36} label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: isDarkMode ? '#94a3b8' : '#64748b' }}>
-                    {chartData.map((entry, index) => (
+                  <Bar dataKey="points" radius={[6, 6, 0, 0]} barSize={24} label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: isDarkMode ? '#94a3b8' : '#64748b' }}>
+                    {displayChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 0 ? '#a3e635' : index === 1 ? '#60a5fa' : (isDarkMode ? '#334155' : '#e2e8f0')} />
                     ))}
                   </Bar>
@@ -365,29 +442,65 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           </Card>
 
           {/* Top jugadores */}
-          <Card>
-            <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-              <TrendingUp className="text-blue-500" size={22} /> Top Jugadores
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 blur-[40px] rounded-full pointer-events-none" />
+            <h3 className="font-black text-lg mb-1 flex items-center gap-2 text-slate-900 dark:text-white">
+              <TrendingUp className="text-blue-500" size={22} /> Mejor Rendimiento
             </h3>
-            <div className="space-y-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Basado en ratio V/D y puntos</p>
+            
+            <div className="space-y-4">
               {topPlayers.length === 0 ? (
-                <p className="text-slate-400 text-sm text-center py-4">Aún no hay datos</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Activity size={32} className="text-slate-200 dark:text-slate-700 mb-2" />
+                  <p className="text-slate-400 text-sm font-medium">Aún no hay datos de rendimiento</p>
+                </div>
               ) : topPlayers.map((p, index) => (
-                <div key={p.id} className="flex items-center gap-3">
-                  <span className={`text-xs font-black w-5 text-center ${index === 0 ? 'text-lime-500' : index === 1 ? 'text-blue-400' : index === 2 ? 'text-amber-400' : 'text-slate-400'}`}>
-                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
-                  </span>
-                  <Avatar name={p.name} photoUrl={p.photoUrl} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{p.name}</p>
-                    <div className="mt-0.5">
-                      <ProgressBar value={p.matchesPlayed > 0 ? p.wins : 0} max={Math.max(p.matchesPlayed, 1)} color={index === 0 ? 'lime' : 'blue'} />
+                <div key={p.id} className="group relative">
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="relative">
+                      <Avatar name={p.name} photoUrl={p.photoUrl} size="sm" />
+                      <div className={`absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shadow-sm border border-white dark:border-slate-800 ${
+                        index === 0 ? 'bg-lime-400 text-lime-900' : 
+                        index === 1 ? 'bg-slate-300 text-slate-700' : 
+                        index === 2 ? 'bg-orange-300 text-orange-900' : 
+                        'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                      }`}>
+                        {index + 1}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-end mb-1">
+                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{p.name}</p>
+                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-tighter">
+                          {Math.round(p.winRate * 100)}% WR
+                        </span>
+                      </div>
+                      <ProgressBar 
+                        value={p.wins} 
+                        max={p.matchesPlayed} 
+                        color={index === 0 ? 'lime' : 'blue'} 
+                      />
+                    </div>
+                    
+                    <div className="text-right pl-2">
+                      <p className="font-black text-slate-900 dark:text-white text-sm leading-none">{p.points}</p>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">PTS</p>
                     </div>
                   </div>
-                  <span className="font-black text-slate-900 dark:text-white text-sm whitespace-nowrap">{p.points} <span className="text-slate-400 font-normal text-xs">pts</span></span>
                 </div>
               ))}
             </div>
+            
+            {topPlayers.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/50">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <span>Consistencia</span>
+                  <span className="text-lime-500">Alta</span>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
@@ -407,45 +520,59 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             
             {!aiAnalysis ? (
                 <div className="p-8 flex flex-col items-center justify-center text-center relative z-10">
-                    <Sparkles className="text-lime-400 mb-3 opacity-80" size={28} />
-                    <p className="text-blue-200 text-sm mb-6 max-w-sm leading-relaxed">
-                        Detecta patrones, rachas y áreas de mejora basándose en los datos de la temporada actual.
+                    <div className="w-16 h-16 bg-lime-400/10 rounded-full flex items-center justify-center mb-4 border border-lime-400/20">
+                        <Sparkles className="text-lime-400" size={32} />
+                    </div>
+                    <h4 className="text-xl font-black text-white mb-2 uppercase tracking-tight">Potencia tu Estrategia</h4>
+                    <p className="text-blue-200 text-sm mb-6 max-w-sm leading-relaxed font-medium">
+                        Nuestra IA analiza patrones de juego, rachas de victorias y el desempeño de cada jugador para darte una ventaja competitiva.
                     </p>
-                    <Button onClick={handleRunAnalysis} disabled={loadingAi} className="shadow-lg shadow-lime-500/20 px-8">
+                    <Button onClick={handleRunAnalysis} disabled={loadingAi} className="shadow-lg shadow-lime-500/20 px-10 py-6 text-base font-black uppercase tracking-widest">
                         {loadingAi ? (
                             <>
-                                <div className="w-4 h-4 border-2 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
-                                <span>Analizando...</span>
+                                <div className="w-5 h-5 border-3 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
+                                <span>Procesando Datos...</span>
                             </>
                         ) : (
-                            <><Sparkles size={16} /> Generar Informe Táctico</>
+                            <><BrainCircuit size={20} /> Generar Informe Táctico</>
                         )}
                     </Button>
                 </div>
             ) : (
-                <div className="p-6 grid md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
-                     <div className="md:col-span-2 space-y-4">
-                         <div>
-                            <h4 className="text-xs font-black text-blue-300 uppercase tracking-widest mb-2">Situación Actual</h4>
-                            <p className="text-blue-50 text-sm leading-relaxed font-light">{aiAnalysis.summary}</p>
+                <div className="p-6 grid md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 relative z-10">
+                     <div className="md:col-span-2 space-y-6">
+                         <div className="relative pl-6 border-l-2 border-lime-400/30">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 bg-lime-400 rounded-full border-4 border-blue-950"></div>
+                            <h4 className="text-[10px] font-black text-lime-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <Activity size={12} /> Situación Actual
+                            </h4>
+                            <p className="text-blue-50 text-sm leading-relaxed font-medium">{aiAnalysis.summary}</p>
                          </div>
-                         <div>
-                            <h4 className="text-xs font-black text-blue-300 uppercase tracking-widest mb-2">Detalles Clave</h4>
-                            <p className="text-blue-50 text-sm leading-relaxed font-light">{aiAnalysis.details}</p>
+                         <div className="relative pl-6 border-l-2 border-blue-400/30">
+                            <div className="absolute -left-[9px] top-0 w-4 h-4 bg-blue-400 rounded-full border-4 border-blue-950"></div>
+                            <h4 className="text-[10px] font-black text-blue-300 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <Target size={12} /> Detalles Clave
+                            </h4>
+                            <p className="text-blue-50 text-sm leading-relaxed font-medium">{aiAnalysis.details}</p>
                          </div>
                      </div>
-                     <div className="bg-blue-900/50 rounded-xl p-4 border border-blue-700/50 flex flex-col justify-center relative overflow-hidden">
-                         <div className="absolute -right-4 -top-4 text-blue-800/20 rotate-12">
-                             <Sparkles size={100} />
+                     <div className="bg-blue-900/40 backdrop-blur-sm rounded-2xl p-5 border border-blue-700/50 flex flex-col justify-between relative overflow-hidden group">
+                         <div className="absolute -right-6 -top-6 text-lime-400/5 group-hover:text-lime-400/10 transition-colors duration-500">
+                             <Sparkles size={140} />
                          </div>
-                         <h4 className="text-xs font-black text-lime-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <Target size={12} /> Objetivo Prioritario
-                         </h4>
-                         <p className="text-white font-medium italic text-base leading-snug relative z-10">
-                            "{aiAnalysis.tip}"
-                         </p>
-                         <button onClick={() => setAiAnalysis(null)} className="mt-4 text-xs text-blue-400 hover:text-blue-200 transition-colors text-left">
-                           Regenerar análisis →
+                         <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-[10px] font-black text-lime-400 uppercase tracking-widest flex items-center gap-2">
+                                    <Trophy size={12} /> Tip de Oro
+                                </h4>
+                                <div className="w-2 h-2 bg-lime-400 rounded-full animate-pulse"></div>
+                            </div>
+                            <p className="text-white font-bold italic text-lg leading-tight relative z-10">
+                                "{aiAnalysis.tip}"
+                            </p>
+                         </div>
+                         <button onClick={() => setAiAnalysis(null)} className="mt-6 text-[10px] font-black text-blue-400 hover:text-lime-400 transition-colors uppercase tracking-widest flex items-center gap-1">
+                           <Clock size={10} /> Actualizar análisis
                          </button>
                      </div>
                 </div>

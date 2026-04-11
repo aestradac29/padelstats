@@ -607,27 +607,21 @@ const App = () => {
             alert("Selecciona dos jugadores");
             return;
         }
-        const calculateSetWinner = (left: string, right: string, isHome: boolean) => {
+        const calculateSetWinner = (left: string, right: string) => {
             const l = Number(left);
             const r = Number(right);
-            if (isHome) {
-                if (l > r) return 'win';
-                if (l < r) return 'loss';
-                return 'draw';
-            } else {
-                if (r > l) return 'win';
-                if (r < l) return 'loss';
-                return 'draw';
-            }
+            if (l > r) return 'win';
+            if (l < r) return 'loss';
+            return 'draw';
         }
         let setsWon = 0;
         let setsLost = 0;
-        const r1 = calculateSetWinner(s1We, s1They, tempMatch.isHome ?? true);
+        const r1 = calculateSetWinner(s1We, s1They);
         if (r1 === 'win') setsWon++; else if (r1 === 'loss') setsLost++;
-        const r2 = calculateSetWinner(s2We, s2They, tempMatch.isHome ?? true);
+        const r2 = calculateSetWinner(s2We, s2They);
         if (r2 === 'win') setsWon++; else if (r2 === 'loss') setsLost++;
         if (s3We && s3They) {
-            const r3 = calculateSetWinner(s3We, s3They, tempMatch.isHome ?? true);
+            const r3 = calculateSetWinner(s3We, s3They);
             if (r3 === 'win') setsWon++; else if (r3 === 'loss') setsLost++;
         }
         let result = MatchResult.DRAW;
