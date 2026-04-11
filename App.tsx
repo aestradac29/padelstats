@@ -607,21 +607,27 @@ const App = () => {
             alert("Selecciona dos jugadores");
             return;
         }
-        const calculateSetWinner = (left: string, right: string) => {
+        const calculateSetWinner = (left: string, right: string, isHome: boolean) => {
             const l = Number(left);
             const r = Number(right);
-            if (l > r) return 'win';
-            if (l < r) return 'loss';
-            return 'draw';
+            if (isHome) {
+                if (l > r) return 'win';
+                if (l < r) return 'loss';
+                return 'draw';
+            } else {
+                if (r > l) return 'win';
+                if (r < l) return 'loss';
+                return 'draw';
+            }
         }
         let setsWon = 0;
         let setsLost = 0;
-        const r1 = calculateSetWinner(s1We, s1They);
+        const r1 = calculateSetWinner(s1We, s1They, tempMatch.isHome ?? true);
         if (r1 === 'win') setsWon++; else if (r1 === 'loss') setsLost++;
-        const r2 = calculateSetWinner(s2We, s2They);
+        const r2 = calculateSetWinner(s2We, s2They, tempMatch.isHome ?? true);
         if (r2 === 'win') setsWon++; else if (r2 === 'loss') setsLost++;
         if (s3We && s3They) {
-            const r3 = calculateSetWinner(s3We, s3They);
+            const r3 = calculateSetWinner(s3We, s3They, tempMatch.isHome ?? true);
             if (r3 === 'win') setsWon++; else if (r3 === 'loss') setsLost++;
         }
         let result = MatchResult.DRAW;
@@ -1188,6 +1194,11 @@ const App = () => {
                                             </div>
                                         )}
                                         <div className="grid grid-cols-2 gap-3"><Input label="Rival 1 (Opcional)" value={tempLineupScores.opponent1Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent1Name: e.target.value }))} /><Input label="Rival 2 (Opcional)" value={tempLineupScores.opponent2Name} onChange={e => setTempLineupScores(l => ({ ...l, opponent2Name: e.target.value }))} /></div>
+                                        
+                                        <div className="flex justify-between px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            <span>{tempMatch.isHome ? 'Nosotros (Local)' : 'Ellos (Local)'}</span>
+                                            <span>{tempMatch.isHome ? 'Ellos (Visita)' : 'Nosotros (Visita)'}</span>
+                                        </div>
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 1</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1We} onChange={e => setTempLineupScores(l => ({ ...l, s1We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s1They} onChange={e => setTempLineupScores(l => ({ ...l, s1They: e.target.value }))} /></div></div>
                                             <div className="flex flex-col gap-1 text-center"><span className="text-[10px] font-bold text-slate-400 uppercase">Set 2</span><div className="flex gap-1"><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2We} onChange={e => setTempLineupScores(l => ({ ...l, s2We: e.target.value }))} /><input type="number" className="w-1/2 p-2 text-center bg-slate-50 dark:bg-slate-900 dark:text-white dark:border-slate-600 border rounded-lg font-black" value={tempLineupScores.s2They} onChange={e => setTempLineupScores(l => ({ ...l, s2They: e.target.value }))} /></div></div>
