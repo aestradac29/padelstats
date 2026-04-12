@@ -448,9 +448,11 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             [m.lineup.set1, m.lineup.set2, m.lineup.set3].filter(Boolean).forEach(set => {
                 const [left, right] = set!.split('-').map(Number);
                 if (!isNaN(left) && !isNaN(right)) {
-                    // In this app, scores are always stored as [OurScore]-[TheirScore]
-                    gamesWon += left;
-                    gamesLost += right;
+                    // HOME: left=ours, right=theirs. AWAY: left=theirs, right=ours.
+                    const ours   = m.matchDay.isHome ? left  : right;
+                    const theirs = m.matchDay.isHome ? right : left;
+                    gamesWon  += ours;
+                    gamesLost += theirs;
                 }
             });
             const matchDiff = gamesWon - gamesLost;

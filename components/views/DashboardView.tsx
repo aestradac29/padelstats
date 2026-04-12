@@ -185,6 +185,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     }, [nextMatch?.date]);
 
     // Games and Sets stats (global)
+    // Score storage convention:
+    //   HOME match: set stored as "OUR_GAMES-THEIR_GAMES" → parts[0] = ours
+    //   AWAY match: set stored as "THEIR_GAMES-OUR_GAMES" → parts[1] = ours
+    // This mirrors how calculateSetWinner determines the result (isHome-aware).
     const gamesStats = { won: 0, lost: 0, total: 0 };
     const setsStats = { won: 0, lost: 0, total: 0 };
     
@@ -193,21 +197,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             [l.set1, l.set2, l.set3].filter(Boolean).forEach(set => {
                 const parts = set!.split('-');
                 if (parts.length >= 2) {
-                    const a = parseInt(parts[0], 10);
-                    const b = parseInt(parts[1], 10);
-                    if (!isNaN(a) && !isNaN(b)) { 
-                        gamesStats.won += a; 
-                        gamesStats.lost += b; 
-                        
-                        if (a > b) setsStats.won += 1;
-                        else if (b > a) setsStats.lost += 1;
+                    const left  = parseInt(parts[0], 10);
+                    const right = parseInt(parts[1], 10);
+                    if (!isNaN(left) && !isNaN(right)) {
+                        // For HOME: left=ours, right=theirs
+                        // For AWAY: left=theirs, right=ours
+                        const ours   = m.isHome ? left  : right;
+                        const theirs = m.isHome ? right : left;
+                        gamesStats.won  += ours;
+                        gamesStats.lost += theirs;
+                        if (ours > theirs) setsStats.won  += 1;
+                        else if (theirs > ours) setsStats.lost += 1;
                     }
                 }
             });
         });
     });
     gamesStats.total = gamesStats.won + gamesStats.lost;
-    setsStats.total = setsStats.won + setsStats.lost;
+    setsStats.total  = setsStats.won  + setsStats.lost;
 
     // Home / Away split
     const homeMatches = playedMatches.filter(m => m.isHome);

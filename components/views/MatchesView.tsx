@@ -380,26 +380,81 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                             {/* Expanded Details */}
                             {isExpanded && (
                                 <div className="border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
-                                    {/* Actions row (captain) */}
-                                    {sessionRole === 'CAPTAIN' && (
-                                        <div className="flex gap-2 px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
-                                                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-lg transition-colors"
-                                            >
-                                                <Edit2 size={12} /> Editar
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); deleteMatch(match.id); }}
-                                                className="flex items-center gap-1.5 text-xs font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 size={12} /> Eliminar
-                                            </button>
-                                            {match.tandas && match.tandas !== '5' && (
-                                                <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600">
-                                                    {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
-                                                </span>
-                                            )}
+                                    {/* Actions & Summary row */}
+                                    {(sessionRole === 'CAPTAIN' || (match.lineups && match.lineups.length > 0)) && (
+                                        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                                            <div className="flex items-center gap-2">
+                                                {sessionRole === 'CAPTAIN' && (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
+                                                            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-lg transition-colors"
+                                                        >
+                                                            <Edit2 size={12} /> Editar
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); deleteMatch(match.id); }}
+                                                            className="flex items-center gap-1.5 text-xs font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg transition-colors"
+                                                        >
+                                                            <Trash2 size={12} /> Eliminar
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-4 ml-auto">
+                                                {(() => {
+                                                    let matchSetsWon = 0;
+                                                    let matchSetsLost = 0;
+                                                    let matchGamesWon = 0;
+                                                    let matchGamesLost = 0;
+                                                    
+                                                    if (match.lineups && match.lineups.length > 0) {
+                                                        match.lineups.forEach(lineup => {
+                                                            [lineup.set1, lineup.set2, lineup.set3].filter(Boolean).forEach(set => {
+                                                                const parts = set!.split('-');
+                                                                if (parts.length >= 2) {
+                                                                    const left = parseInt(parts[0], 10);
+                                                                    const right = parseInt(parts[1], 10);
+                                                                    if (!isNaN(left) && !isNaN(right)) {
+                                                                        const ours = match.isHome ? left : right;
+                                                                        const theirs = match.isHome ? right : left;
+                                                                        matchGamesWon += ours;
+                                                                        matchGamesLost += theirs;
+                                                                        if (ours > theirs) matchSetsWon += 1;
+                                                                        else if (theirs > ours) matchSetsLost += 1;
+                                                                    }
+                                                                }
+                                                            });
+                                                        });
+                                                        
+                                                        return (
+                                                            <div className="flex items-center gap-3 text-xs bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Sets</span>
+                                                                    <span className="font-black text-lime-600 dark:text-lime-400">{matchSetsWon}</span>
+                                                                    <span className="text-slate-300 dark:text-slate-600">-</span>
+                                                                    <span className="font-black text-red-500">{matchSetsLost}</span>
+                                                                </div>
+                                                                <div className="w-px h-3 bg-slate-200 dark:bg-slate-700"></div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Juegos</span>
+                                                                    <span className="font-black text-lime-600 dark:text-lime-400">{matchGamesWon}</span>
+                                                                    <span className="text-slate-300 dark:text-slate-600">-</span>
+                                                                    <span className="font-black text-red-500">{matchGamesLost}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+
+                                                {match.tandas && match.tandas !== '5' && (
+                                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600">
+                                                        {TANDA_OPTIONS.find(o => o.value === match.tandas)?.label || match.tandas}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
 
