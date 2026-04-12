@@ -629,6 +629,8 @@ const App = () => {
             return;
         }
         const calculateSetWinner = (left: string, right: string) => {
+            // Scores are always stored as "OUR_SCORE-THEIR_SCORE".
+            // The user always enters: left = our games, right = their games.
             const l = Number(left);
             const r = Number(right);
             if (l > r) return 'win';
