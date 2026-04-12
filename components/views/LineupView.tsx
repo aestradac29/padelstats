@@ -223,46 +223,69 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                       </div>
                       {showAvailability && (
                         <div className="p-4">
-                            <div className="flex flex-wrap gap-2 max-h-[240px] overflow-y-auto">
-                                {data?.players.map(p => {
-                                    const isAvailable = availablePlayers.includes(p.id);
-                                    const points = getPoints(p, matchesForPoints, viewSeasonId, data!);
-                                    const posChar = p.position === 'Drive' ? 'D' : p.position === 'Revés' ? 'R' : 'A';
-                                    // Compute last 3 form for this player
-                                    const playerFormMatches = [...matchesForPoints]
-                                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                                        .filter(m => m.lineups && m.lineups.some(l => l.player1Id === p.id || l.player2Id === p.id));
-                                    const last3 = playerFormMatches.slice(-3).map(m => {
-                                        const l = m.lineups.find(l => l.player1Id === p.id || l.player2Id === p.id);
-                                        return l?.result;
-                                    }).filter(Boolean);
+                            <div className="space-y-4 max-h-[320px] overflow-y-auto pr-1">
+                                {['Drive', 'Revés', 'Ambos'].map(pos => {
+                                    const posPlayers = data?.players.filter(p => p.position === pos) || [];
+                                    if (posPlayers.length === 0) return null;
+                                    
+                                    // Sort by points descending
+                                    posPlayers.sort((a, b) => {
+                                        const pa = getPoints(a, matchesForPoints, viewSeasonId, data!);
+                                        const pb = getPoints(b, matchesForPoints, viewSeasonId, data!);
+                                        return pb - pa;
+                                    });
+
                                     return (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => togglePlayerAvailability(p.id)}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 ${
-                                              isAvailable
-                                                ? 'bg-lime-400 text-blue-950 border-lime-400 shadow-sm shadow-lime-400/20'
-                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
-                                            }`}
-                                        >
-                                            <span className={`text-[9px] font-black ${isAvailable ? 'text-blue-800' : 'text-slate-300 dark:text-slate-600'}`}>{posChar}</span>
-                                            {p.name.split(' ')[0]}
-                                            <span className={`text-[10px] opacity-60`}>({points})</span>
-                                            {last3.length > 0 && (
-                                                <span className="flex gap-0.5 ml-0.5">
-                                                    {last3.map((r, i) => (
-                                                        <span key={i} className={`w-2.5 h-2.5 rounded-full ${r === 'Victoria' ? 'bg-lime-700' : r === 'Derrota' ? 'bg-red-700' : 'bg-blue-700'}`} title={r === 'Victoria' ? 'V' : r === 'Derrota' ? 'D' : 'E'}/>
-                                                    ))}
-                                                </span>
-                                            )}
-                                        </button>
-                                    )
+                                        <div key={pos}>
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                                {pos} <span className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></span>
+                                            </h4>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                {posPlayers.map(p => {
+                                                    const isAvailable = availablePlayers.includes(p.id);
+                                                    const points = getPoints(p, matchesForPoints, viewSeasonId, data!);
+                                                    
+                                                    // Compute last 3 form for this player
+                                                    const playerFormMatches = [...matchesForPoints]
+                                                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                                                        .filter(m => m.lineups && m.lineups.some(l => l.player1Id === p.id || l.player2Id === p.id));
+                                                    const last3 = playerFormMatches.slice(-3).map(m => {
+                                                        const l = m.lineups.find(l => l.player1Id === p.id || l.player2Id === p.id);
+                                                        return l?.result;
+                                                    }).filter(Boolean);
+
+                                                    return (
+                                                        <button
+                                                            key={p.id}
+                                                            onClick={() => togglePlayerAvailability(p.id)}
+                                                            className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-bold border-2 transition-all duration-200 ${
+                                                              isAvailable
+                                                                ? 'bg-lime-400 text-blue-950 border-lime-400 shadow-sm shadow-lime-400/20'
+                                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-1.5 truncate">
+                                                                <span className="truncate">{p.name.split(' ')[0]}</span>
+                                                                <span className={`text-[10px] opacity-60`}>({points})</span>
+                                                            </div>
+                                                            {last3.length > 0 && (
+                                                                <div className="flex gap-0.5 ml-1 flex-shrink-0">
+                                                                    {last3.map((r, i) => (
+                                                                        <span key={i} className={`w-2 h-2 rounded-full ${r === 'Victoria' ? 'bg-lime-700' : r === 'Derrota' ? 'bg-red-700' : 'bg-blue-700'}`} title={r === 'Victoria' ? 'V' : r === 'Derrota' ? 'D' : 'E'}/>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
                                 })}
                             </div>
-                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex justify-between">
-                                <button onClick={() => setAvailablePlayers(data?.players.map(p => p.id) || [])} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline px-1">Todos ✓</button>
-                                <button onClick={() => setAvailablePlayers([])} className="text-[10px] font-bold text-slate-400 hover:text-red-500 px-1">Limpiar ×</button>
+                            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex justify-between">
+                                <button onClick={() => setAvailablePlayers(data?.players.map(p => p.id) || [])} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline px-1">Seleccionar Todos</button>
+                                <button onClick={() => setAvailablePlayers([])} className="text-[10px] font-bold text-slate-400 hover:text-red-500 px-1">Limpiar Selección</button>
                             </div>
                         </div>
                       )}
