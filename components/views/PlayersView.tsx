@@ -93,6 +93,8 @@ const PlayersView: React.FC<PlayersViewProps> = ({
     const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE' | 'EVOLUTION'>('TABLE');
     const [sortField, setSortField] = useState<string>('points');
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [positionFilter, setPositionFilter] = useState<string>('ALL');
+    const [handednessFilter, setHandednessFilter] = useState<string>('ALL');
     const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
     const [hiddenPlayers, setHiddenPlayers] = useState<Record<string, boolean>>({});
 
@@ -332,6 +334,8 @@ const PlayersView: React.FC<PlayersViewProps> = ({
         if (sortField === 'pointsDiff') return (b.pointsDiff || 0) - (a.pointsDiff || 0);
         return 0;
     }).filter(p => {
+        if (positionFilter !== 'ALL' && p.position !== positionFilter) return false;
+        if (handednessFilter !== 'ALL' && p.handedness !== handednessFilter) return false;
         if (!searchTerm.trim()) return true;
         const term = searchTerm.toLowerCase();
         return p.name.toLowerCase().includes(term) || (p.surname && p.surname.toLowerCase().includes(term));
@@ -378,20 +382,43 @@ const PlayersView: React.FC<PlayersViewProps> = ({
             </div>
         </div>
         {viewMode !== 'EVOLUTION' && (
-            <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                    type="text"
-                    placeholder="Buscar jugador..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-lime-400 outline-none transition-all shadow-sm"
-                />
-                {searchTerm && (
-                    <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                        ×
-                    </button>
-                )}
+            <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative w-full md:w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                        type="text"
+                        placeholder="Buscar jugador..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-lime-400 outline-none transition-all shadow-sm"
+                    />
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            ×
+                        </button>
+                    )}
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <select
+                        value={positionFilter}
+                        onChange={e => setPositionFilter(e.target.value)}
+                        className="flex-1 md:flex-none px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-lime-400 outline-none shadow-sm cursor-pointer"
+                    >
+                        <option value="ALL">Posición: Todas</option>
+                        <option value="Drive">Drive</option>
+                        <option value="Revés">Revés</option>
+                        <option value="Ambos">Ambos</option>
+                    </select>
+                    <select
+                        value={handednessFilter}
+                        onChange={e => setHandednessFilter(e.target.value)}
+                        className="flex-1 md:flex-none px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-lime-400 outline-none shadow-sm cursor-pointer"
+                    >
+                        <option value="ALL">Mano: Todas</option>
+                        <option value="right">Diestro</option>
+                        <option value="left">Zurdo</option>
+                    </select>
+                </div>
             </div>
         )}
       </header>
