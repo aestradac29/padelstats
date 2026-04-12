@@ -240,7 +240,7 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                                                 {pos} <span className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></span>
                                             </h4>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-2 gap-2">
                                                 {posPlayers.map(p => {
                                                     const isAvailable = availablePlayers.includes(p.id);
                                                     const points = getPoints(p, matchesForPoints, viewSeasonId, data!);
