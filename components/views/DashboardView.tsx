@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2, Share2, MessageCircle } from '../Icons';
+import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2, Share2, MessageCircle, Copy } from '../Icons';
 import { Card, Button, Avatar, ProgressBar, ResultBadge } from '../UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AppState, MatchResult, Player, MatchDay } from '../../types';
@@ -332,10 +332,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                   text += `🏆 Juegos: ${gamesStats.won}-${gamesStats.lost} | Sets: ${setsStats.won}-${setsStats.lost}\n`;
                 }
                 text += `\n💪 ¡Vamos equipo!`;
-                const encoded = encodeURIComponent(text);
-                window.open(`https://wa.me/?text=${encoded}`, '_blank');
+                navigator.clipboard.writeText(text);
+                alert('Resumen copiado al portapapeles');
               }}>
-                <MessageCircle size={16} /> Compartir
+                <Copy size={16} /> Copiar resumen
               </Button>
             )}
           </div>

@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp, AlertCircle, Filter, Share2, MessageCircle, Home, Plane } from '../Icons';
+import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp, AlertCircle, Filter, Share2, Copy, Home, Plane } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, MatchDay, MatchResult } from '../../types';
 import { formatDate } from '../../utils/helpers';
@@ -150,8 +150,8 @@ const MatchesView: React.FC<MatchesViewProps> = ({
         }
 
         text += `\n💪 ¡Vamos equipo!`;
-        const encoded = encodeURIComponent(text);
-        window.open(`https://wa.me/?text=${encoded}`, '_blank');
+        navigator.clipboard.writeText(text);
+        alert('Resumen copiado al portapapeles');
     };
 
     return (
@@ -373,9 +373,9 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                         <button 
                                                             onClick={() => shareMatch(match)}
                                                             className="text-slate-400 hover:text-lime-600 dark:hover:text-lime-400 p-1.5 rounded-lg hover:bg-lime-50 dark:hover:bg-lime-900/20 transition-colors"
-                                                            title="Compartir por WhatsApp"
+                                                            title="Copiar resumen"
                                                         >
-                                                            <MessageCircle size={15} />
+                                                            <Copy size={15} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -494,13 +494,13 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                         </button>
                                                     </>
                                                 )}
-                                                {/* WhatsApp share - always visible */}
+                                                {/* Copy share - always visible */}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); shareMatch(match); }}
                                                     className="flex items-center gap-1.5 text-xs font-bold text-lime-700 dark:text-lime-400 bg-lime-50 dark:bg-lime-900/20 hover:bg-lime-100 dark:hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors border border-lime-200 dark:border-lime-900/40"
-                                                    title="Compartir por WhatsApp"
+                                                    title="Copiar resumen"
                                                 >
-                                                    <MessageCircle size={12} /> WhatsApp
+                                                    <Copy size={12} /> Copiar
                                                 </button>
                                             </div>
                                             
