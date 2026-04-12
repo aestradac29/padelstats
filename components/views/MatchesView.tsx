@@ -428,20 +428,28 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                             });
                                                         });
                                                         
+                                                        const leftSets = match.isHome ? matchSetsWon : matchSetsLost;
+                                                        const rightSets = match.isHome ? matchSetsLost : matchSetsWon;
+                                                        const leftGames = match.isHome ? matchGamesWon : matchGamesLost;
+                                                        const rightGames = match.isHome ? matchGamesLost : matchGamesWon;
+                                                        
+                                                        const leftColor = match.isHome ? 'text-lime-600 dark:text-lime-400' : 'text-red-500';
+                                                        const rightColor = match.isHome ? 'text-red-500' : 'text-lime-600 dark:text-lime-400';
+                                                        
                                                         return (
                                                             <div className="flex items-center gap-3 text-xs bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Sets</span>
-                                                                    <span className="font-black text-lime-600 dark:text-lime-400">{matchSetsWon}</span>
+                                                                    <span className={`font-black ${leftColor}`}>{leftSets}</span>
                                                                     <span className="text-slate-300 dark:text-slate-600">-</span>
-                                                                    <span className="font-black text-red-500">{matchSetsLost}</span>
+                                                                    <span className={`font-black ${rightColor}`}>{rightSets}</span>
                                                                 </div>
                                                                 <div className="w-px h-3 bg-slate-200 dark:bg-slate-700"></div>
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Juegos</span>
-                                                                    <span className="font-black text-lime-600 dark:text-lime-400">{matchGamesWon}</span>
+                                                                    <span className={`font-black ${leftColor}`}>{leftGames}</span>
                                                                     <span className="text-slate-300 dark:text-slate-600">-</span>
-                                                                    <span className="font-black text-red-500">{matchGamesLost}</span>
+                                                                    <span className={`font-black ${rightColor}`}>{rightGames}</span>
                                                                 </div>
                                                             </div>
                                                         );
@@ -468,7 +476,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                         )}
                                         {(!match.lineups || match.lineups.length === 0) ? (
                                             <p className="text-center py-4 text-xs text-slate-400 italic">Sin resultados registrados aún</p>
-                                        ) : match.lineups.map((lineup, idx) => {
+                                        ) : [...match.lineups].map((l, i) => ({ ...l, _originalIndex: i })).sort((a, b) => (a.pairNumber ?? 99) - (b.pairNumber ?? 99)).map((lineup, idx) => {
                                             const p1 = data?.players.find(p => p.id === lineup.player1Id);
                                             const p2 = data?.players.find(p => p.id === lineup.player2Id);
                                             const isWin = lineup.result === MatchResult.WIN;
@@ -479,7 +487,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                     <div className="px-3 py-2 flex items-center justify-between gap-2">
                                                         {/* Pair names */}
                                                         <div className="min-w-0">
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Pareja {lineup.pairNumber ?? (idx + 1)}</p>
+                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Pareja {lineup.pairNumber ?? (lineup._originalIndex + 1)}</p>
                                                             <p className={`text-xs font-bold truncate ${isWin ? 'text-lime-800 dark:text-lime-300' : isLoss ? 'text-red-700 dark:text-red-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                                                 {p1?.name || '?'} <span className="opacity-50">/</span> {p2?.name || '?'}
                                                             </p>
@@ -491,11 +499,20 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                         </div>
                                                         {/* Sets */}
                                                         <div className="flex items-center gap-1 flex-shrink-0">
-                                                            {[lineup.set1, lineup.set2, lineup.set3].filter(Boolean).map((set, si) => (
-                                                                <span key={si} className={`text-[11px] font-black px-2 py-1 rounded-lg border ${isWin ? 'bg-lime-100 text-lime-800 border-lime-200 dark:bg-lime-900/30 dark:text-lime-300 dark:border-lime-800/50' : isLoss ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/50' : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}>
-                                                                    {set}
-                                                                </span>
-                                                            ))}
+                                                            {[lineup.set1, lineup.set2, lineup.set3].filter(Boolean).map((set, si) => {
+                                                                let displaySet = set;
+                                                                if (!match.isHome && set) {
+                                                                    const parts = set.split('-');
+                                                                    if (parts.length === 2) {
+                                                                        displaySet = `${parts[1]}-${parts[0]}`;
+                                                                    }
+                                                                }
+                                                                return (
+                                                                    <span key={si} className={`text-[11px] font-black px-2 py-1 rounded-lg border ${isWin ? 'bg-lime-100 text-lime-800 border-lime-200 dark:bg-lime-900/30 dark:text-lime-300 dark:border-lime-800/50' : isLoss ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/50' : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}>
+                                                                        {displaySet}
+                                                                    </span>
+                                                                );
+                                                            })}
                                                             <span className={`text-[10px] font-black uppercase ml-1 ${isWin ? 'text-lime-600 dark:text-lime-400' : isLoss ? 'text-red-500 dark:text-red-400' : 'text-blue-500'}`}>
                                                                 {isWin ? '✓' : isLoss ? '✗' : '~'}
                                                             </span>
