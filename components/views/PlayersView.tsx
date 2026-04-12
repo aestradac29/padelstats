@@ -458,6 +458,9 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                              const winRateHome = s.playedHome > 0 ? Math.round((s.winsHome / s.playedHome) * 100) : 0;
                              const winRateAway = s.playedAway > 0 ? Math.round((s.winsAway / s.playedAway) * 100) : 0;
                              const availabilityPerc = s.total > 0 ? Math.round(((s.played + s.bench) / s.total) * 100) : 0;
+                             const playedPerc = s.total > 0 ? Math.round((s.played / s.total) * 100) : 0;
+                             const benchPerc = s.total > 0 ? Math.round((s.bench / s.total) * 100) : 0;
+                             const unavailablePerc = s.total > 0 ? Math.round((s.unavailable / s.total) * 100) : 0;
 
                              return (
                                  <tr key={player.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -472,9 +475,18 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                           </div>
                                      </td>
                                      <td className="p-4 text-center"><span className={`font-bold ${availabilityPerc > 75 ? 'text-lime-600 dark:text-lime-400' : 'text-slate-500 dark:text-slate-400'}`}>{availabilityPerc}%</span><span className="text-[10px] text-slate-400 block">{s.played + s.bench}/{s.total}</span></td>
-                                     <td className="p-4 text-center font-bold text-slate-800 dark:text-slate-200">{s.played}</td>
-                                     <td className="p-4 text-center text-orange-500 font-medium">{s.bench}</td>
-                                     <td className="p-4 text-center text-slate-300 dark:text-slate-600">{s.unavailable}</td>
+                                     <td className="p-4 text-center">
+                                        <span className="font-bold text-slate-800 dark:text-slate-200">{playedPerc}%</span>
+                                        <span className="text-[10px] text-slate-400 block">{s.played}/{s.total}</span>
+                                     </td>
+                                     <td className="p-4 text-center">
+                                        <span className="font-bold text-orange-500">{benchPerc}%</span>
+                                        <span className="text-[10px] text-slate-400 block">{s.bench}/{s.total}</span>
+                                     </td>
+                                     <td className="p-4 text-center">
+                                        <span className="font-bold text-slate-400 dark:text-slate-500">{unavailablePerc}%</span>
+                                        <span className="text-[10px] text-slate-400 block">{s.unavailable}/{s.total}</span>
+                                     </td>
                                      <td className="p-4 text-center text-lime-600 dark:text-lime-400 font-bold">{s.wins}</td>
                                      <td className="p-4 text-center text-red-400 font-medium">{s.losses}</td>
                                      <td className="p-4 text-center">
@@ -525,6 +537,9 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                     const winRate = s.played > 0 ? Math.round((s.wins / s.played) * 100) : 0;
                     const isExpanded = expandedPlayerId === player.id;
                     const availabilityPerc = s.total > 0 ? Math.round(((s.played + s.bench) / s.total) * 100) : 0;
+                    const playedPerc = s.total > 0 ? Math.round((s.played / s.total) * 100) : 0;
+                    const benchPerc = s.total > 0 ? Math.round((s.bench / s.total) * 100) : 0;
+                    const unavailablePerc = s.total > 0 ? Math.round((s.unavailable / s.total) * 100) : 0;
 
                     return (
                         <div key={player.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -579,17 +594,20 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                     <div className="grid grid-cols-3 gap-3 mb-4">
                                         <div className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm text-center">
                                             <span className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Jugados</span>
-                                            <span className="text-lg font-black text-slate-800 dark:text-white">{s.played}</span>
+                                            <span className="text-lg font-black text-slate-800 dark:text-white">{playedPerc}%</span>
+                                            <span className="block text-[10px] text-slate-400 mb-1">{s.played}/{s.total}</span>
                                             <ProgressBar value={s.played} max={s.total} colorClass="bg-blue-500" />
                                         </div>
                                         <div className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm text-center">
                                             <span className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Victorias</span>
-                                            <span className="text-lg font-black text-lime-600 dark:text-lime-400">{s.wins}</span>
+                                            <span className="text-lg font-black text-lime-600 dark:text-lime-400">{winRate}%</span>
+                                            <span className="block text-[10px] text-slate-400 mb-1">{s.wins}/{s.played}</span>
                                             <ProgressBar value={s.wins} max={s.played} colorClass="bg-lime-500" />
                                         </div>
                                         <div className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm text-center">
                                             <span className="block text-[10px] text-slate-400 font-bold uppercase mb-1">Disp.</span>
                                             <span className="text-lg font-black text-slate-800 dark:text-white">{availabilityPerc}%</span>
+                                            <span className="block text-[10px] text-slate-400 mb-1">{s.played + s.bench}/{s.total}</span>
                                             <ProgressBar value={s.played + s.bench} max={s.total} colorClass="bg-indigo-500" />
                                         </div>
                                     </div>
@@ -597,8 +615,8 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                     {/* Secondary Stats */}
                                     <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 px-1 mb-3">
                                         <div className="flex gap-4">
-                                            <span className="flex items-center gap-1"><Clock size={12} className="text-orange-400"/> Banquillo: <strong>{s.bench}</strong></span>
-                                            <span className="flex items-center gap-1"><XCircle size={12} className="text-slate-300"/> No Disp: <strong>{s.unavailable}</strong></span>
+                                            <span className="flex items-center gap-1"><Clock size={12} className="text-orange-400"/> Banquillo: <strong>{benchPerc}% ({s.bench})</strong></span>
+                                            <span className="flex items-center gap-1"><XCircle size={12} className="text-slate-300"/> No Disp: <strong>{unavailablePerc}% ({s.unavailable})</strong></span>
                                         </div>
                                     </div>
 
