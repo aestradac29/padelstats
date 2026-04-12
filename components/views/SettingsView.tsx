@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Trash2, Check, X, Edit2 } from '../Icons';
+import { Shield, Trash2, Check, X, Edit2, Copy } from '../Icons';
 import { Button, Card, Input, Select } from '../UIComponents';
 import { AppState, Season, TeamSettings, MatchResult } from '../../types';
 import { DEFAULT_SETTINGS, PRESET_RANGES } from '../../utils/constants';
@@ -185,6 +185,27 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                 <h2 className="text-3xl font-black text-slate-900 dark:text-white">Ajustes del Equipo</h2>
                 <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestiona temporadas y sistema de puntuación.</p>
             </header>
+
+            {/* Team ID card - for sharing with guests */}
+            {teamId && (
+                <div className="bg-gradient-to-r from-blue-950 to-blue-900 rounded-2xl border border-blue-800 p-5 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400 blur-[60px] opacity-10 rounded-full pointer-events-none"/>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="text-xs font-black text-blue-300 uppercase tracking-widest mb-1">Código de equipo</p>
+                            <p className="text-white font-black text-lg tracking-tight">{data?.teamName}</p>
+                            <p className="text-blue-300 text-sm font-mono mt-1 break-all">{teamId}</p>
+                            <p className="text-blue-400 text-xs mt-2">Comparte este código con tus jugadores para que puedan ver las estadísticas del equipo.</p>
+                        </div>
+                        <button
+                            onClick={() => { navigator.clipboard.writeText(teamId); alert('Código copiado al portapapeles'); }}
+                            className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-lime-400 hover:bg-lime-300 text-blue-950 font-black text-xs rounded-xl transition-colors uppercase tracking-wide"
+                        >
+                            <Copy size={14}/> Copiar
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Team Settings */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">

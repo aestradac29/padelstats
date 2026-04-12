@@ -228,6 +228,14 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                     const isAvailable = availablePlayers.includes(p.id);
                                     const points = getPoints(p, matchesForPoints, viewSeasonId, data!);
                                     const posChar = p.position === 'Drive' ? 'D' : p.position === 'Revés' ? 'R' : 'A';
+                                    // Compute last 3 form for this player
+                                    const playerFormMatches = [...matchesForPoints]
+                                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                                        .filter(m => m.lineups && m.lineups.some(l => l.player1Id === p.id || l.player2Id === p.id));
+                                    const last3 = playerFormMatches.slice(-3).map(m => {
+                                        const l = m.lineups.find(l => l.player1Id === p.id || l.player2Id === p.id);
+                                        return l?.result;
+                                    }).filter(Boolean);
                                     return (
                                         <button
                                             key={p.id}
@@ -241,6 +249,13 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                                             <span className={`text-[9px] font-black ${isAvailable ? 'text-blue-800' : 'text-slate-300 dark:text-slate-600'}`}>{posChar}</span>
                                             {p.name.split(' ')[0]}
                                             <span className={`text-[10px] opacity-60`}>({points})</span>
+                                            {last3.length > 0 && (
+                                                <span className="flex gap-0.5 ml-0.5">
+                                                    {last3.map((r, i) => (
+                                                        <span key={i} className={`w-2.5 h-2.5 rounded-full ${r === 'Victoria' ? 'bg-lime-700' : r === 'Derrota' ? 'bg-red-700' : 'bg-blue-700'}`} title={r === 'Victoria' ? 'V' : r === 'Derrota' ? 'D' : 'E'}/>
+                                                    ))}
+                                                </span>
+                                            )}
                                         </button>
                                     )
                                 })}

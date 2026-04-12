@@ -52,7 +52,16 @@ import {
   Minus,
   Home,
   Plane,
-  BarChart2
+  BarChart2,
+  Filter,
+  Share2,
+  MessageCircle,
+  Sword,
+  ChevronLeft,
+  SortAsc,
+  SortDesc,
+  RefreshCw,
+  Info
 } from 'lucide-react';
 
 export { 
@@ -108,5 +117,14 @@ export {
   Minus,
   Home,
   Plane,
-  BarChart2
+  BarChart2,
+  Filter,
+  Share2,
+  MessageCircle,
+  Sword,
+  ChevronLeft,
+  SortAsc,
+  SortDesc,
+  RefreshCw,
+  Info
 };

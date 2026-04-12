@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2 } from '../Icons';
+import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2, Share2, MessageCircle } from '../Icons';
 import { Card, Button, Avatar, ProgressBar, ResultBadge } from '../UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AppState, MatchResult, Player, MatchDay } from '../../types';
@@ -313,10 +313,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 flex-wrap">
             {sessionRole === 'CAPTAIN' && (
-              <Button variant="secondary" onClick={() => { if (teamId) { navigator.clipboard.writeText(teamId); alert(`Código copiado: ${teamId}`); } }}>
-                <UserPlus size={18} /> Invitar Jugadores
+              <Button variant="secondary" onClick={() => { if (teamId) { navigator.clipboard.writeText(teamId); alert(`Código de equipo copiado: ${teamId}`); } }}>
+                <UserPlus size={16} /> Invitar
+              </Button>
+            )}
+            {matchDaysPlayedCount > 0 && (
+              <Button variant="secondary" onClick={() => {
+                const wr = matchDaysWinRate;
+                const record = `${matchDaysWon}V ${matchDaysDraw}E ${matchDaysLost}D`;
+                let text = `🎾 *${data.teamName}*\n`;
+                text += `📊 Temporada: ${record} (${wr}% victorias)\n`;
+                if (streak.type !== 'none') {
+                  text += `🔥 Racha: ${streak.count} ${streak.type === 'WIN' ? 'victorias' : streak.type === 'LOSS' ? 'derrotas' : 'empates'} seguidas\n`;
+                }
+                if (gamesStats.total > 0) {
+                  text += `🏆 Juegos: ${gamesStats.won}-${gamesStats.lost} | Sets: ${setsStats.won}-${setsStats.lost}\n`;
+                }
+                text += `\n💪 ¡Vamos equipo!`;
+                const encoded = encodeURIComponent(text);
+                window.open(`https://wa.me/?text=${encoded}`, '_blank');
+              }}>
+                <MessageCircle size={16} /> Compartir
               </Button>
             )}
           </div>

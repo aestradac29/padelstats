@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy, TrendingUp, Search } from '../Icons';
+import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy, TrendingUp, Search, Sword, Filter } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, Player, Position, MatchResult, MatchDay } from '../../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -247,6 +247,38 @@ const PlayersView: React.FC<PlayersViewProps> = ({
         const currentPoints = getPoints(p, matches, viewSeasonId, data);
         const initialPoints = getInitialPointsForEdit(p.id);
         const pointsDiff = currentPoints - initialPoints;
+
+        // Last 5 results form
+        const playerMatchResults: MatchResult[] = [];
+        const sortedForForm = [...matchesForStats].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        sortedForForm.forEach(m => {
+            const l = m.lineups.find(l => l.player1Id === p.id || l.player2Id === p.id);
+            if (l) playerMatchResults.push(l.result);
+        });
+        const last5Form = playerMatchResults.slice(-5);
+
+        // Sets and games won/lost per player
+        let setsWon = 0, setsLost = 0, gamesWon = 0, gamesLost = 0;
+        matchesForStats.forEach(m => {
+            const lineup = m.lineups.find(l => l.player1Id === p.id || l.player2Id === p.id);
+            if (lineup) {
+                [lineup.set1, lineup.set2, lineup.set3].filter(Boolean).forEach(set => {
+                    const parts = set!.split('-');
+                    if (parts.length >= 2) {
+                        const left = parseInt(parts[0], 10);
+                        const right = parseInt(parts[1], 10);
+                        if (!isNaN(left) && !isNaN(right)) {
+                            const ours   = m.isHome ? left  : right;
+                            const theirs = m.isHome ? right : left;
+                            gamesWon  += ours;
+                            gamesLost += theirs;
+                            if (ours > theirs) setsWon++;
+                            else if (theirs > ours) setsLost++;
+                        }
+                    }
+                });
+            }
+        });
         
         return {
             ...p,
@@ -260,10 +292,13 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                 winsHome,
                 playedAway,
                 winsAway,
-                total: totalPotentialMatches
+                total: totalPotentialMatches,
+                setsWon, setsLost,
+                gamesWon, gamesLost
             },
             points: currentPoints,
-            pointsDiff: pointsDiff
+            pointsDiff: pointsDiff,
+            last5Form
         };
     });
 
@@ -378,6 +413,9 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('unavailable')}>No Disp.</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('wins')}>Vic</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('losses')}>Der</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center" title="Sets ganados / perdidos">Sets</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center" title="Juegos ganados / perdidos">Juegos</th>
+                            <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Forma</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('winRate')}>% Vic Global</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('homeWinRate')}>Casa (J / %)</th>
                             <th className="p-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => setSortField('awayWinRate')}>Fuera (J / %)</th>
@@ -412,6 +450,26 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                      <td className="p-4 text-center text-slate-300 dark:text-slate-600">{s.unavailable}</td>
                                      <td className="p-4 text-center text-lime-600 dark:text-lime-400 font-bold">{s.wins}</td>
                                      <td className="p-4 text-center text-red-400 font-medium">{s.losses}</td>
+                                     <td className="p-4 text-center">
+                                         <span className="text-xs font-bold text-lime-600 dark:text-lime-400">{s.setsWon}</span>
+                                         <span className="text-[10px] text-slate-300 dark:text-slate-600 mx-0.5">/</span>
+                                         <span className="text-xs font-bold text-red-400">{s.setsLost}</span>
+                                     </td>
+                                     <td className="p-4 text-center">
+                                         <span className="text-xs font-bold text-lime-600 dark:text-lime-400">{s.gamesWon}</span>
+                                         <span className="text-[10px] text-slate-300 dark:text-slate-600 mx-0.5">/</span>
+                                         <span className="text-xs font-bold text-red-400">{s.gamesLost}</span>
+                                     </td>
+                                     <td className="p-4 text-center">
+                                         <div className="flex gap-0.5 justify-center">
+                                             {player.last5Form.map((r, i) => (
+                                                 <span key={i} className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white ${r === MatchResult.WIN ? 'bg-lime-500' : r === MatchResult.LOSS ? 'bg-red-500' : 'bg-blue-400'}`}>
+                                                     {r === MatchResult.WIN ? 'V' : r === MatchResult.LOSS ? 'D' : 'E'}
+                                                 </span>
+                                             ))}
+                                             {player.last5Form.length === 0 && <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>}
+                                         </div>
+                                     </td>
                                      <td className="p-4 text-center"><span className={`font-black ${winRate >= 50 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>{winRate}%</span></td>
                                      <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">{s.playedHome > 0 ? <span>{s.playedHome}J / <span className={winRateHome >= 50 ? 'text-lime-600 dark:text-lime-400 font-bold' : ''}>{winRateHome}%</span></span> : '-'}</td>
                                      <td className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">{s.playedAway > 0 ? <span>{s.playedAway}J / <span className={winRateAway >= 50 ? 'text-lime-600 dark:text-lime-400 font-bold' : ''}>{winRateAway}%</span></span> : '-'}</td>
@@ -470,6 +528,15 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                                 <span className={`text-[10px] font-bold ${winRate >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-slate-400'}`}>{winRate}% WR</span>
                                             )}
                                         </div>
+                                        {player.last5Form.length > 0 && (
+                                            <div className="flex gap-0.5 mt-1">
+                                                {player.last5Form.map((r, i) => (
+                                                    <span key={i} className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black text-white ${r === MatchResult.WIN ? 'bg-lime-500' : r === MatchResult.LOSS ? 'bg-red-500' : 'bg-blue-400'}`}>
+                                                        {r === MatchResult.WIN ? 'V' : r === MatchResult.LOSS ? 'D' : 'E'}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="text-slate-300 dark:text-slate-600">
@@ -501,12 +568,34 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                     </div>
 
                                     {/* Secondary Stats */}
-                                    <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 px-1 mb-4">
+                                    <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 px-1 mb-3">
                                         <div className="flex gap-4">
                                             <span className="flex items-center gap-1"><Clock size={12} className="text-orange-400"/> Banquillo: <strong>{s.bench}</strong></span>
                                             <span className="flex items-center gap-1"><XCircle size={12} className="text-slate-300"/> No Disp: <strong>{s.unavailable}</strong></span>
                                         </div>
                                     </div>
+
+                                    {/* Sets & Games */}
+                                    {s.setsWon + s.setsLost > 0 && (
+                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 p-2 text-center">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Sets</p>
+                                                <p className="text-xs font-black">
+                                                    <span className="text-lime-600 dark:text-lime-400">{s.setsWon}</span>
+                                                    <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                                                    <span className="text-red-400">{s.setsLost}</span>
+                                                </p>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 p-2 text-center">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Juegos</p>
+                                                <p className="text-xs font-black">
+                                                    <span className="text-lime-600 dark:text-lime-400">{s.gamesWon}</span>
+                                                    <span className="text-slate-300 dark:text-slate-600 mx-1">/</span>
+                                                    <span className="text-red-400">{s.gamesLost}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="flex gap-2">
                                         <div className="flex-1 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700 text-xs">
@@ -726,6 +815,20 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                     <span className="text-orange-400 block font-bold">✈️ Fuera</span>
                                 </div>
                             </div>
+
+                            {/* Form últimos 5 */}
+                            {player.last5Form.length > 0 && (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Forma</span>
+                                    <div className="flex gap-0.5">
+                                        {player.last5Form.map((r, i) => (
+                                            <span key={i} className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black text-white ${r === MatchResult.WIN ? 'bg-lime-500' : r === MatchResult.LOSS ? 'bg-red-500' : 'bg-blue-400'}`}>
+                                                {r === MatchResult.WIN ? 'V' : r === MatchResult.LOSS ? 'D' : 'E'}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Actions (captain only) */}
                             {sessionRole === 'CAPTAIN' && (

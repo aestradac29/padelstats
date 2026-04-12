@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp, AlertCircle } from '../Icons';
+import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp, AlertCircle, Filter, Share2, MessageCircle, Home, Plane } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, MatchDay, MatchResult } from '../../types';
 import { formatDate } from '../../utils/helpers';
@@ -23,6 +23,8 @@ const MatchesView: React.FC<MatchesViewProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'LIST' | 'TABLE'>('TABLE');
     const [expandedMatches, setExpandedMatches] = useState<string[]>([]);
+    const [filterResult, setFilterResult] = useState<'ALL' | 'WIN' | 'LOSS' | 'DRAW' | 'PENDING'>('ALL');
+    const [filterVenue, setFilterVenue] = useState<'ALL' | 'HOME' | 'AWAY'>('ALL');
     
     if (!data) return null;
 
@@ -52,7 +54,6 @@ const MatchesView: React.FC<MatchesViewProps> = ({
         return false;
     });
 
-    const sortedMatches = [...filteredBySearch].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     // Build a map of matchId -> real jornada number (based on full season, not search-filtered list)
     const allSortedMatches = [...matches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -67,6 +68,24 @@ const MatchesView: React.FC<MatchesViewProps> = ({
          if (losses > wins) return 'LOSS';
          return 'DRAW';
     };
+
+    const filteredByVenue = filteredBySearch.filter(m => {
+        if (filterVenue === 'HOME') return m.isHome;
+        if (filterVenue === 'AWAY') return !m.isHome;
+        return true;
+    });
+
+    const filteredByResult = filteredByVenue.filter(m => {
+        if (filterResult === 'ALL') return true;
+        if (filterResult === 'PENDING') return !m.lineups || m.lineups.length === 0;
+        const status = getMatchStatus(m);
+        if (filterResult === 'WIN') return status === 'WIN';
+        if (filterResult === 'LOSS') return status === 'LOSS';
+        if (filterResult === 'DRAW') return status === 'DRAW';
+        return true;
+    });
+
+    const sortedMatches = [...filteredByResult].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const getMatchScore = (m: MatchDay) => {
          const wins = m.lineups.filter(l => l.result === MatchResult.WIN).length;
@@ -104,6 +123,36 @@ const MatchesView: React.FC<MatchesViewProps> = ({
         });
         return { wins, losses, draws, pending, total: played.length, last5 };
     })();
+
+    const shareMatch = (match: MatchDay) => {
+        const statusEmoji = { WIN: '✅', LOSS: '❌', DRAW: '🔵', PENDING: '⏳' };
+        const status = getMatchStatus(match);
+        const score = getMatchScore(match);
+        const dateStr = new Date(match.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        let text = `🎾 *Jornada ${matchJornadaNumber.get(match.id)} — ${match.opponent}*\n`;
+        text += `📅 ${dateStr}\n`;
+        text += `${match.isHome ? '🏠 Local' : '✈️ Visitante'}\n\n`;
+
+        if (match.lineups && match.lineups.length > 0) {
+            text += `*Resultado: ${statusEmoji[status] || '⏳'} ${score}*\n\n`;
+            match.lineups
+                .sort((a, b) => (a.pairNumber || 99) - (b.pairNumber || 99))
+                .forEach((l, i) => {
+                    const p1 = data?.players.find(p => p.id === l.player1Id);
+                    const p2 = data?.players.find(p => p.id === l.player2Id);
+                    const res = l.result === MatchResult.WIN ? '✅' : l.result === MatchResult.LOSS ? '❌' : '🔵';
+                    const sets = [l.set1, l.set2, l.set3].filter(Boolean).join(' ');
+                    text += `${res} P${l.pairNumber || i + 1}: ${p1?.name || '?'} / ${p2?.name || '?'} — ${sets}\n`;
+                });
+        } else {
+            text += `⏳ Pendiente de jugar\n`;
+        }
+
+        text += `\n💪 ¡Vamos equipo!`;
+        const encoded = encodeURIComponent(text);
+        window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    };
 
     return (
       <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300 pb-2">
@@ -175,6 +224,44 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Quick Filters */}
+        {allSortedMatches.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex gap-1 flex-wrap">
+              {([
+                { key: 'ALL',     label: 'Todas',     color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',  active: 'bg-blue-600 text-white' },
+                { key: 'WIN',     label: '✓ Victoria', color: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400',    active: 'bg-lime-500 text-white' },
+                { key: 'LOSS',    label: '✗ Derrota', color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',        active: 'bg-red-500 text-white' },
+                { key: 'DRAW',    label: '= Empate',  color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',    active: 'bg-blue-500 text-white' },
+                { key: 'PENDING', label: '○ Pendiente', color: 'bg-slate-50 dark:bg-slate-800 text-slate-500',                     active: 'bg-slate-500 text-white' },
+              ] as const).map(({ key, label, color, active }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilterResult(key)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${filterResult === key ? active + ' border-transparent shadow-sm' : color + ' border-slate-200 dark:border-slate-700 hover:opacity-80'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="ml-auto flex gap-1">
+              {([
+                { key: 'ALL',  label: '📍 Todas' },
+                { key: 'HOME', label: '🏠 Casa' },
+                { key: 'AWAY', label: '✈️ Fuera' },
+              ] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilterVenue(key)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${filterVenue === key ? 'bg-blue-600 text-white border-transparent shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:opacity-80'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -268,20 +355,27 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                             </td>
                                             {sessionRole === 'CAPTAIN' && (
                                                 <td className="p-3 text-right">
-                                                    <div className="flex gap-2 justify-end">
+                                                    <div className="flex gap-1 justify-end">
                                                         <button 
                                                             onClick={() => { setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
-                                                            className="text-slate-400 hover:text-blue-600 p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-slate-800"
+                                                            className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors"
                                                             title="Editar"
                                                         >
-                                                            <Edit2 size={16} />
+                                                            <Edit2 size={15} />
                                                         </button>
                                                         <button 
                                                             onClick={() => deleteMatch(match.id)}
-                                                            className="text-slate-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                            className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                                             title="Eliminar"
                                                         >
-                                                            <Trash2 size={16} />
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => shareMatch(match)}
+                                                            className="text-slate-400 hover:text-lime-600 dark:hover:text-lime-400 p-1.5 rounded-lg hover:bg-lime-50 dark:hover:bg-lime-900/20 transition-colors"
+                                                            title="Compartir por WhatsApp"
+                                                        >
+                                                            <MessageCircle size={15} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -400,6 +494,14 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                         </button>
                                                     </>
                                                 )}
+                                                {/* WhatsApp share - always visible */}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); shareMatch(match); }}
+                                                    className="flex items-center gap-1.5 text-xs font-bold text-lime-700 dark:text-lime-400 bg-lime-50 dark:bg-lime-900/20 hover:bg-lime-100 dark:hover:bg-lime-900/40 px-3 py-1.5 rounded-lg transition-colors border border-lime-200 dark:border-lime-900/40"
+                                                    title="Compartir por WhatsApp"
+                                                >
+                                                    <MessageCircle size={12} /> WhatsApp
+                                                </button>
                                             </div>
                                             
                                             <div className="flex items-center gap-4 ml-auto">
