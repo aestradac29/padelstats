@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity
+    Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity, Table
 } from './components/Icons';
 import {
     Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -21,7 +21,9 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { DEFAULT_SETTINGS, DEFAULT_SEASON, TANDA_OPTIONS } from './utils/constants';
 import { compressImage, recalculateStats, formatDate } from './utils/helpers';
 import { Button, Input, Select, Checkbox, PadelLogo } from './components/UIComponents';
-import { extractScheduleFromImage, parseMatchDetailsFromText } from './services/geminiService';
+import { extractScheduleFromImage, parseMatchDetailsFromText, extractScheduleFromExcel, extractScheduleFromFederationImage } from './services/geminiService';
+import * as XLSX from 'xlsx';
+import { downloadExcelTemplate } from './utils/excelTemplate';
 
 // Views
 import LoginView from './components/views/LoginView';
@@ -64,7 +66,7 @@ const App = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalType, setModalType] = useState<'ADD_PLAYER' | 'EDIT_PLAYER' | 'ADD_MATCH' | 'EDIT_MATCH' | 'EDIT_TEAM' | 'GENERATE_CALENDAR'>('ADD_PLAYER');
     const [importMode, setImportMode] = useState<'MANUAL' | 'BULK'>('MANUAL');
-    const [calendarMode, setCalendarMode] = useState<'PATTERN' | 'IMAGE'>('PATTERN');
+    const [calendarMode, setCalendarMode] = useState<'PATTERN' | 'EXCEL' | 'FEDERATION'>('PATTERN');
     const [matchToDelete, setMatchToDelete] = useState<MatchDay | null>(null);
 
     // Temporary State for Forms
@@ -101,6 +103,8 @@ const App = () => {
 
     // Calendar Image State
     const [calendarImage, setCalendarImage] = useState<string | null>(null);
+    const [calendarExcelData, setCalendarExcelData] = useState<any[] | null>(null);
+    const [calendarFileName, setCalendarFileName] = useState<string | null>(null);
     const [myClubName, setMyClubName] = useState('');
     const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
     const [previewMatches, setPreviewMatches] = useState<Partial<MatchDay>[]>([]);
@@ -399,11 +403,41 @@ const App = () => {
         }
     };
 
-    const analyzeCalendarImage = async () => {
+    const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setCalendarFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws, { raw: false });
+            setCalendarExcelData(data);
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const analyzeCalendarExcel = async () => {
+        if (!calendarExcelData) return;
+        setIsAnalyzingImage(true);
+        try {
+            const matches = await extractScheduleFromExcel(calendarExcelData);
+            setPreviewMatches(matches);
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setIsAnalyzingImage(false);
+        }
+    };
+
+    const analyzeFederationImage = async () => {
         if (!calendarImage) return;
         setIsAnalyzingImage(true);
         try {
-            const matches = await extractScheduleFromImage(calendarImage, myClubName);
+            const matches = await extractScheduleFromFederationImage(calendarImage);
             setPreviewMatches(matches);
         } catch (e: any) {
             alert(e.message);
@@ -439,22 +473,96 @@ const App = () => {
         }
     };
 
+    const handleFederationImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !data) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            const base64 = evt.target?.result as string;
+            setIsProcessingText(true);
+            try {
+                const matches = await extractScheduleFromFederationImage(base64, data.players);
+                if (matches.length > 0) {
+                    const match = matches[0];
+
+                    // Map lineups: resolve player names -> IDs where possible
+                    const resolvedLineups = (match.lineups || []).map((l: any, idx: number) => {
+                        // Try to find player1 by name
+                        const findId = (name: string): string => {
+                            if (!name) return '';
+                            const normalized = name.toLowerCase().trim();
+                            const found = data.players.find(p => {
+                                const fullName = `${p.name} ${p.surname || ''}`.toLowerCase().trim();
+                                const firstName = p.name.toLowerCase();
+                                return fullName === normalized ||
+                                    firstName === normalized ||
+                                    normalized.includes(firstName) ||
+                                    fullName.includes(normalized);
+                            });
+                            return found?.id || '';
+                        };
+
+                        return {
+                            player1Id: l.player1Id || findId(l.player1Name || ''),
+                            player2Id: l.player2Id || findId(l.player2Name || ''),
+                            opponent1Name: l.opponent1Name || l.opponent2Name ? l.opponent1Name : '',
+                            opponent2Name: l.opponent2Name || '',
+                            set1: l.set1 || '',
+                            set2: l.set2 || '',
+                            set3: l.set3 || '',
+                            result: l.result || 'Derrota',
+                            pairNumber: l.pairNumber || (idx + 1),
+                        };
+                    });
+
+                    // Collect matched player IDs for availablePlayers
+                    const matchedPlayerIds = resolvedLineups
+                        .flatMap((l: any) => [l.player1Id, l.player2Id])
+                        .filter(Boolean);
+                    const mergedAvailable = Array.from(new Set([
+                        ...(tempMatch.availablePlayers || []),
+                        ...matchedPlayerIds
+                    ]));
+
+                    setTempMatch(m => ({
+                        ...m,
+                        opponent: match.opponent || m.opponent,
+                        isHome: match.isHome !== undefined ? match.isHome : m.isHome,
+                        date: match.date || m.date,
+                        notes: match.notes || m.notes,
+                        tandas: match.tandas || m.tandas,
+                        lineups: resolvedLineups.length > 0 ? resolvedLineups : m.lineups,
+                        availablePlayers: mergedAvailable
+                    }));
+                }
+            } catch (err) {
+                alert("Error procesando acta de federación. Revisa la imagen e inténtalo de nuevo.");
+                console.error(err);
+            } finally {
+                setIsProcessingText(false);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     const saveImportedMatches = async () => {
         if (!data || !teamId || previewMatches.length === 0) return;
         const activeSeason = data.seasons?.find(s => s.isActive) || DEFAULT_SEASON;
 
-        // Add SeasonID to imported matches
-        const matchesToSave: MatchDay[] = previewMatches.map(m => ({
+        // Add SeasonID to imported matches — preserve tandas, ignorePoints, isRestDay from previewMatches
+        const matchesToSave: MatchDay[] = previewMatches.map((m, i) => ({
             ...m,
-            id: m.id || Date.now().toString() + Math.random().toString(),
+            id: m.id || `${Date.now()}_${i}_${Math.random().toString(36).slice(2)}`,
             seasonId: activeSeason.id,
-            lineups: [],
-            tandas: '5',
-            availablePlayers: [],
+            lineups: m.lineups || [],
+            tandas: m.tandas || '5',
+            availablePlayers: m.availablePlayers || [],
             isHome: m.isHome ?? true,
             date: m.date || new Date().toISOString(),
             opponent: m.opponent || 'Desconocido',
-            ignorePoints: false
+            ignorePoints: !!m.ignorePoints,
+            isRestDay: !!m.isRestDay
         } as MatchDay));
 
         const updatedMatches = [...data.matches, ...matchesToSave];
@@ -508,8 +616,8 @@ const App = () => {
             tandas: tempMatch.tandas || '5',
             seasonId: tempMatch.seasonId || activeSeason.id,
             availablePlayers: finalAvailablePlayers,
-            isRestDay: tempMatch.isRestDay || false,
-            ignorePoints: tempMatch.ignorePoints || false
+            isRestDay: !!tempMatch.isRestDay,
+            ignorePoints: !!tempMatch.ignorePoints
         };
 
         // Sanitize before saving
@@ -1133,10 +1241,14 @@ const App = () => {
 
                                 {/* Import Text Button Area */}
                                 {!showMatchTextImport ? (
-                                    <div className="flex justify-end mb-2">
+                                    <div className="flex justify-end mb-2 gap-2">
                                         <button onClick={() => setShowMatchTextImport(true)} className="flex items-center gap-1 text-[10px] uppercase font-black text-lime-600 bg-lime-50 dark:bg-lime-900/20 dark:text-lime-400 px-3 py-2 rounded-lg hover:bg-lime-100 dark:hover:bg-lime-900/30 transition-colors">
                                             <List size={14} /> Importar desde WhatsApp
                                         </button>
+                                        <label className={`flex items-center gap-1 text-[10px] uppercase font-black text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors ${isProcessingText ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                            {isProcessingText ? <><Sparkles size={14} className="animate-pulse" /> Procesando...</> : <><Camera size={14} /> Importar desde Federación</>}
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleFederationImageUpload} disabled={isProcessingText} />
+                                        </label>
                                     </div>
                                 ) : (
                                     <div className="mb-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 animate-in fade-in slide-in-from-top-2">
@@ -1306,7 +1418,8 @@ const App = () => {
                                     {/* Tab Switcher */}
                                     <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
                                         <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'PATTERN' ? 'bg-white dark:bg-slate-700 text-blue-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('PATTERN')}>Patrón Automático</button>
-                                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'IMAGE' ? 'bg-white dark:bg-slate-700 text-lime-700 dark:text-lime-400 shadow-sm border border-lime-200 dark:border-lime-800' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('IMAGE')}><span className="flex items-center justify-center gap-1"><Sparkles size={12} /> Importar con IA</span></button>
+                                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'EXCEL' ? 'bg-white dark:bg-slate-700 text-lime-700 dark:text-lime-400 shadow-sm border border-lime-200 dark:border-lime-800' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('EXCEL')}><span className="flex items-center justify-center gap-1"><Table size={12} /> Excel</span></button>
+                                        <button className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${calendarMode === 'FEDERATION' ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setCalendarMode('FEDERATION')}><span className="flex items-center justify-center gap-1"><Camera size={12} /> Federación</span></button>
                                     </div>
 
                                     {calendarMode === 'PATTERN' ? (
@@ -1356,62 +1469,110 @@ const App = () => {
                                                 <Checkbox label="Crear Ida y Vuelta (Doble enfrentamiento)" checked={genDoubleRound} onChange={setGenDoubleRound} />
                                             </div>
                                         </>
-                                    ) : (
+                                    ) : calendarMode === 'EXCEL' ? (
                                         <>
                                             <div className="bg-slate-900 text-white p-4 rounded-xl text-sm border border-slate-700 relative overflow-hidden">
                                                 <div className="absolute top-0 right-0 w-32 h-32 bg-lime-500 blur-[60px] opacity-20 rounded-full pointer-events-none"></div>
-                                                <h4 className="font-bold flex items-center gap-2 mb-1 relative z-10"><ImageIcon size={16} /> Lector de Calendarios</h4>
-                                                <p className="opacity-80 text-xs relative z-10">Sube una foto de tu calendario (Excel, Tabla, Papel) y la IA extraerá los partidos automáticamente.</p>
+                                                <h4 className="font-bold flex items-center gap-2 mb-1 relative z-10"><List size={16} /> Importador de Excel</h4>
+                                                <p className="opacity-80 text-xs relative z-10">Descarga la plantilla, rellénala con tus jornadas y súbela para que la IA cree tu calendario.</p>
                                             </div>
 
-                                            {!calendarImage ? (
-                                                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
-                                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleCalendarImageUpload} />
-                                                    <Upload className="text-slate-400 mb-2 group-hover:scale-110 transition-transform" size={32} />
-                                                    <span className="font-bold text-slate-600 dark:text-slate-300 text-sm">Toca para subir imagen</span>
-                                                    <span className="text-xs text-slate-400 mt-1">Soporta .jpg, .png</span>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-4">
-                                                    <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900 p-2 rounded-xl">
-                                                        <img src={calendarImage} className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-700" />
-                                                        <div className="flex-1">
-                                                            <span className="text-xs font-bold text-lime-600 uppercase tracking-wider block mb-1">Imagen Cargada</span>
-                                                            <button onClick={() => { setCalendarImage(null); setPreviewMatches([]); }} className="text-xs text-red-500 hover:underline font-bold">Cambiar imagen</button>
-                                                        </div>
+                                            <div className="flex flex-col gap-4">
+                                                <Button 
+                                                    variant="secondary" 
+                                                    onClick={downloadExcelTemplate}
+                                                    className="w-full justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                                                >
+                                                    <Upload size={16} /> Descargar Plantilla Excel
+                                                </Button>
+
+                                                {!calendarExcelData ? (
+                                                    <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
+                                                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept=".xlsx, .xls" onChange={handleExcelUpload} />
+                                                        <Upload className="text-slate-400 mb-2 group-hover:scale-110 transition-transform" size={32} />
+                                                        <span className="font-bold text-slate-600 dark:text-slate-300 text-sm">Sube tu archivo Excel</span>
+                                                        <span className="text-xs text-slate-400 mt-1">Soporta .xlsx, .xls</span>
                                                     </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                                                            <div className="w-10 h-10 bg-lime-100 dark:bg-lime-900/30 text-lime-600 dark:text-lime-400 flex items-center justify-center rounded-lg">
+                                                                <Table size={20} />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">{calendarFileName}</span>
+                                                                <button onClick={() => { setCalendarExcelData(null); setCalendarFileName(null); setPreviewMatches([]); }} className="text-[10px] text-red-500 hover:underline font-bold">Cambiar archivo</button>
+                                                            </div>
+                                                        </div>
 
-                                                    <Input
-                                                        label="Nombre de tu Club/Sede (Para saber si es Casa)"
-                                                        placeholder="Ej. Racket Sport"
-                                                        value={myClubName}
-                                                        onChange={(e) => setMyClubName(e.target.value)}
-                                                    />
+                                                        {previewMatches.length === 0 ? (
+                                                            <Button onClick={analyzeCalendarExcel} disabled={isAnalyzingImage} className="w-full">
+                                                                {isAnalyzingImage ? 'Procesando Excel...' : 'Procesar con IA'}
+                                                            </Button>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Vista Previa ({previewMatches.length})</h4>
+                                                                <div className="max-h-48 overflow-y-auto border rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                                                                    {previewMatches.map((m, i) => (
+                                                                        <div key={i} className="p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 text-sm flex justify-between items-center">
+                                                                            <div>
+                                                                                <div className="font-bold text-slate-800 dark:text-white">{m.opponent}</div>
+                                                                                <div className="text-[10px] text-slate-500 dark:text-slate-400">{formatDate(m.date!)} • {m.tandas} Tandas</div>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {m.isRestDay && <span className="text-[8px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-black">DESCANSO</span>}
+                                                                                {m.ignorePoints && <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black">HISTÓRICO</span>}
+                                                                                <div className={`text-[10px] font-black uppercase px-2 py-1 rounded ${m.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
+                                                                                    {m.isHome ? 'Casa' : 'Fuera'}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="bg-blue-900 text-white p-4 rounded-xl text-sm border border-blue-700 relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 blur-[60px] opacity-20 rounded-full pointer-events-none"></div>
+                                                <h4 className="font-bold flex items-center gap-2 mb-1 relative z-10"><Camera size={16} /> Importador de Federación</h4>
+                                                <p className="opacity-80 text-xs relative z-10">Sube una imagen del acta oficial de la federación y la IA extraerá los resultados.</p>
+                                            </div>
 
-                                                    {previewMatches.length === 0 ? (
-                                                        <Button onClick={analyzeCalendarImage} disabled={!myClubName || isAnalyzingImage} className="w-full">
-                                                            {isAnalyzingImage ? 'Analizando imagen...' : 'Extraer Partidos'}
-                                                        </Button>
-                                                    ) : (
-                                                        <div className="space-y-2">
-                                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Vista Previa ({previewMatches.length})</h4>
-                                                            <div className="max-h-48 overflow-y-auto border rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
-                                                                {previewMatches.map((m, i) => (
-                                                                    <div key={i} className="p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 text-sm flex justify-between items-center">
-                                                                        <div>
+                                            <div className="flex flex-col gap-4">
+                                                {!calendarImage ? (
+                                                    <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative group">
+                                                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleCalendarImageUpload} />
+                                                        <Camera className="text-slate-400 mb-2 group-hover:scale-110 transition-transform" size={32} />
+                                                        <span className="font-bold text-slate-600 dark:text-slate-300 text-sm">Sube la imagen del acta</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        <img src={calendarImage} alt="Acta Federación" className="rounded-xl border border-slate-200 dark:border-slate-700 w-full" />
+                                                        {previewMatches.length === 0 ? (
+                                                            <Button onClick={analyzeFederationImage} disabled={isAnalyzingImage} className="w-full">
+                                                                {isAnalyzingImage ? 'Procesando acta...' : 'Procesar con IA'}
+                                                            </Button>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Vista Previa ({previewMatches.length})</h4>
+                                                                <div className="max-h-48 overflow-y-auto border rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                                                                    {previewMatches.map((m, i) => (
+                                                                        <div key={i} className="p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 text-sm">
                                                                             <div className="font-bold text-slate-800 dark:text-white">{m.opponent}</div>
                                                                             <div className="text-[10px] text-slate-500 dark:text-slate-400">{formatDate(m.date!)}</div>
                                                                         </div>
-                                                                        <div className={`text-[10px] font-black uppercase px-2 py-1 rounded ${m.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
-                                                                            {m.isHome ? 'Casa' : 'Fuera'}
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
+                                                                    ))}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </>
                                     )}
                                 </div>

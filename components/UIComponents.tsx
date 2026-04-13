@@ -83,7 +83,7 @@ export const GlassCard = ({ children, className = '' }: { children: React.ReactN
   </div>
 );
 
-export const Input = ({ label, type = "text", hint, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string, hint?: string }) => {
+export const Input = ({ label, type = "text", hint, value, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string, hint?: string }) => {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === 'password';
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
@@ -95,6 +95,7 @@ export const Input = ({ label, type = "text", hint, ...props }: React.InputHTMLA
                 <input 
                   className="px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:focus:border-blue-400 transition-all w-full font-medium pr-10 placeholder:text-slate-400 dark:placeholder:text-slate-600 [color-scheme:light] dark:[color-scheme:dark]"
                   type={inputType}
+                  value={value !== undefined ? value : ''}
                   {...props} 
                 />
                 {isPassword && (
