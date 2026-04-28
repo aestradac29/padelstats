@@ -85,9 +85,59 @@ export interface AppState {
   matches: MatchDay[];
   settings: TeamSettings; // Global/Fallback settings
   seasons?: Season[]; // Array of seasons
+  playoffs?: PlayoffBracket[]; // Playoff brackets
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD' | 'PLAYERS' | 'MATCHES' | 'LINEUP' | 'SETTINGS' | 'QUICK_LINEUP' | 'PAIRS';
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'PLAYERS' | 'MATCHES' | 'LINEUP' | 'SETTINGS' | 'QUICK_LINEUP' | 'PAIRS' | 'PLAYOFFS';
+
+// ─── PLAYOFF TYPES ───────────────────────────────────────────────────────────
+
+export type PlayoffLegFormat = 'SINGLE' | 'HOME_AWAY'; // ida o ida y vuelta
+
+export type PlayoffTieResult = 'WIN' | 'LOSS' | 'PENDING';
+
+/** A single leg (partido de ida o vuelta) within a tie */
+export interface PlayoffLeg {
+  id: string;
+  matchDayId?: string; // linked to a MatchDay in the main calendar (optional)
+  isHome: boolean;
+  lineups: MatchLineup[];
+  tandas?: string;
+  date?: string;
+  notes?: string;
+}
+
+/** A tie = enfrentamiento entre dos equipos (1 o 2 partidos) */
+export interface PlayoffTie {
+  id: string;
+  roundId: string;
+  homeTeam: string;   // nuestro equipo name or opponent name
+  awayTeam: string;
+  seedHome?: number;  // clasificación (para desempate)
+  seedAway?: number;
+  legFormat: PlayoffLegFormat;
+  legs: PlayoffLeg[]; // 1 leg for SINGLE, up to 2 for HOME_AWAY
+  winnerId?: string;  // 'home' | 'away' | null (pending)
+  notes?: string;
+}
+
+/** A round = una ronda del playoff (Cuartos, Semis, Final…) */
+export interface PlayoffRound {
+  id: string;
+  name: string;       // e.g. "Cuartos de Final"
+  order: number;      // 1 = first round
+  legFormat: PlayoffLegFormat;
+  ties: PlayoffTie[];
+}
+
+/** Top-level playoff bracket, attached to a season */
+export interface PlayoffBracket {
+  id: string;
+  seasonId: string;
+  name: string;       // e.g. "Playoff Ascenso"
+  rounds: PlayoffRound[];
+  createdAt: string;
+}
 
 export interface UserSession {
   role: 'CAPTAIN' | 'GUEST';

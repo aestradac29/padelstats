@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity, Table
+    Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity, Table, Sword
 } from './components/Icons';
 import {
     Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
@@ -24,6 +24,7 @@ import { Button, Input, Select, Checkbox, PadelLogo } from './components/UICompo
 import { extractScheduleFromImage, parseMatchDetailsFromText, extractScheduleFromExcel, extractScheduleFromFederationImage } from './services/geminiService';
 import * as XLSX from 'xlsx';
 import { downloadExcelTemplate } from './utils/excelTemplate';
+import { useToast } from './components/Toast';
 
 // Views
 import LoginView from './components/views/LoginView';
@@ -34,9 +35,11 @@ import LineupView from './components/views/LineupView';
 import SettingsView from './components/views/SettingsView';
 import QuickLineupView from './components/views/QuickLineupView';
 import PairsView from './components/views/PairsView';
+import PlayoffsView from './components/views/PlayoffsView';
 
 const App = () => {
     // --- Global State ---
+    const { success: toastSuccess, error: toastError, info: toastInfo, warning: toastWarning } = useToast();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [teamId, setTeamId] = useState<string | null>(null);
     const [checkingTeam, setCheckingTeam] = useState(true);
@@ -218,7 +221,7 @@ const App = () => {
             setCurrentView('DASHBOARD');
         } catch (e) {
             console.error(e);
-            alert("Error creando equipo");
+            toastError("Error al crear el equipo");
         } finally {
             setIsLoading(false);
         }
@@ -385,7 +388,7 @@ const App = () => {
             const compressed = await compressImage(file);
             setTempPlayer(prev => ({ ...prev, photoUrl: compressed }));
         } catch (err) {
-            alert("Error subiendo imagen");
+            toastError("Error subiendo la imagen");
         }
     };
 
@@ -399,7 +402,7 @@ const App = () => {
             setCalendarImage(compressed);
             setPreviewMatches([]);
         } catch (err) {
-            alert("Error cargando imagen");
+            toastError("Error cargando la imagen");
         }
     };
 
@@ -427,7 +430,7 @@ const App = () => {
             const matches = await extractScheduleFromExcel(calendarExcelData);
             setPreviewMatches(matches);
         } catch (e: any) {
-            alert(e.message);
+            toastError(e.message || "Ha ocurrido un error");
         } finally {
             setIsAnalyzingImage(false);
         }
@@ -440,7 +443,7 @@ const App = () => {
             const matches = await extractScheduleFromFederationImage(calendarImage);
             setPreviewMatches(matches);
         } catch (e: any) {
-            alert(e.message);
+            toastError(e.message || "Ha ocurrido un error");
         } finally {
             setIsAnalyzingImage(false);
         }
@@ -467,7 +470,7 @@ const App = () => {
             setMatchImportText('');
             setShowMatchTextImport(false);
         } catch (e: any) {
-            alert(e.message);
+            toastError(e.message || "Ha ocurrido un error");
         } finally {
             setIsProcessingText(false);
         }
@@ -537,7 +540,7 @@ const App = () => {
                     }));
                 }
             } catch (err) {
-                alert("Error procesando acta de federación. Revisa la imagen e inténtalo de nuevo.");
+                toastError("Error procesando el acta. Revisa la imagen.");
                 console.error(err);
             } finally {
                 setIsProcessingText(false);
@@ -594,7 +597,7 @@ const App = () => {
             setMatchToDelete(null);
         } catch (e) {
             console.error("Error deleting match:", e);
-            alert("Error al eliminar la jornada. Inténtalo de nuevo.");
+            toastError("Error al eliminar la jornada");
         }
     };
 
@@ -636,7 +639,7 @@ const App = () => {
             setIsModalOpen(false);
         } catch (e) {
             console.error(e);
-            alert("Error guardando jornada.");
+            toastError("Error al guardar la jornada");
         }
     };
 
@@ -666,7 +669,7 @@ const App = () => {
         // 1. Parse opponents
         const opponents = genOpponents.split('\n').map(s => s.trim()).filter(Boolean);
         if (opponents.length === 0) {
-            alert("Introduce al menos un rival.");
+            toastWarning("Introduce al menos un rival");
             return;
         }
 
@@ -733,7 +736,7 @@ const App = () => {
     const addLineupToTempMatch = () => {
         const { player1Id, player2Id, s1We, s1They, s2We, s2They, s3We, s3They, opponent1Name, opponent2Name, pairNumber } = tempLineupScores;
         if (!player1Id || !player2Id) {
-            alert("Selecciona dos jugadores");
+            toastWarning("Selecciona dos jugadores para la pareja");
             return;
         }
         const calculateSetWinner = (left: string, right: string, isHome: boolean) => {
@@ -928,6 +931,7 @@ const App = () => {
                     { id: 'DASHBOARD', label: 'Inicio', icon: Trophy },
                     { id: 'PLAYERS', label: 'Plantilla', icon: Users },
                     { id: 'MATCHES', label: 'Jornadas', icon: Calendar },
+                    { id: 'PLAYOFFS', label: 'Playoffs', icon: Sword },
                     { id: 'LINEUP', label: 'Alineación', icon: LayoutGrid },
                     { id: 'QUICK_LINEUP', label: 'Alineación Rápida', icon: Sparkles },
                     { id: 'PAIRS', label: 'Análisis Parejas', icon: Activity },
@@ -1076,6 +1080,15 @@ const App = () => {
                             deleteMatch={deleteMatch}
                         />
                     )}
+                    {currentView === 'PLAYOFFS' && (
+                        <PlayoffsView
+                            data={data}
+                            teamId={teamId}
+                            viewSeasonId={viewSeasonId}
+                            sessionRole={sessionRole}
+                            updateTeamData={updateTeamData}
+                        />
+                    )}
                     {currentView === 'LINEUP' && (
                         <LineupView
                             data={data}
@@ -1122,8 +1135,8 @@ const App = () => {
                         { id: 'DASHBOARD', label: 'Inicio', icon: Trophy },
                         { id: 'PLAYERS', label: 'Plantilla', icon: Users },
                         { id: 'MATCHES', label: 'Jornadas', icon: Calendar },
+                        { id: 'PLAYOFFS', label: 'Playoffs', icon: Sword },
                         { id: 'LINEUP', label: 'Alineación', icon: LayoutGrid },
-                        { id: 'PAIRS', label: 'Parejas', icon: Activity },
                     ].map(item => {
                         const isActive = currentView === item.id;
                         return (
@@ -1147,9 +1160,9 @@ const App = () => {
                     {/* More button for QUICK_LINEUP and SETTINGS */}
                     <button
                         onClick={() => setIsMobileMenuOpen(true)}
-                        className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 px-1 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS'].includes(currentView) ? 'text-blue-950' : 'text-slate-400 dark:text-slate-500'}`}
+                        className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 px-1 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS', 'PAIRS'].includes(currentView) ? 'text-blue-950' : 'text-slate-400 dark:text-slate-500'}`}
                     >
-                        <div className={`flex items-center justify-center w-9 h-7 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS'].includes(currentView) ? 'bg-lime-400 shadow-sm' : 'bg-transparent'}`}>
+                        <div className={`flex items-center justify-center w-9 h-7 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS', 'PAIRS'].includes(currentView) ? 'bg-lime-400 shadow-sm' : 'bg-transparent'}`}>
                             <Menu size={18} className={['QUICK_LINEUP', 'SETTINGS'].includes(currentView) ? 'text-blue-950' : ''} />
                         </div>
                         <span className="text-[9px] font-black uppercase tracking-wide leading-none">Más</span>

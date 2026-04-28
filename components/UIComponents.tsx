@@ -237,3 +237,43 @@ export const Avatar = ({ name, photoUrl, size = 'md' }: { name: string, photoUrl
     </div>
   );
 };
+
+// ─── ConfirmDialog ────────────────────────────────────────────────────────────
+interface ConfirmDialogProps {
+  isOpen: boolean;
+  title: string;
+  message: React.ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: 'danger' | 'warning';
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
+  isOpen, title, message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar',
+  variant = 'danger', onConfirm, onCancel
+}) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-700 text-center animate-in zoom-in-95 duration-200">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${variant === 'danger' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={variant === 'danger' ? 'text-red-500' : 'text-amber-500'}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h4 className="text-slate-900 dark:text-white font-black text-xl mb-2">{title}</h4>
+        <div className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">{message}</div>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-all">
+            {cancelLabel}
+          </button>
+          <button onClick={onConfirm} className={`flex-1 px-4 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg ${variant === 'danger' ? 'bg-red-500 hover:bg-red-400 text-white shadow-red-500/20' : 'bg-amber-400 hover:bg-amber-300 text-blue-900 shadow-amber-400/20'}`}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

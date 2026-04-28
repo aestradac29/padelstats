@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { AppState, MatchResult, Player, MatchDay } from '../../types';
 import { analyzeTeamStats, AIAnalysisResult } from '../../services/geminiService';
 import { getPoints } from './PlayersView';
+import { useToast } from '../Toast';
 
 interface DashboardViewProps {
     data: AppState | null;
