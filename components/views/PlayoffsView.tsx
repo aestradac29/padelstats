@@ -20,13 +20,15 @@ function getLegStats(leg: PlayoffLeg): LegStats {
   for (const l of leg.lineups) {
     if (l.result === MatchResult.WIN) matchWins++;
     else if (l.result === MatchResult.LOSS) matchLosses++;
+    // Format is always "ours-theirs"
     for (const set of [l.set1, l.set2, l.set3].filter(Boolean) as string[]) {
       const parts = set.split('-');
       if (parts.length === 2) {
-        const [a, b] = parts.map(Number);
-        const ours = leg.isHome ? a : b;
-        const theirs = leg.isHome ? b : a;
-        if (ours > theirs) setsWon++; else if (theirs > ours) setsLost++;
+        const ours = Number(parts[0]);
+        const theirs = Number(parts[1]);
+        if (!isNaN(ours) && !isNaN(theirs)) {
+          if (ours > theirs) setsWon++; else if (theirs > ours) setsLost++;
+        }
       }
     }
   }
@@ -104,15 +106,33 @@ const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, pl
       if (sets.length === 0) return l;
       let w = 0, lv = 0;
       for (const s of sets) {
-        const [a, b] = s.split('-').map(Number);
-        if (isNaN(a) || isNaN(b)) continue;
-        const ours = isHome ? a : b;
-        const theirs = isHome ? b : a;
+        // Format is always "ours-theirs" regardless of home/away
+        const [ours, theirs] = s.split('-').map(Number);
+        if (isNaN(ours) || isNaN(theirs)) continue;
         if (ours > theirs) w++; else if (theirs > ours) lv++;
       }
       return { ...l, result: w > lv ? MatchResult.WIN : lv > w ? MatchResult.LOSS : MatchResult.DRAW };
     });
     onUpdate(updated, tandas);
+  };
+
+  // Helper: parse "ours-theirs" from stored set string
+  const parseSet = (val: string | undefined): [string, string] => {
+    if (!val) return ['', ''];
+    const parts = val.split('-');
+    return parts.length === 2 ? [parts[0], parts[1]] : ['', ''];
+  };
+
+  // Helper: update one half of a set field and merge back to "ours-theirs"
+  const updateSetHalf = (idx: number, setKey: 'set1' | 'set2' | 'set3', half: 'ours' | 'theirs', val: string) => {
+    const current = (ensuredLineups[idx][setKey] as string) || '';
+    const [ours, theirs] = parseSet(current);
+    const next = half === 'ours'
+      ? `${val}-${theirs}`
+      : `${ours}-${val}`;
+    // Only store if at least one side has a value
+    const cleaned = (val === '' && (half === 'ours' ? theirs : ours) === '') ? '' : next;
+    update(idx, setKey, cleaned);
   };
 
   // Filter to available players only; if none selected yet → empty list with hint
@@ -212,20 +232,55 @@ const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, pl
                 </div>
               </div>
 
-              {/* Sets */}
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider shrink-0">Sets</span>
-                <div className="flex gap-1.5 flex-1">
-                  {(['set1', 'set2', 'set3'] as (keyof MatchLineup)[]).map((setKey, si) => (
-                    <input
-                      key={setKey}
-                      type="text"
-                      placeholder={si === 2 ? 'Set 3' : `Set ${si + 1}`}
-                      value={(lineup[setKey] as string) || ''}
-                      onChange={e => update(idx, setKey, e.target.value)}
-                      className="flex-1 text-center text-sm font-black bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-1 py-2 placeholder-slate-300 focus:ring-2 focus:ring-lime-400 outline-none text-slate-800 dark:text-white"
-                    />
-                  ))}
+              {/* Sets — two fields per set: Nos / Ellos */}
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-3 gap-2">
+                  {(['set1', 'set2', 'set3'] as ('set1' | 'set2' | 'set3')[]).map((setKey, si) => {
+                    const [ours, theirs] = parseSet((lineup[setKey] as string) || '');
+                    const oursN = Number(ours), theirsN = Number(theirs);
+                    const setPlayed = ours !== '' || theirs !== '';
+                    const setWon = setPlayed && !isNaN(oursN) && !isNaN(theirsN) && oursN > theirsN;
+                    const setLost = setPlayed && !isNaN(oursN) && !isNaN(theirsN) && theirsN > oursN;
+                    return (
+                      <div key={setKey} className={`rounded-xl border overflow-hidden ${
+                        !setPlayed ? 'border-slate-200 dark:border-slate-700'
+                        : setWon ? 'border-lime-300 dark:border-lime-700'
+                        : setLost ? 'border-red-300 dark:border-red-700'
+                        : 'border-blue-200 dark:border-blue-800'
+                      }`}>
+                        <div className={`text-[9px] font-black text-center py-0.5 uppercase tracking-wider ${
+                          !setPlayed ? 'bg-slate-50 dark:bg-slate-800 text-slate-400'
+                          : setWon ? 'bg-lime-100 dark:bg-lime-900/30 text-lime-700 dark:text-lime-400'
+                          : setLost ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                          : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                        }`}>
+                          Set {si + 1}{si === 2 ? ' (opt.)' : ''}
+                        </div>
+                        <div className="flex">
+                          <div className="flex-1 flex flex-col items-center border-r border-slate-200 dark:border-slate-700">
+                            <span className="text-[8px] font-black text-slate-400 uppercase pt-1">Nos</span>
+                            <input
+                              type="number" min={0} max={99}
+                              value={ours}
+                              onChange={e => updateSetHalf(idx, setKey, 'ours', e.target.value)}
+                              placeholder="–"
+                              className="w-full text-center text-base font-black bg-transparent pb-1.5 pt-0.5 outline-none placeholder-slate-300 text-slate-800 dark:text-white"
+                            />
+                          </div>
+                          <div className="flex-1 flex flex-col items-center">
+                            <span className="text-[8px] font-black text-slate-400 uppercase pt-1">Ellos</span>
+                            <input
+                              type="number" min={0} max={99}
+                              value={theirs}
+                              onChange={e => updateSetHalf(idx, setKey, 'theirs', e.target.value)}
+                              placeholder="–"
+                              className="w-full text-center text-base font-black bg-transparent pb-1.5 pt-0.5 outline-none placeholder-slate-300 text-slate-800 dark:text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -467,10 +522,8 @@ const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRol
                       const isW = l.result === MatchResult.WIN;
                       const isL = l.result === MatchResult.LOSS;
                       const sets = [l.set1, l.set2, l.set3].filter(Boolean);
-                      const displaySets = sets.map(s => {
-                        if (!leg.isHome && s) { const p = s.split('-'); return p.length === 2 ? `${p[1]}-${p[0]}` : s; }
-                        return s;
-                      });
+                      // Format is always "ours-theirs" — no flipping needed
+                      const displaySets = sets as string[];
                       const p1 = players.find(p => p.id === l.player1Id);
                       const p2 = players.find(p => p.id === l.player2Id);
                       return (
