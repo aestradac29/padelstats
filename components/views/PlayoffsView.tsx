@@ -115,16 +115,18 @@ const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, pl
     onUpdate(updated, tandas);
   };
 
-  // Filter to available players only (if any set), sorted by name
+  // Filter to available players only; if none selected yet → empty list with hint
   const allSorted = [...players].sort((a, b) => a.name.localeCompare(b.name));
   const filteredPlayers = availablePlayers.length > 0
     ? allSorted.filter(p => availablePlayers.includes(p.id))
-    : allSorted;
+    : [];
 
-  const playerOptions = [
-    { value: '', label: availablePlayers.length > 0 ? '— Seleccionar disponible —' : '— Seleccionar jugador —' },
-    ...filteredPlayers.map(p => ({ value: p.id, label: p.name }))
-  ];
+  const playerOptions = availablePlayers.length > 0
+    ? [
+        { value: '', label: '— Seleccionar —' },
+        ...filteredPlayers.map(p => ({ value: p.id, label: p.name }))
+      ]
+    : [{ value: '', label: '— Marca disponibles primero —' }];
 
   return (
     <div className="space-y-3">
@@ -182,6 +184,11 @@ const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, pl
             {/* Pair form */}
             <div className="p-3 space-y-2.5 bg-white dark:bg-slate-900">
               {/* Our players */}
+              {availablePlayers.length === 0 && (
+                <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-3 py-2">
+                  ⚠️ Marca los jugadores disponibles arriba para poder seleccionarlos aquí.
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Jugador Revés</label>
