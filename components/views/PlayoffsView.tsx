@@ -145,8 +145,8 @@ const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, pl
         const hasSets = !!(lineup.set1 || lineup.set2);
         const hasPlayer = !!(lineup.player1Id || lineup.player2Id);
         const hasData = hasSets || hasPlayer;
-        const p1Name = sortedPlayers.find(p => p.id === lineup.player1Id)?.name;
-        const p2Name = sortedPlayers.find(p => p.id === lineup.player2Id)?.name;
+        const p1Name = allSorted.find((p: Player) => p.id === lineup.player1Id)?.name;
+        const p2Name = allSorted.find((p: Player) => p.id === lineup.player2Id)?.name;
 
         return (
           <div key={idx} className={`rounded-2xl border-2 overflow-hidden transition-all ${
