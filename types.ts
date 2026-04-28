@@ -105,6 +105,7 @@ export interface PlayoffLeg {
   tandas?: string;
   date?: string;
   notes?: string;
+  availablePlayers?: string[]; // Array of player IDs available for this leg
 }
 
 /** A tie = enfrentamiento entre dos equipos (1 o 2 partidos) */

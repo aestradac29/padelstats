@@ -85,10 +85,11 @@ interface LineupEditorProps {
   isHome: boolean;
   tandas: string;
   players: Player[];
+  availablePlayers: string[];
   onUpdate: (lineups: MatchLineup[], tandas: string) => void;
 }
 
-const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, players, onUpdate }) => {
+const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, players, availablePlayers, onUpdate }) => {
   const numPairs = parseInt(tandas?.split('-')[0] || '5', 10);
   const pairCount = !isNaN(numPairs) && numPairs <= 5 ? numPairs : 5;
 
@@ -114,10 +115,15 @@ const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, pl
     onUpdate(updated, tandas);
   };
 
-  const sortedPlayers = [...players].sort((a, b) => a.name.localeCompare(b.name));
+  // Filter to available players only (if any set), sorted by name
+  const allSorted = [...players].sort((a, b) => a.name.localeCompare(b.name));
+  const filteredPlayers = availablePlayers.length > 0
+    ? allSorted.filter(p => availablePlayers.includes(p.id))
+    : allSorted;
+
   const playerOptions = [
-    { value: '', label: '— Seleccionar —' },
-    ...sortedPlayers.map(p => ({ value: p.id, label: p.name }))
+    { value: '', label: availablePlayers.length > 0 ? '— Seleccionar disponible —' : '— Seleccionar jugador —' },
+    ...filteredPlayers.map(p => ({ value: p.id, label: p.name }))
   ];
 
   return (
@@ -421,6 +427,11 @@ const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRol
                         {new Date(leg.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                       </span>
                     )}
+                    {(leg.availablePlayers || []).length > 0 && !legHasData && (
+                      <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 flex items-center gap-1">
+                        <Users size={9}/> {(leg.availablePlayers || []).length} disp.
+                      </span>
+                    )}
                     {legHasData && (
                       <span className={`text-xs font-black ${legWon ? 'text-lime-600 dark:text-lime-400' : legLost ? 'text-red-500' : 'text-blue-500'}`}>
                         {legStats.matchWins}–{legStats.matchLosses}
@@ -501,11 +512,61 @@ const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRol
                         />
                       </div>
                     </div>
+
+                    {/* Availability picker */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                      <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800/60">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Jugadores disponibles</p>
+                          <p className="text-[9px] text-slate-400 mt-0.5">
+                            {(leg.availablePlayers || []).length === 0
+                              ? 'Marca quién juega — solo ellos aparecerán para seleccionar'
+                              : `${(leg.availablePlayers || []).length} seleccionados`}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const allIds = players.map(p => p.id);
+                            const currentAvail = leg.availablePlayers || [];
+                            const allSelected = allIds.every(id => currentAvail.includes(id));
+                            updateLeg(legIdx, { ...leg, availablePlayers: allSelected ? [] : allIds });
+                          }}
+                          className="text-[10px] font-black text-blue-500 hover:text-blue-600 underline shrink-0"
+                        >
+                          {players.every(p => (leg.availablePlayers || []).includes(p.id)) ? 'Quitar todos' : 'Todos'}
+                        </button>
+                      </div>
+                      <div className="p-2 grid grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+                        {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => {
+                          const isAvail = (leg.availablePlayers || []).includes(p.id);
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => {
+                                const current = leg.availablePlayers || [];
+                                const next = isAvail ? current.filter(id => id !== p.id) : [...current, p.id];
+                                updateLeg(legIdx, { ...leg, availablePlayers: next });
+                              }}
+                              className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border text-xs font-bold transition-all text-left ${
+                                isAvail
+                                  ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-400 dark:border-lime-700 text-slate-800 dark:text-lime-100'
+                                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
+                              }`}
+                            >
+                              <div className={`w-2 h-2 rounded-full shrink-0 ${isAvail ? 'bg-lime-500' : 'bg-slate-300 dark:bg-slate-600'}`}/>
+                              <span className="truncate">{p.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <LineupEditor
                       lineups={leg.lineups}
                       isHome={leg.isHome}
                       tandas={leg.tandas || '5'}
                       players={players}
+                      availablePlayers={leg.availablePlayers || []}
                       onUpdate={(lineups, tandas) => updateLeg(legIdx, { ...leg, lineups, tandas })}
                     />
                   </div>
