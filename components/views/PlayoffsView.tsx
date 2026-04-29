@@ -18,20 +18,27 @@ interface LegStats { matchWins: number; matchLosses: number; setsWon: number; se
 function getLegStats(leg: PlayoffLeg): LegStats {
   let matchWins = 0, matchLosses = 0, setsWon = 0, setsLost = 0;
   for (const l of leg.lineups) {
-    if (l.result === MatchResult.WIN) matchWins++;
-    else if (l.result === MatchResult.LOSS) matchLosses++;
-    // Format stored as "local-visitante" (standard sports convention)
+    // Recalculate from sets to avoid stale/legacy result values in DB
+    // Format stored as "local-visitante"
+    let pairSetsWon = 0, pairSetsLost = 0;
+    let hasSets = false;
     for (const set of [l.set1, l.set2, l.set3].filter(Boolean) as string[]) {
       const parts = set.split('-');
       if (parts.length === 2) {
         const local = Number(parts[0]);
         const visit = Number(parts[1]);
         if (!isNaN(local) && !isNaN(visit)) {
+          hasSets = true;
           const ours = leg.isHome ? local : visit;
           const theirs = leg.isHome ? visit : local;
-          if (ours > theirs) setsWon++; else if (theirs > ours) setsLost++;
+          if (ours > theirs) { pairSetsWon++; setsWon++; }
+          else if (theirs > ours) { pairSetsLost++; setsLost++; }
         }
       }
+    }
+    if (hasSets) {
+      if (pairSetsWon > pairSetsLost) matchWins++;
+      else if (pairSetsLost > pairSetsWon) matchLosses++;
     }
   }
   return { matchWins, matchLosses, setsWon, setsLost };
@@ -564,11 +571,24 @@ const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRol
                 {!isEditing && legHasData && (
                   <div className="p-3 space-y-1.5 bg-white dark:bg-slate-900">
                     {[...leg.lineups].sort((a, b) => (a.pairNumber ?? 99) - (b.pairNumber ?? 99)).map((l, i) => {
-                      const isW = l.result === MatchResult.WIN;
-                      const isL = l.result === MatchResult.LOSS;
-                      const sets = [l.set1, l.set2, l.set3].filter(Boolean);
-                      // Stored as "local-visitante" — display as-is, which is the natural format
-                      const displaySets = sets as string[];
+                      const sets = [l.set1, l.set2, l.set3].filter(Boolean) as string[];
+                      // Derive result from sets using isHome — ignore stale l.result from DB
+                      let pairSetsWon = 0, pairSetsLost = 0;
+                      for (const s of sets) {
+                        const parts = s.split('-');
+                        if (parts.length === 2) {
+                          const local = Number(parts[0]), visit = Number(parts[1]);
+                          if (!isNaN(local) && !isNaN(visit)) {
+                            const ours = leg.isHome ? local : visit;
+                            const theirs = leg.isHome ? visit : local;
+                            if (ours > theirs) pairSetsWon++; else if (theirs > ours) pairSetsLost++;
+                          }
+                        }
+                      }
+                      const isW = sets.length > 0 && pairSetsWon > pairSetsLost;
+                      const isL = sets.length > 0 && pairSetsLost > pairSetsWon;
+                      // Display sets as stored (local-visitante, natural format)
+                      const displaySets = sets;
                       const p1 = players.find(p => p.id === l.player1Id);
                       const p2 = players.find(p => p.id === l.player2Id);
                       return (
