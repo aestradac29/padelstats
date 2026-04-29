@@ -39,12 +39,26 @@ function resolveTie(tie: PlayoffTie): 'home' | 'away' | 'pending' {
   const completedLegs = tie.legs.filter(l => l.lineups.length > 0);
   if (completedLegs.length === 0) return 'pending';
   if (tie.legFormat === 'HOME_AWAY' && completedLegs.length < 2) return 'pending';
+
   let homePairWins = 0, awayPairWins = 0, homeSets = 0, awaySets = 0;
   for (const leg of completedLegs) {
     const s = getLegStats(leg);
-    homePairWins += s.matchWins; awayPairWins += s.matchLosses;
-    homeSets += s.setsWon; awaySets += s.setsLost;
+    // matchWins/setsWon are always OURS. Attribute to home or away based on leg.isHome.
+    if (leg.isHome) {
+      // We are the home team in this leg
+      homePairWins += s.matchWins;
+      awayPairWins += s.matchLosses;
+      homeSets += s.setsWon;
+      awaySets += s.setsLost;
+    } else {
+      // We are the away team in this leg
+      awayPairWins += s.matchWins;
+      homePairWins += s.matchLosses;
+      awaySets += s.setsWon;
+      homeSets += s.setsLost;
+    }
   }
+
   if (homePairWins > awayPairWins) return 'home';
   if (awayPairWins > homePairWins) return 'away';
   if (homeSets > awaySets) return 'home';
@@ -57,8 +71,18 @@ function getTieAggregate(tie: PlayoffTie) {
   let homeWins = 0, awayWins = 0, homeSets = 0, awaySets = 0;
   for (const leg of tie.legs) {
     const s = getLegStats(leg);
-    homeWins += s.matchWins; awayWins += s.matchLosses;
-    homeSets += s.setsWon; awaySets += s.setsLost;
+    // matchWins/setsWon are always OURS. Attribute to home or away based on leg.isHome.
+    if (leg.isHome) {
+      homeWins += s.matchWins;
+      awayWins += s.matchLosses;
+      homeSets += s.setsWon;
+      awaySets += s.setsLost;
+    } else {
+      awayWins += s.matchWins;
+      homeWins += s.matchLosses;
+      awaySets += s.setsWon;
+      homeSets += s.setsLost;
+    }
   }
   return { home: { wins: homeWins, sets: homeSets }, away: { wins: awayWins, sets: awaySets } };
 }
