@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2, Share2, MessageCircle, Copy } from '../Icons';
+import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2, Share2, MessageCircle, Copy, ChevronDown, ChevronUp } from '../Icons';
 import { Card, Button, Avatar, ProgressBar, ResultBadge } from '../UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AppState, MatchResult, Player, MatchDay } from '../../types';
@@ -86,10 +86,12 @@ const StatCard = ({ label, value, subtitle, icon, accent = false }: { label: str
 const DashboardView: React.FC<DashboardViewProps> = ({ 
     data, sessionRole, viewSeasonId, teamId, setTempTeamName, setModalType, setIsModalOpen, isDarkMode 
 }) => {
+    const { success: toastSuccess } = useToast();
     const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
     const [visiblePlayerIds, setVisiblePlayerIds] = useState<string[]>([]);
     const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+    const [showRecentMatches, setShowRecentMatches] = useState(false);
     
     // Initialize visible players
     useEffect(() => {
@@ -316,12 +318,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="flex gap-2 flex-wrap">
             {sessionRole === 'CAPTAIN' && (
-              <Button variant="secondary" onClick={() => { if (teamId) { navigator.clipboard.writeText(teamId); alert(`Código de equipo copiado: ${teamId}`); } }}>
+              <Button variant="secondary" onClick={() => { if (teamId) { navigator.clipboard.writeText(teamId); toastSuccess(`Código copiado: ${teamId}`); } }}>
                 <UserPlus size={16} /> Invitar
               </Button>
             )}
             {matchDaysPlayedCount > 0 && (
-              <Button variant="secondary" onClick={() => {
+              <Button variant="secondary" onClick={async () => {
                 const wr = matchDaysWinRate;
                 const record = `${matchDaysWon}V ${matchDaysDraw}E ${matchDaysLost}D`;
                 let text = `🎾 *${data.teamName}*\n`;
@@ -333,8 +335,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                   text += `🏆 Juegos: ${gamesStats.won}-${gamesStats.lost} | Sets: ${setsStats.won}-${setsStats.lost}\n`;
                 }
                 text += `\n💪 ¡Vamos equipo!`;
-                navigator.clipboard.writeText(text);
-                alert('Resumen copiado al portapapeles');
+                if (navigator.share) {
+                  try { await navigator.share({ text }); } catch {}
+                } else {
+                  navigator.clipboard.writeText(text);
+                  toastSuccess('Resumen copiado al portapapeles');
+                }
               }}>
                 <Copy size={16} /> Copiar resumen
               </Button>
@@ -682,6 +688,66 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </Card>
         </div>
+
+        {/* Recent Matches */}
+        {playedMatches.length > 0 && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+              onClick={() => setShowRecentMatches(v => !v)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Calendar size={16} className="text-slate-500 dark:text-slate-400" />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-black text-slate-900 dark:text-white text-sm">Últimas jornadas</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {[...playedMatches].slice(-5).map(m => {
+                      const w = m.lineups.filter(l => l.result === MatchResult.WIN).length;
+                      const lv = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
+                      return w > lv ? '🟢' : lv > w ? '🔴' : '🔵';
+                    }).join(' ')}
+                  </p>
+                </div>
+              </div>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 transition-transform duration-200 ${showRecentMatches ? 'rotate-180' : ''}`}>
+                <ChevronDown size={13} />
+              </div>
+            </button>
+            {showRecentMatches && (
+              <div className="border-t border-slate-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 animate-in slide-in-from-top-2 duration-200">
+                {[...playedMatches]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .slice(0, 5)
+                  .map(m => {
+                    const w = m.lineups.filter(l => l.result === MatchResult.WIN).length;
+                    const lv = m.lineups.filter(l => l.result === MatchResult.LOSS).length;
+                    const isWin = w > lv, isLoss = lv > w;
+                    return (
+                      <div key={m.id} className={`flex items-center gap-3 px-5 py-3 ${isWin ? 'bg-lime-50/50 dark:bg-lime-900/5' : isLoss ? 'bg-red-50/50 dark:bg-red-900/5' : ''}`}>
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${isWin ? 'bg-lime-500' : isLoss ? 'bg-red-500' : 'bg-blue-400'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${m.isHome ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'}`}>
+                              {m.isHome ? '🏠' : '✈️'}
+                            </span>
+                            <span className="font-black text-sm text-slate-800 dark:text-white truncate">vs {m.opponent}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {new Date(m.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </span>
+                        </div>
+                        <div className={`text-sm font-black tabular-nums ${isWin ? 'text-lime-600 dark:text-lime-400' : isLoss ? 'text-red-500' : 'text-blue-500'}`}>
+                          {w}–{lv}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* AI Analysis Section */}
         <div className="bg-gradient-to-r from-blue-950 to-blue-900 rounded-2xl p-0 text-white shadow-xl relative overflow-hidden border border-blue-800">

@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp, AlertCircle, Filter, Share2, Copy, Home, Plane } from '../Icons';
-import { Button, Card } from '../UIComponents';
+import { Button, Card, ConfirmDialog } from '../UIComponents';
 import { AppState, MatchDay, MatchResult } from '../../types';
 import { formatDate } from '../../utils/helpers';
 import { TANDA_OPTIONS } from '../../utils/constants';
+import { useToast } from '../Toast';
 
 interface MatchesViewProps {
     data: AppState | null;
@@ -20,11 +21,13 @@ interface MatchesViewProps {
 const MatchesView: React.FC<MatchesViewProps> = ({ 
     data, sessionRole, viewSeasonId, setTempMatch, setModalType, setIsModalOpen, deleteMatch
 }) => {
+    const { success: toastSuccess } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState<'LIST' | 'TABLE'>('TABLE');
     const [expandedMatches, setExpandedMatches] = useState<string[]>([]);
     const [filterResult, setFilterResult] = useState<'ALL' | 'WIN' | 'LOSS' | 'DRAW' | 'PENDING'>('ALL');
     const [filterVenue, setFilterVenue] = useState<'ALL' | 'HOME' | 'AWAY'>('ALL');
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     
     if (!data) return null;
 
@@ -124,7 +127,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
         return { wins, losses, draws, pending, total: played.length, last5 };
     })();
 
-    const shareMatch = (match: MatchDay) => {
+    const shareMatch = async (match: MatchDay) => {
         const statusEmoji = { WIN: '✅', LOSS: '❌', DRAW: '🔵', PENDING: '⏳' };
         const status = getMatchStatus(match);
         const score = getMatchScore(match);
@@ -150,12 +153,24 @@ const MatchesView: React.FC<MatchesViewProps> = ({
         }
 
         text += `\n💪 ¡Vamos equipo!`;
-        navigator.clipboard.writeText(text);
-        alert('Resumen copiado al portapapeles');
+        if (navigator.share) {
+            try { await navigator.share({ text }); } catch {}
+        } else {
+            navigator.clipboard.writeText(text);
+            toastSuccess('Resumen copiado al portapapeles');
+        }
     };
 
     return (
       <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right-4 duration-300 pb-2">
+        <ConfirmDialog
+          isOpen={!!confirmDeleteId}
+          title="¿Eliminar jornada?"
+          message="Se eliminará esta jornada y todos sus resultados. Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          onConfirm={() => { if (confirmDeleteId) { deleteMatch(confirmDeleteId); setConfirmDeleteId(null); } }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
         <header className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-6 sticky top-0 bg-slate-50 dark:bg-slate-950 z-20 pt-2">
           <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Jornadas</h2>
            
@@ -364,7 +379,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                             <Edit2 size={15} />
                                                         </button>
                                                         <button 
-                                                            onClick={() => deleteMatch(match.id)}
+                                                            onClick={() => setConfirmDeleteId(match.id)}
                                                             className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                                             title="Eliminar"
                                                         >
@@ -487,7 +502,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                             <Edit2 size={12} /> Editar
                                                         </button>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); deleteMatch(match.id); }}
+                                                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(match.id); }}
                                                             className="flex items-center gap-1.5 text-xs font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg transition-colors"
                                                         >
                                                             <Trash2 size={12} /> Eliminar
