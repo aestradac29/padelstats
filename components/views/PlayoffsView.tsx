@@ -51,12 +51,28 @@ const resolveTie = (tie: PlayoffTie): 'home' | 'away' | 'pending' => {
   const done = tie.legs.filter(l => l.lineups.some(lu => lu.set1));
   if (done.length === 0) return 'pending';
   if (tie.legFormat === 'HOME_AWAY' && done.length < 2) return 'pending';
-  let homePW = 0, awayPW = 0, homeSets = 0, awaySets = 0;
+
+  // matchWins/matchLosses from getLegStats are always OUR wins/losses
+  // Map to home/away based on who "we" are in the tie
+  let ourWins = 0, ourLosses = 0, ourSets = 0, theirSets = 0;
   for (const leg of done) {
     const s = getLegStats(leg);
-    if (leg.isHome) { homePW += s.matchWins; awayPW += s.matchLosses; homeSets += s.setsWon; awaySets += s.setsLost; }
-    else            { awayPW += s.matchWins; homePW += s.matchLosses; awaySets += s.setsWon; homeSets += s.setsLost; }
+    ourWins += s.matchWins;
+    ourLosses += s.matchLosses;
+    ourSets += s.setsWon;
+    theirSets += s.setsLost;
   }
+
+  // Determine if we are home or away in this tie
+  // (homeTeam is set when the tie is created based on weAreHome)
+  const weAreHomeTie = done[0] && tie.legs.some(l => l.isHome);
+  // Use first leg's isHome to determine our role in the tie
+  const weAreHome = tie.legs[0]?.isHome ?? true;
+  const homePW = weAreHome ? ourWins : ourLosses;
+  const awayPW = weAreHome ? ourLosses : ourWins;
+  const homeSets = weAreHome ? ourSets : theirSets;
+  const awaySets = weAreHome ? theirSets : ourSets;
+
   if (homePW > awayPW) return 'home';
   if (awayPW > homePW) return 'away';
   if (homeSets > awaySets) return 'home';
@@ -66,13 +82,20 @@ const resolveTie = (tie: PlayoffTie): 'home' | 'away' | 'pending' => {
 };
 
 const getTieAggregate = (tie: PlayoffTie) => {
-  let hw = 0, aw = 0, hs = 0, as_ = 0;
+  // matchWins/setsWon are always OUR wins — map to home/away via first leg
+  let ourWins = 0, ourLosses = 0, ourSets = 0, theirSets = 0;
   for (const leg of tie.legs) {
     const s = getLegStats(leg);
-    if (leg.isHome) { hw += s.matchWins; aw += s.matchLosses; hs += s.setsWon; as_ += s.setsLost; }
-    else            { aw += s.matchWins; hw += s.matchLosses; as_ += s.setsWon; hs += s.setsLost; }
+    ourWins += s.matchWins;
+    ourLosses += s.matchLosses;
+    ourSets += s.setsWon;
+    theirSets += s.setsLost;
   }
-  return { home: { wins: hw, sets: hs }, away: { wins: aw, sets: as_ } };
+  const weAreHome = tie.legs[0]?.isHome ?? true;
+  return {
+    home: { wins: weAreHome ? ourWins : ourLosses, sets: weAreHome ? ourSets : theirSets },
+    away: { wins: weAreHome ? ourLosses : ourWins, sets: weAreHome ? theirSets : ourSets },
+  };
 };
 
 const emptyLeg = (isHome: boolean): PlayoffLeg => ({ id: uuid(), isHome, lineups: [], tandas: '5', date: '', notes: '' });
