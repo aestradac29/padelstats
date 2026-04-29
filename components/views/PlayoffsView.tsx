@@ -256,8 +256,21 @@ const LineupEditor: React.FC<LineupEditorProps> = ({ lineups, isHome, tandas, pl
                 </div>
               </div>
 
-              {/* Sets — two fields per set: Nos / Ellos */}
+              {/* Sets — two fields per set: Nos / Ellos — always from OUR perspective */}
               <div className="space-y-1.5">
+                {/* Context banner */}
+                <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[10px] font-bold ${
+                  isHome
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                    : 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                }`}>
+                  <span>{isHome ? '🏠' : '✈️'}</span>
+                  <span>
+                    {isHome
+                      ? 'Partido en casa — Nos = vuestros games, Ellos = games del rival'
+                      : 'Partido fuera — Nos = vuestros games, Ellos = games del rival (aunque ellos sean el marcador "de la izquierda" en el club)'}
+                  </span>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   {(['set1', 'set2', 'set3'] as ('set1' | 'set2' | 'set3')[]).map((setKey, si) => {
                     const [ours, theirs] = parseSet((lineup[setKey] as string) || '');
