@@ -129,6 +129,7 @@ const emptyForm = (): LineupForm => ({
 const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, onClose }) => {
   const [editedLeg, setEditedLeg] = useState<PlayoffLeg>(leg);
   const [form, setForm] = useState<LineupForm>(emptyForm());
+  const [activeSection, setActiveSection] = useState<'setup' | 'lineups'>('setup');
 
   const availIds = editedLeg.availablePlayers || [];
   const allSorted = [...players].sort((a, b) => a.name.localeCompare(b.name));
@@ -138,9 +139,6 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
   const addLineup = () => {
     const { pairNumber, player1Id, player2Id, opponent1Name, opponent2Name, s1We, s1They, s2We, s2They, s3We, s3They } = form;
     if (!s1We || !s1They) return;
-    const sets = [`${s1We}-${s1They}`, `${s2We}-${s2They}`].filter(s => !s.startsWith('-') && !s.endsWith('-') && s !== '-');
-    if (s3We && s3They) sets.push(`${s3We}-${s3They}`);
-
     const newLineup: MatchLineup = {
       player1Id, player2Id,
       opponent1Name: opponent1Name || undefined,
@@ -152,12 +150,9 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
     };
     if (s3We && s3They) newLineup.set3 = `${s3We}-${s3They}`;
     newLineup.result = calcLineupResult(newLineup, editedLeg.isHome);
-
-    // Auto-add players to available
     const newAvail = [...availIds];
     if (player1Id && !newAvail.includes(player1Id)) newAvail.push(player1Id);
     if (player2Id && !newAvail.includes(player2Id)) newAvail.push(player2Id);
-
     setEditedLeg(prev => ({ ...prev, lineups: [...prev.lineups, newLineup], availablePlayers: newAvail }));
     setForm(emptyForm());
   };
@@ -166,11 +161,12 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
 
   const editLineup = (idx: number) => {
     const l = editedLeg.lineups[idx];
-    const [s1We, s1They] = (l.set1 || '').split('-');
-    const [s2We, s2They] = (l.set2 || '').split('-');
+    const [s1We, s1They] = (l.set1 || '-').split('-');
+    const [s2We, s2They] = (l.set2 || '-').split('-');
     const [s3We, s3They] = l.set3 ? l.set3.split('-') : ['', ''];
     setForm({ pairNumber: String(l.pairNumber || ''), player1Id: l.player1Id, player2Id: l.player2Id, opponent1Name: l.opponent1Name || '', opponent2Name: l.opponent2Name || '', s1We: s1We || '', s1They: s1They || '', s2We: s2We || '', s2They: s2They || '', s3We: s3We || '', s3They: s3They || '' });
     removeLineup(idx);
+    setActiveSection('lineups');
   };
 
   const toggleAvail = (id: string) => {
@@ -180,155 +176,265 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
 
   const leftLabel = editedLeg.isHome ? 'Nos' : 'Ellos';
   const rightLabel = editedLeg.isHome ? 'Ellos' : 'Nos';
+  const canAddLineup = !!(form.s1We && form.s1They);
+  const legStats = getLegStats(editedLeg);
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92dvh] overflow-y-auto shadow-2xl border border-slate-200 dark:border-slate-700">
-        {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-5 py-4 flex items-center justify-between z-10">
-          <div className="flex items-center gap-3">
-            <span className={`inline-flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-xl ${editedLeg.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
-              {editedLeg.isHome ? <Home size={12}/> : <Plane size={12}/>}
-              {editedLeg.isHome ? 'Partido en Casa' : 'Partido Fuera'}
-            </span>
-            <span className="text-xs text-slate-400">
-              {editedLeg.isHome ? '← Nos primero' : '← Ellos primero'}
-            </span>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-xl flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700" style={{ maxHeight: '94dvh' }}>
+
+        {/* ── Header ── */}
+        <div className="shrink-0 px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`inline-flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-xl ${editedLeg.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
+                  {editedLeg.isHome ? <Home size={12}/> : <Plane size={12}/>}
+                  {editedLeg.isHome ? 'Partido en casa' : 'Partido fuera'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {editedLeg.isHome
+                  ? 'Columna izquierda = vuestros games'
+                  : 'Columna izquierda = games del rival'}
+              </p>
+            </div>
+            <button onClick={onClose} className="shrink-0 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-all"><X size={18}/></button>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"><X size={18}/></button>
+
+          {/* Section tabs */}
+          <div className="flex gap-2 mt-4">
+            {[
+              { key: 'setup', label: '⚙️ Configuración' },
+              { key: 'lineups', label: `🎾 Parejas${editedLeg.lineups.length > 0 ? ` (${editedLeg.lineups.length})` : ''}` },
+            ].map(({ key, label }) => (
+              <button key={key} onClick={() => setActiveSection(key as any)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${activeSection === key ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="p-5 space-y-5">
-          {/* Date & notes */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Fecha y hora</label>
-              <input type="datetime-local" value={editedLeg.date || ''} onChange={e => setEditedLeg(p => ({ ...p, date: e.target.value }))} className="w-full text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-lime-400 outline-none"/>
-            </div>
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Tandas</label>
-              <select value={editedLeg.tandas || '5'} onChange={e => setEditedLeg(p => ({ ...p, tandas: e.target.value }))} className="w-full text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-lime-400 outline-none">
-                {TANDA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-          </div>
+        {/* ── Scrollable content ── */}
+        <div className="flex-1 overflow-y-auto min-h-0">
 
-          {/* Availability */}
-          <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Disponibilidad</h4>
-              <div className="flex gap-2">
-                <button onClick={() => setEditedLeg(p => ({ ...p, availablePlayers: allSorted.map(pl => pl.id) }))} className="text-[10px] font-bold text-blue-500 hover:underline">Todos</button>
-                <button onClick={() => setEditedLeg(p => ({ ...p, availablePlayers: [] }))} className="text-[10px] font-bold text-slate-400 hover:text-red-500 hover:underline">Ninguno</button>
+          {/* SETUP TAB */}
+          {activeSection === 'setup' && (
+            <div className="p-6 space-y-5">
+              {/* Date & Tandas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Fecha y hora</label>
+                  <input type="datetime-local" value={editedLeg.date || ''}
+                    onChange={e => setEditedLeg(p => ({ ...p, date: e.target.value }))}
+                    className="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-lime-400 outline-none"/>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Formato de tandas</label>
+                  <select value={editedLeg.tandas || '5'}
+                    onChange={e => setEditedLeg(p => ({ ...p, tandas: e.target.value }))}
+                    className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-lime-400 outline-none">
+                    {TANDA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto">
-              {allSorted.map(p => {
-                const sel = availIds.includes(p.id);
-                return (
-                  <button key={p.id} onClick={() => toggleAvail(p.id)} className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border text-xs font-bold transition-all text-left ${sel ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-400 dark:border-lime-700 text-slate-800 dark:text-lime-100' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 opacity-70 hover:opacity-100'}`}>
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${sel ? 'bg-lime-500' : 'bg-slate-300 dark:bg-slate-600'}`}/>
-                    <span className="truncate">{p.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Existing lineups */}
-          {editedLeg.lineups.length > 0 && (
-            <div className="space-y-2">
-              {[...editedLeg.lineups].sort((a, b) => (a.pairNumber ?? 99) - (b.pairNumber ?? 99)).map((l, i) => {
-                const res = calcLineupResult(l, editedLeg.isHome);
-                const isW = res === MatchResult.WIN, isL = res === MatchResult.LOSS;
-                const p1 = players.find(p => p.id === l.player1Id);
-                const p2 = players.find(p => p.id === l.player2Id);
-                const setsStr = [l.set1, l.set2, l.set3].filter(Boolean).join(' ');
-                return (
-                  <div key={i} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${isW ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-200 dark:border-lime-800' : isL ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${isW ? 'bg-lime-500' : isL ? 'bg-red-500' : 'bg-slate-400'}`}/>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-black text-slate-800 dark:text-white truncate">{p1?.name || '?'} / {p2?.name || '?'}</div>
-                      {(l.opponent1Name || l.opponent2Name) && <div className="text-[10px] text-slate-400 truncate">vs {l.opponent1Name} / {l.opponent2Name}</div>}
-                    </div>
-                    <div className={`font-mono font-black text-xs px-2 py-1 rounded-lg ${isW ? 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300' : isL ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>{setsStr}</div>
-                    <div className="flex gap-1 shrink-0">
-                      <button onClick={() => editLineup(i)} className="p-1 text-slate-400 hover:text-blue-500"><Edit2 size={13}/></button>
-                      <button onClick={() => removeLineup(i)} className="p-1 text-slate-400 hover:text-red-500"><Trash2 size={13}/></button>
-                    </div>
+              {/* Availability */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white">Disponibilidad</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {availIds.length === 0 ? 'Selecciona quién juega este partido' : `${availIds.length} jugador${availIds.length !== 1 ? 'es' : ''} disponible${availIds.length !== 1 ? 's' : ''}`}
+                    </p>
                   </div>
-                );
-              })}
+                  <div className="flex gap-3">
+                    <button onClick={() => setEditedLeg(p => ({ ...p, availablePlayers: allSorted.map(pl => pl.id) }))}
+                      className="text-xs font-bold text-blue-500 hover:text-blue-600 underline">Todos</button>
+                    <button onClick={() => setEditedLeg(p => ({ ...p, availablePlayers: [] }))}
+                      className="text-xs font-bold text-slate-400 hover:text-red-500 underline">Ninguno</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {allSorted.map(p => {
+                    const sel = availIds.includes(p.id);
+                    return (
+                      <button key={p.id} onClick={() => toggleAvail(p.id)}
+                        className={`flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-sm font-bold transition-all text-left ${sel ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-400 dark:border-lime-600 text-slate-800 dark:text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                        <div className={`w-3 h-3 rounded-full shrink-0 border-2 flex items-center justify-center ${sel ? 'bg-lime-500 border-lime-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                          {sel && <div className="w-1.5 h-1.5 rounded-full bg-white"/>}
+                        </div>
+                        <span className="truncate">{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button onClick={() => setActiveSection('lineups')}
+                className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-sm transition-all hover:bg-slate-700 dark:hover:bg-slate-100 flex items-center justify-center gap-2">
+                Continuar → Añadir resultados
+              </button>
             </div>
           )}
 
-          {/* Add lineup form */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Añadir Pareja</h4>
-            <div className="grid grid-cols-4 gap-2">
-              <div>
-                <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Pareja Nº</label>
-                <input type="number" min={1} max={9} value={form.pairNumber} onChange={e => setForm(f => ({ ...f, pairNumber: e.target.value }))} className="w-full text-sm font-black text-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 outline-none focus:ring-2 focus:ring-lime-400 text-slate-800 dark:text-white"/>
-              </div>
-              <div className="col-span-3 grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Jugador Revés</label>
-                  <select value={form.player1Id} onChange={e => setForm(f => ({ ...f, player1Id: e.target.value }))} className="w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
-                    {playerOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Jugador Drive</label>
-                  <select value={form.player2Id} onChange={e => setForm(f => ({ ...f, player2Id: e.target.value }))} className="w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
-                    {playerOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input type="text" placeholder="Rival Revés (opcional)" value={form.opponent1Name} onChange={e => setForm(f => ({ ...f, opponent1Name: e.target.value }))} className="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
-              <input type="text" placeholder="Rival Drive (opcional)" value={form.opponent2Name} onChange={e => setForm(f => ({ ...f, opponent2Name: e.target.value }))} className="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
-            </div>
+          {/* LINEUPS TAB */}
+          {activeSection === 'lineups' && (
+            <div className="p-6 space-y-5">
 
-            {/* Set scores — identical layout to App.tsx */}
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Set 1', we: 's1We', they: 's1They' },
-                { label: 'Set 2', we: 's2We', they: 's2They' },
-                { label: 'Set 3', we: 's3We', they: 's3They' },
-              ].map(({ label, we, they }) => {
-                const weVal = (form as any)[we] as string;
-                const theyVal = (form as any)[they] as string;
-                const res = weVal && theyVal ? calcSetResult(weVal, theyVal, editedLeg.isHome) : null;
-                return (
-                  <div key={label} className="flex flex-col gap-1 text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">{label}</span>
-                    <div className={`flex gap-1 rounded-xl overflow-hidden border ${res === 'win' ? 'border-lime-400' : res === 'loss' ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                      <div className="flex-1 flex flex-col">
-                        <span className={`text-[8px] font-black uppercase text-center pt-1 ${editedLeg.isHome ? 'text-blue-400' : 'text-orange-400'}`}>{leftLabel}</span>
-                        <input type="number" min={0} max={99} value={weVal} onChange={e => setForm(f => ({ ...f, [we]: e.target.value }))} className="w-full p-1.5 text-center bg-slate-50 dark:bg-slate-900 dark:text-white font-black text-sm outline-none"/>
+              {/* Summary of entered lineups */}
+              {editedLeg.lineups.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white">
+                      Parejas introducidas
+                    </h4>
+                    <span className={`text-sm font-black ${legStats.matchWins > legStats.matchLosses ? 'text-lime-500' : legStats.matchLosses > legStats.matchWins ? 'text-red-500' : 'text-blue-400'}`}>
+                      {legStats.matchWins}–{legStats.matchLosses}
+                    </span>
+                  </div>
+                  {[...editedLeg.lineups].sort((a, b) => (a.pairNumber ?? 99) - (b.pairNumber ?? 99)).map((l, i) => {
+                    const res = calcLineupResult(l, editedLeg.isHome);
+                    const isW = res === MatchResult.WIN, isL = res === MatchResult.LOSS;
+                    const p1 = players.find(p => p.id === l.player1Id);
+                    const p2 = players.find(p => p.id === l.player2Id);
+                    const setsStr = [l.set1, l.set2, l.set3].filter(Boolean).join('  ');
+                    return (
+                      <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 ${isW ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-300 dark:border-lime-800' : isL ? 'bg-red-50 dark:bg-red-900/10 border-red-300 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0 ${isW ? 'bg-lime-500' : isL ? 'bg-red-500' : 'bg-slate-400'}`}>
+                          {l.pairNumber ?? i + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-black text-slate-800 dark:text-white truncate">
+                            {p1?.name || '?'} / {p2?.name || '?'}
+                          </div>
+                          {(l.opponent1Name || l.opponent2Name) && (
+                            <div className="text-xs text-slate-400 truncate">vs {l.opponent1Name || '?'} / {l.opponent2Name || '?'}</div>
+                          )}
+                        </div>
+                        <div className={`font-mono font-black text-sm px-2.5 py-1 rounded-xl ${isW ? 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300' : isL ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>
+                          {setsStr}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <button onClick={() => editLineup(i)} className="p-2 text-slate-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"><Edit2 size={14}/></button>
+                          <button onClick={() => removeLineup(i)} className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={14}/></button>
+                        </div>
                       </div>
-                      <div className="w-px bg-slate-200 dark:bg-slate-700 self-stretch"/>
-                      <div className="flex-1 flex flex-col">
-                        <span className={`text-[8px] font-black uppercase text-center pt-1 ${editedLeg.isHome ? 'text-orange-400' : 'text-blue-400'}`}>{rightLabel}</span>
-                        <input type="number" min={0} max={99} value={theyVal} onChange={e => setForm(f => ({ ...f, [they]: e.target.value }))} className="w-full p-1.5 text-center bg-slate-50 dark:bg-slate-900 dark:text-white font-black text-sm outline-none"/>
-                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Add lineup form */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+                <h4 className="text-sm font-black text-slate-700 dark:text-slate-200">
+                  {form.pairNumber ? `Editando Pareja ${form.pairNumber}` : 'Nueva pareja'}
+                </h4>
+
+                {/* Pair number + players */}
+                <div className="flex gap-3 items-end">
+                  <div className="w-16 shrink-0">
+                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1.5">Nº</label>
+                    <input type="number" min={1} max={9} value={form.pairNumber}
+                      onChange={e => setForm(f => ({ ...f, pairNumber: e.target.value }))}
+                      className="w-full text-xl font-black text-center bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl py-3 outline-none focus:ring-2 focus:ring-lime-400 text-slate-800 dark:text-white"/>
+                  </div>
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1.5">Jugador Revés</label>
+                      <select value={form.player1Id} onChange={e => setForm(f => ({ ...f, player1Id: e.target.value }))}
+                        className="w-full text-sm font-bold bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
+                        {playerOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1.5">Jugador Drive</label>
+                      <select value={form.player2Id} onChange={e => setForm(f => ({ ...f, player2Id: e.target.value }))}
+                        className="w-full text-sm font-bold bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
+                        {playerOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+
+                {/* Rival names */}
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="text" placeholder="Rival Revés (opcional)" value={form.opponent1Name}
+                    onChange={e => setForm(f => ({ ...f, opponent1Name: e.target.value }))}
+                    className="text-sm bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
+                  <input type="text" placeholder="Rival Drive (opcional)" value={form.opponent2Name}
+                    onChange={e => setForm(f => ({ ...f, opponent2Name: e.target.value }))}
+                    className="text-sm bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
+                </div>
+
+                {/* Sets */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Set 1 *', we: 's1We', they: 's1They', required: true },
+                    { label: 'Set 2', we: 's2We', they: 's2They', required: false },
+                    { label: 'Set 3', we: 's3We', they: 's3They', required: false },
+                  ].map(({ label, we, they, required }) => {
+                    const weVal = (form as any)[we] as string;
+                    const theyVal = (form as any)[they] as string;
+                    const res = weVal && theyVal ? calcSetResult(weVal, theyVal, editedLeg.isHome) : null;
+                    return (
+                      <div key={label}>
+                        <div className="text-center text-[10px] font-black text-slate-400 uppercase mb-1.5">{label}</div>
+                        <div className={`rounded-2xl border-2 overflow-hidden ${res === 'win' ? 'border-lime-400' : res === 'loss' ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                          <div className={`flex items-stretch ${res === 'win' ? 'bg-lime-50 dark:bg-lime-900/10' : res === 'loss' ? 'bg-red-50 dark:bg-red-900/10' : 'bg-white dark:bg-slate-900'}`}>
+                            <div className="flex-1 flex flex-col items-center border-r border-slate-200 dark:border-slate-700">
+                              <span className={`text-[9px] font-black uppercase pt-2 pb-0.5 ${editedLeg.isHome ? 'text-blue-400' : 'text-orange-400'}`}>{leftLabel}</span>
+                              <input type="number" min={0} max={99} value={weVal}
+                                onChange={e => setForm(f => ({ ...f, [we]: e.target.value }))}
+                                className="w-full pb-2 text-center text-2xl font-black bg-transparent outline-none text-slate-800 dark:text-white"/>
+                            </div>
+                            <div className="flex-1 flex flex-col items-center">
+                              <span className={`text-[9px] font-black uppercase pt-2 pb-0.5 ${editedLeg.isHome ? 'text-orange-400' : 'text-blue-400'}`}>{rightLabel}</span>
+                              <input type="number" min={0} max={99} value={theyVal}
+                                onChange={e => setForm(f => ({ ...f, [they]: e.target.value }))}
+                                className="w-full pb-2 text-center text-2xl font-black bg-transparent outline-none text-slate-800 dark:text-white"/>
+                            </div>
+                          </div>
+                          {res && (
+                            <div className={`text-center text-[9px] font-black py-1 ${res === 'win' ? 'bg-lime-500 text-white' : res === 'loss' ? 'bg-red-500 text-white' : 'bg-blue-400 text-white'}`}>
+                              {res === 'win' ? '✓ Victoria' : res === 'loss' ? '✗ Derrota' : '~ Empate'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button onClick={addLineup} disabled={!canAddLineup}
+                  className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
+                  <Plus size={18}/> Añadir pareja
+                </button>
+              </div>
             </div>
-            <button onClick={addLineup} disabled={!form.s1We || !form.s1They} className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-              <Plus size={16}/> Añadir Pareja
-            </button>
-          </div>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-5 py-4">
-          <button onClick={() => onSave(editedLeg)} className="w-full py-3.5 rounded-2xl bg-lime-400 hover:bg-lime-300 text-blue-950 font-black text-sm transition-all shadow-lg shadow-lime-400/20">
-            Guardar partido
-          </button>
+        {/* ── Footer ── */}
+        <div className="shrink-0 px-6 py-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 text-sm text-slate-400">
+              {editedLeg.lineups.length > 0 ? (
+                <span className="font-bold text-slate-600 dark:text-slate-300">
+                  {editedLeg.lineups.length} pareja{editedLeg.lineups.length !== 1 ? 's' : ''} ·{' '}
+                  <span className="text-lime-600 dark:text-lime-400">{legStats.matchWins}V</span>{' '}
+                  <span className="text-red-500">{legStats.matchLosses}D</span>
+                </span>
+              ) : (
+                <span className="italic">Sin parejas todavía</span>
+              )}
+            </div>
+            <button onClick={() => onSave(editedLeg)}
+              className="px-8 py-3.5 rounded-2xl bg-lime-400 hover:bg-lime-300 text-blue-950 font-black text-sm transition-all shadow-lg shadow-lime-400/20">
+              Guardar partido
+            </button>
+          </div>
         </div>
       </div>
     </div>
