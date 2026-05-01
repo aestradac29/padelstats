@@ -88,7 +88,7 @@ export interface AppState {
   playoffs?: PlayoffBracket[]; // Playoff brackets
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD' | 'PLAYERS' | 'MATCHES' | 'LINEUP' | 'SETTINGS' | 'QUICK_LINEUP' | 'PAIRS' | 'PLAYOFFS';
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'PLAYERS' | 'MATCHES' | 'LINEUP' | 'SETTINGS' | 'QUICK_LINEUP' | 'PAIRS' | 'PLAYOFFS' | 'PLAYER_HISTORY';
 
 // ─── PLAYOFF TYPES ───────────────────────────────────────────────────────────
 

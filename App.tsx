@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity, Table, Sword
@@ -36,6 +34,7 @@ import SettingsView from './components/views/SettingsView';
 import QuickLineupView from './components/views/QuickLineupView';
 import PairsView from './components/views/PairsView';
 import PlayoffsView from './components/views/PlayoffsView';
+import PlayerHistoryView from './components/views/PlayerHistoryView';
 
 const App = () => {
     // --- Global State ---
@@ -934,6 +933,7 @@ const App = () => {
                     { id: 'PLAYOFFS', label: 'Playoffs', icon: Sword },
                     { id: 'LINEUP', label: 'Alineación', icon: LayoutGrid },
                     { id: 'QUICK_LINEUP', label: 'Alineación Rápida', icon: Sparkles },
+                    { id: 'PLAYER_HISTORY', label: 'Historial', icon: List },
                     { id: 'PAIRS', label: 'Análisis Parejas', icon: Activity },
                     { id: 'SETTINGS', label: 'Ajustes', icon: Settings, role: 'CAPTAIN' }
                 ].map((item: any) => {
@@ -1104,6 +1104,12 @@ const App = () => {
                             viewSeasonId={viewSeasonId}
                         />
                     )}
+                    {currentView === 'PLAYER_HISTORY' && (
+                        <PlayerHistoryView
+                            data={data}
+                            viewSeasonId={viewSeasonId}
+                        />
+                    )}
                     {currentView === 'SETTINGS' && (
                         <SettingsView
                             data={data}
@@ -1136,7 +1142,7 @@ const App = () => {
                         { id: 'PLAYERS', label: 'Plantilla', icon: Users },
                         { id: 'MATCHES', label: 'Jornadas', icon: Calendar },
                         { id: 'PLAYOFFS', label: 'Playoffs', icon: Sword },
-                        { id: 'LINEUP', label: 'Alineación', icon: LayoutGrid },
+                        { id: 'PLAYER_HISTORY', label: 'Historial', icon: List },
                     ].map(item => {
                         const isActive = currentView === item.id;
                         return (
@@ -1160,10 +1166,10 @@ const App = () => {
                     {/* More button for QUICK_LINEUP and SETTINGS */}
                     <button
                         onClick={() => setIsMobileMenuOpen(true)}
-                        className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 px-1 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS', 'PAIRS'].includes(currentView) ? 'text-blue-950' : 'text-slate-400 dark:text-slate-500'}`}
+                        className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 px-1 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS', 'PAIRS', 'LINEUP'].includes(currentView) ? 'text-blue-950' : 'text-slate-400 dark:text-slate-500'}`}
                     >
-                        <div className={`flex items-center justify-center w-9 h-7 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS', 'PAIRS'].includes(currentView) ? 'bg-lime-400 shadow-sm' : 'bg-transparent'}`}>
-                            <Menu size={18} className={['QUICK_LINEUP', 'SETTINGS'].includes(currentView) ? 'text-blue-950' : ''} />
+                        <div className={`flex items-center justify-center w-9 h-7 rounded-xl transition-all duration-200 ${['QUICK_LINEUP', 'SETTINGS', 'PAIRS', 'LINEUP'].includes(currentView) ? 'bg-lime-400 shadow-sm' : 'bg-transparent'}`}>
+                            <Menu size={18} className={['QUICK_LINEUP', 'SETTINGS', 'LINEUP'].includes(currentView) ? 'text-blue-950' : ''} />
                         </div>
                         <span className="text-[9px] font-black uppercase tracking-wide leading-none">Más</span>
                     </button>

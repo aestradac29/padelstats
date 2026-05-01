@@ -422,41 +422,45 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               return (
                 <div className="md:col-span-2 bg-gradient-to-br from-purple-950 to-purple-900 rounded-2xl p-5 text-white border border-purple-800 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 blur-[60px] opacity-10 rounded-full pointer-events-none" />
-                  <div className="flex items-center gap-2 mb-3">
-                    <Trophy size={14} className="text-yellow-400" />
+                  {/* Header row */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <Trophy size={14} className="text-yellow-400 shrink-0" />
                     <span className="text-xs font-black uppercase tracking-widest text-purple-300">Próximo Playoff</span>
-                    <span className="ml-auto text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-800/60 text-purple-300 border border-purple-700/50">
+                    <span className="ml-auto shrink-0 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-800/60 text-purple-300 border border-purple-700/50">
                       {nextPlayoffLeg.bracket.name} · {nextPlayoffLeg.round.name}
                     </span>
                   </div>
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-2xl font-black text-white truncate">{nextPlayoffLeg.opponent.toUpperCase()}</p>
-                      <p className="text-purple-300 text-sm mt-1 font-medium">
-                        {new Date(nextPlayoffLeg.leg.date!).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        {' · '}
-                        {new Date(nextPlayoffLeg.leg.date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
-                      </p>
-                      <span className={`inline-block mt-2 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl ${nextPlayoffLeg.leg.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
-                        {nextPlayoffLeg.leg.isHome ? '🏠 Casa' : '✈️ Fuera'}
-                      </span>
-                    </div>
-                    {playoffCountdown && (
-                      <div className="flex gap-2 flex-shrink-0">
-                        {[
-                          { v: playoffCountdown.days, l: 'días' },
-                          { v: playoffCountdown.hours, l: 'h' },
-                          { v: playoffCountdown.minutes, l: 'min' },
-                          { v: playoffCountdown.seconds, l: 'seg' },
-                        ].map(({ v, l }) => (
-                          <div key={l} className="bg-purple-900/60 border border-purple-700/50 rounded-xl px-2 py-1.5 text-center min-w-[40px]">
-                            <span className="block text-lg font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
-                            <span className="block text-[9px] font-bold text-purple-400 uppercase mt-0.5">{l}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                  {/* Opponent name — full width, wraps if needed */}
+                  <p className="text-2xl font-black text-white leading-tight break-words mb-2">
+                    {nextPlayoffLeg.opponent.toUpperCase()}
+                  </p>
+                  {/* Date + location row */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <p className="text-purple-300 text-sm font-medium">
+                      {new Date(nextPlayoffLeg.leg.date!).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      {' · '}
+                      {new Date(nextPlayoffLeg.leg.date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
+                    </p>
+                    <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl shrink-0 ${nextPlayoffLeg.leg.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
+                      {nextPlayoffLeg.leg.isHome ? '🏠 Casa' : '✈️ Fuera'}
+                    </span>
                   </div>
+                  {/* Countdown — full width row on mobile */}
+                  {playoffCountdown && (
+                    <div className="flex gap-2">
+                      {[
+                        { v: playoffCountdown.days, l: 'días' },
+                        { v: playoffCountdown.hours, l: 'h' },
+                        { v: playoffCountdown.minutes, l: 'min' },
+                        { v: playoffCountdown.seconds, l: 'seg' },
+                      ].map(({ v, l }) => (
+                        <div key={l} className="flex-1 bg-purple-900/60 border border-purple-700/50 rounded-xl px-2 py-2 text-center">
+                          <span className="block text-xl font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
+                          <span className="block text-[9px] font-bold text-purple-400 uppercase mt-1">{l}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {nextMatch && (
                     <p className="mt-3 text-xs text-purple-400 font-medium">También hay jornada de liga pendiente</p>
                   )}
@@ -471,38 +475,42 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               return (
                 <div className="md:col-span-2 bg-gradient-to-br from-blue-950 to-blue-900 rounded-2xl p-5 text-white border border-blue-800 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400 blur-[60px] opacity-10 rounded-full pointer-events-none" />
-                  <div className="flex items-center gap-2 mb-3">
-                    <Clock size={14} className="text-lime-400" />
+                  {/* Header row */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock size={14} className="text-lime-400 shrink-0" />
                     <span className="text-xs font-black uppercase tracking-widest text-blue-300">Próxima Jornada</span>
                   </div>
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-2xl font-black text-white truncate">{nextMatch.opponent.toUpperCase()}</p>
-                      <p className="text-blue-300 text-sm mt-1 font-medium">
-                        {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        {' · '}
-                        {new Date(nextMatch.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
-                      </p>
-                      <span className={`inline-block mt-2 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl ${nextMatch.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
-                        {nextMatch.isHome ? '🏠 Casa' : '✈️ Fuera'}
-                      </span>
-                    </div>
-                    {countdown && (
-                      <div className="flex gap-2 flex-shrink-0">
-                        {[
-                          { v: countdown.days, l: 'días' },
-                          { v: countdown.hours, l: 'h' },
-                          { v: countdown.minutes, l: 'min' },
-                          { v: countdown.seconds, l: 'seg' },
-                        ].map(({ v, l }) => (
-                          <div key={l} className="bg-blue-900/60 border border-blue-700/50 rounded-xl px-2 py-1.5 text-center min-w-[40px]">
-                            <span className="block text-lg font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
-                            <span className="block text-[9px] font-bold text-blue-400 uppercase mt-0.5">{l}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                  {/* Opponent name — full width, wraps if needed */}
+                  <p className="text-2xl font-black text-white leading-tight break-words mb-2">
+                    {nextMatch.opponent.toUpperCase()}
+                  </p>
+                  {/* Date + location row */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <p className="text-blue-300 text-sm font-medium">
+                      {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      {' · '}
+                      {new Date(nextMatch.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
+                    </p>
+                    <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl shrink-0 ${nextMatch.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
+                      {nextMatch.isHome ? '🏠 Casa' : '✈️ Fuera'}
+                    </span>
                   </div>
+                  {/* Countdown — full width row on mobile */}
+                  {countdown && (
+                    <div className="flex gap-2">
+                      {[
+                        { v: countdown.days, l: 'días' },
+                        { v: countdown.hours, l: 'h' },
+                        { v: countdown.minutes, l: 'min' },
+                        { v: countdown.seconds, l: 'seg' },
+                      ].map(({ v, l }) => (
+                        <div key={l} className="flex-1 bg-blue-900/60 border border-blue-700/50 rounded-xl px-2 py-2 text-center">
+                          <span className="block text-xl font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
+                          <span className="block text-[9px] font-bold text-blue-400 uppercase mt-1">{l}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {upcomingMatches.length > 1 && (
                     <p className="mt-3 text-xs text-blue-400 font-medium">+{upcomingMatches.length - 1} partidos más pendientes</p>
                   )}
