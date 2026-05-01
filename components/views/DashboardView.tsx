@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, TrendingUp, TrendingDown, Target, Flame, Clock, Home, Plane, BarChart2, Share2, MessageCircle, Copy, ChevronDown, ChevronUp } from '../Icons';
 import { Card, Button, Avatar, ProgressBar, ResultBadge } from '../UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { AppState, MatchResult, Player, MatchDay } from '../../types';
+import { AppState, MatchResult, Player, MatchDay, PlayoffLeg, PlayoffTie, PlayoffRound, PlayoffBracket } from '../../types';
 import { analyzeTeamStats, AIAnalysisResult } from '../../services/geminiService';
 import { getPoints } from './PlayersView';
 import { useToast } from '../Toast';
@@ -91,6 +90,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     const [loadingAi, setLoadingAi] = useState(false);
     const [visiblePlayerIds, setVisiblePlayerIds] = useState<string[]>([]);
     const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+    const [playoffCountdown, setPlayoffCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
     const [showRecentMatches, setShowRecentMatches] = useState(false);
     
     // Initialize visible players
@@ -187,7 +187,68 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         return () => clearInterval(interval);
     }, [nextMatch?.date]);
 
-    // Games and Sets stats (global)
+    // Countdown para próximo playoff — hook siempre se ejecuta, lógica interna condicional
+    useEffect(() => {
+        const playoffDate = data?.playoffs
+            ? (() => {
+                const legs: { date: string }[] = [];
+                for (const b of data.playoffs) {
+                    for (const r of b.rounds) {
+                        for (const t of r.ties) {
+                            for (const l of t.legs) {
+                                if (l.date && new Date(l.date) >= new Date() && !l.lineups.some(lu => lu.set1)) {
+                                    legs.push({ date: l.date });
+                                }
+                            }
+                        }
+                    }
+                }
+                legs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                return legs[0]?.date ?? null;
+              })()
+            : null;
+        if (!playoffDate) { setPlayoffCountdown(null); return; }
+        const update = () => {
+            const diff = new Date(playoffDate).getTime() - Date.now();
+            if (diff <= 0) { setPlayoffCountdown(null); return; }
+            setPlayoffCountdown({
+                days: Math.floor(diff / 86400000),
+                hours: Math.floor((diff % 86400000) / 3600000),
+                minutes: Math.floor((diff % 3600000) / 60000),
+                seconds: Math.floor((diff % 60000) / 1000),
+            });
+        };
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [data?.playoffs]);
+
+    // Próximo partido de Playoff con fecha
+    interface UpcomingPlayoffLeg {
+      leg: PlayoffLeg;
+      tie: PlayoffTie;
+      round: PlayoffRound;
+      bracket: PlayoffBracket;
+      opponent: string;
+    }
+    const upcomingPlayoffLegs: UpcomingPlayoffLeg[] = [];
+    if (data?.playoffs) {
+      for (const bracket of data.playoffs) {
+        for (const round of bracket.rounds) {
+          for (const tie of round.ties) {
+            for (const leg of tie.legs) {
+              if (leg.date && new Date(leg.date) >= now && !leg.lineups.some(l => l.set1)) {
+                const weAreHome = tie.homeTeam === data.teamName;
+                const opponent = weAreHome ? tie.awayTeam : tie.homeTeam;
+                upcomingPlayoffLegs.push({ leg, tie, round, bracket, opponent });
+              }
+            }
+          }
+        }
+      }
+    }
+    upcomingPlayoffLegs.sort((a, b) => new Date(a.leg.date!).getTime() - new Date(b.leg.date!).getTime());
+    const nextPlayoffLeg = upcomingPlayoffLegs[0] ?? null;
     // Score storage convention:
     //   HOME match: set stored as "OUR_GAMES-THEIR_GAMES" → parts[0] = ours
     //   AWAY match: set stored as "THEIR_GAMES-OUR_GAMES" → parts[1] = ours
@@ -350,59 +411,122 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Próximo partido + racha */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Próximo partido */}
-          {nextMatch ? (
-            <div className="md:col-span-2 bg-gradient-to-br from-blue-950 to-blue-900 rounded-2xl p-5 text-white border border-blue-800 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400 blur-[60px] opacity-10 rounded-full pointer-events-none" />
-              <div className="flex items-center gap-2 mb-3">
-                <Clock size={14} className="text-lime-400" />
-                <span className="text-xs font-black uppercase tracking-widest text-blue-300">Próxima Jornada</span>
-              </div>
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-2xl font-black text-white truncate">{nextMatch.opponent.toUpperCase()}</p>
-                  <p className="text-blue-300 text-sm mt-1 font-medium">
-                    {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    {' · '}
-                    {new Date(nextMatch.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
-                  </p>
-                  <span className={`inline-block mt-2 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl ${nextMatch.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
-                    {nextMatch.isHome ? '🏠 Casa' : '✈️ Fuera'}
-                  </span>
-                </div>
-                {countdown && (
-                  <div className="flex gap-2 flex-shrink-0">
-                    {[
-                      { v: countdown.days, l: 'días' },
-                      { v: countdown.hours, l: 'h' },
-                      { v: countdown.minutes, l: 'min' },
-                      { v: countdown.seconds, l: 'seg' },
-                    ].map(({ v, l }) => (
-                      <div key={l} className="bg-blue-900/60 border border-blue-700/50 rounded-xl px-2 py-1.5 text-center min-w-[40px]">
-                        <span className="block text-lg font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
-                        <span className="block text-[9px] font-bold text-blue-400 uppercase mt-0.5">{l}</span>
-                      </div>
-                    ))}
+          {/* Próximo partido: jornada o playoff, el más cercano */}
+          {(() => {
+            const matchDate = nextMatch ? new Date(nextMatch.date).getTime() : Infinity;
+            const playoffDate = nextPlayoffLeg ? new Date(nextPlayoffLeg.leg.date!).getTime() : Infinity;
+            const showPlayoff = nextPlayoffLeg && playoffDate <= matchDate;
+            const showMatch = nextMatch && matchDate <= playoffDate;
+
+            if (showPlayoff) {
+              return (
+                <div className="md:col-span-2 bg-gradient-to-br from-purple-950 to-purple-900 rounded-2xl p-5 text-white border border-purple-800 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 blur-[60px] opacity-10 rounded-full pointer-events-none" />
+                  <div className="flex items-center gap-2 mb-3">
+                    <Trophy size={14} className="text-yellow-400" />
+                    <span className="text-xs font-black uppercase tracking-widest text-purple-300">Próximo Playoff</span>
+                    <span className="ml-auto text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-800/60 text-purple-300 border border-purple-700/50">
+                      {nextPlayoffLeg.bracket.name} · {nextPlayoffLeg.round.name}
+                    </span>
                   </div>
-                )}
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-2xl font-black text-white truncate">{nextPlayoffLeg.opponent.toUpperCase()}</p>
+                      <p className="text-purple-300 text-sm mt-1 font-medium">
+                        {new Date(nextPlayoffLeg.leg.date!).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        {' · '}
+                        {new Date(nextPlayoffLeg.leg.date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
+                      </p>
+                      <span className={`inline-block mt-2 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl ${nextPlayoffLeg.leg.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
+                        {nextPlayoffLeg.leg.isHome ? '🏠 Casa' : '✈️ Fuera'}
+                      </span>
+                    </div>
+                    {playoffCountdown && (
+                      <div className="flex gap-2 flex-shrink-0">
+                        {[
+                          { v: playoffCountdown.days, l: 'días' },
+                          { v: playoffCountdown.hours, l: 'h' },
+                          { v: playoffCountdown.minutes, l: 'min' },
+                          { v: playoffCountdown.seconds, l: 'seg' },
+                        ].map(({ v, l }) => (
+                          <div key={l} className="bg-purple-900/60 border border-purple-700/50 rounded-xl px-2 py-1.5 text-center min-w-[40px]">
+                            <span className="block text-lg font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
+                            <span className="block text-[9px] font-bold text-purple-400 uppercase mt-0.5">{l}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {nextMatch && (
+                    <p className="mt-3 text-xs text-purple-400 font-medium">También hay jornada de liga pendiente</p>
+                  )}
+                  {upcomingPlayoffLegs.length > 1 && !nextMatch && (
+                    <p className="mt-3 text-xs text-purple-400 font-medium">+{upcomingPlayoffLegs.length - 1} partidos de playoff más pendientes</p>
+                  )}
+                </div>
+              );
+            }
+
+            if (showMatch) {
+              return (
+                <div className="md:col-span-2 bg-gradient-to-br from-blue-950 to-blue-900 rounded-2xl p-5 text-white border border-blue-800 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400 blur-[60px] opacity-10 rounded-full pointer-events-none" />
+                  <div className="flex items-center gap-2 mb-3">
+                    <Clock size={14} className="text-lime-400" />
+                    <span className="text-xs font-black uppercase tracking-widest text-blue-300">Próxima Jornada</span>
+                  </div>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-2xl font-black text-white truncate">{nextMatch.opponent.toUpperCase()}</p>
+                      <p className="text-blue-300 text-sm mt-1 font-medium">
+                        {new Date(nextMatch.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        {' · '}
+                        {new Date(nextMatch.date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}h
+                      </p>
+                      <span className={`inline-block mt-2 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-xl ${nextMatch.isHome ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' : 'bg-orange-400/20 text-orange-200 border border-orange-400/30'}`}>
+                        {nextMatch.isHome ? '🏠 Casa' : '✈️ Fuera'}
+                      </span>
+                    </div>
+                    {countdown && (
+                      <div className="flex gap-2 flex-shrink-0">
+                        {[
+                          { v: countdown.days, l: 'días' },
+                          { v: countdown.hours, l: 'h' },
+                          { v: countdown.minutes, l: 'min' },
+                          { v: countdown.seconds, l: 'seg' },
+                        ].map(({ v, l }) => (
+                          <div key={l} className="bg-blue-900/60 border border-blue-700/50 rounded-xl px-2 py-1.5 text-center min-w-[40px]">
+                            <span className="block text-lg font-black text-white leading-none">{String(v).padStart(2, '0')}</span>
+                            <span className="block text-[9px] font-bold text-blue-400 uppercase mt-0.5">{l}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {upcomingMatches.length > 1 && (
+                    <p className="mt-3 text-xs text-blue-400 font-medium">+{upcomingMatches.length - 1} partidos más pendientes</p>
+                  )}
+                  {nextPlayoffLeg && (
+                    <p className="mt-3 text-xs text-blue-400 font-medium">🏆 También hay un playoff programado</p>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div className="md:col-span-2 bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-5 border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-center">
+                <div>
+                  <Calendar size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No hay partidos pendientes</p>
+                  {sessionRole === 'CAPTAIN' && (
+                    <button onClick={() => { setModalType('GENERATE_CALENDAR'); setIsModalOpen(true); }} className="mt-2 text-xs text-blue-500 font-bold hover:underline">
+                      Generar calendario →
+                    </button>
+                  )}
+                </div>
               </div>
-              {upcomingMatches.length > 1 && (
-                <p className="mt-3 text-xs text-blue-400 font-medium">+{upcomingMatches.length - 1} partidos más pendientes</p>
-              )}
-            </div>
-          ) : (
-            <div className="md:col-span-2 bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-5 border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-center">
-              <div>
-                <Calendar size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No hay partidos pendientes</p>
-                {sessionRole === 'CAPTAIN' && (
-                  <button onClick={() => { setModalType('GENERATE_CALENDAR'); setIsModalOpen(true); }} className="mt-2 text-xs text-blue-500 font-bold hover:underline">
-                    Generar calendario →
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Racha */}
           <div className={`rounded-2xl p-5 border flex flex-col justify-between ${
