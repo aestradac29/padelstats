@@ -180,8 +180,8 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
   const legStats = getLegStats(editedLeg);
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4 md:p-8 animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-2xl flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden max-h-[95dvh] sm:max-h-[90vh] h-full sm:h-auto mt-auto sm:mt-0">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] overflow-y-auto flex flex-col items-center p-4 sm:p-6 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700 my-auto">
 
         {/* ── Header ── */}
         <div className="shrink-0 px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 z-10 bg-white dark:bg-slate-900 shadow-sm">
@@ -216,8 +216,8 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
           </div>
         </div>
 
-        {/* ── Scrollable content ── */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        {/* ── Content ── */}
+        <div className="flex-1">
 
           {/* SETUP TAB */}
           {activeSection === 'setup' && (
