@@ -180,11 +180,11 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
   const legStats = getLegStats(editedLeg);
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-xl flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700" style={{ maxHeight: '94dvh' }}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4 md:p-8 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full max-w-2xl flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden max-h-[95dvh] sm:max-h-[90vh] h-full sm:h-auto mt-auto sm:mt-0">
 
         {/* ── Header ── */}
-        <div className="shrink-0 px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="shrink-0 px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 z-10 bg-white dark:bg-slate-900 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -256,16 +256,16 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
                       className="text-xs font-bold text-slate-400 hover:text-red-500 underline">Ninguno</button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {allSorted.map(p => {
                     const sel = availIds.includes(p.id);
                     return (
                       <button key={p.id} onClick={() => toggleAvail(p.id)}
-                        className={`flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-sm font-bold transition-all text-left ${sel ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-400 dark:border-lime-600 text-slate-800 dark:text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'}`}>
-                        <div className={`w-3 h-3 rounded-full shrink-0 border-2 flex items-center justify-center ${sel ? 'bg-lime-500 border-lime-500' : 'border-slate-300 dark:border-slate-600'}`}>
-                          {sel && <div className="w-1.5 h-1.5 rounded-full bg-white"/>}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-left ${sel ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-400 dark:border-lime-600' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                        <div className={`w-3 h-3 rounded-sm shrink-0 border flex items-center justify-center ${sel ? 'bg-lime-500 border-lime-500' : 'border-slate-300 dark:border-slate-600 opacity-50'}`}>
+                          {sel && <div className="w-1.5 h-1.5 rounded-sm bg-white"/>}
                         </div>
-                        <span className="truncate">{p.name}</span>
+                        <span className={`text-xs font-bold truncate ${sel ? 'text-slate-800 dark:text-lime-100' : 'text-slate-400 dark:text-slate-500'}`}>{p.name.toUpperCase()}</span>
                       </button>
                     );
                   })}
@@ -327,31 +327,31 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
               )}
 
               {/* Add lineup form */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
-                <h4 className="text-sm font-black text-slate-700 dark:text-slate-200">
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                <h4 className="text-xs font-black text-slate-700 dark:text-slate-200">
                   {form.pairNumber ? `Editando Pareja ${form.pairNumber}` : 'Nueva pareja'}
                 </h4>
 
                 {/* Pair number + players */}
-                <div className="flex gap-3 items-end">
-                  <div className="w-16 shrink-0">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1.5">Nº</label>
+                <div className="flex gap-2 items-end">
+                  <div className="w-12 shrink-0">
+                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Nº</label>
                     <input type="number" min={1} max={9} value={form.pairNumber}
                       onChange={e => setForm(f => ({ ...f, pairNumber: e.target.value }))}
-                      className="w-full text-xl font-black text-center bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl py-3 outline-none focus:ring-2 focus:ring-lime-400 text-slate-800 dark:text-white"/>
+                      className="w-full text-sm font-black text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-2 outline-none focus:ring-2 focus:ring-lime-400 text-slate-800 dark:text-white"/>
                   </div>
                   <div className="flex-1 grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1.5">Jugador Revés</label>
+                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Jugador Revés</label>
                       <select value={form.player1Id} onChange={e => setForm(f => ({ ...f, player1Id: e.target.value }))}
-                        className="w-full text-sm font-bold bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
+                        className="w-full text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
                         {playerOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase block mb-1.5">Jugador Drive</label>
+                      <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Jugador Drive</label>
                       <select value={form.player2Id} onChange={e => setForm(f => ({ ...f, player2Id: e.target.value }))}
-                        className="w-full text-sm font-bold bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
+                        className="w-full text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-lime-400">
                         {playerOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
@@ -362,14 +362,14 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
                 <div className="grid grid-cols-2 gap-2">
                   <input type="text" placeholder="Rival Revés (opcional)" value={form.opponent1Name}
                     onChange={e => setForm(f => ({ ...f, opponent1Name: e.target.value }))}
-                    className="text-sm bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
+                    className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
                   <input type="text" placeholder="Rival Drive (opcional)" value={form.opponent2Name}
                     onChange={e => setForm(f => ({ ...f, opponent2Name: e.target.value }))}
-                    className="text-sm bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
+                    className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 placeholder-slate-300 outline-none focus:ring-2 focus:ring-lime-400 text-slate-700 dark:text-slate-200"/>
                 </div>
 
                 {/* Sets */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: 'Set 1 *', we: 's1We', they: 's1They', required: true },
                     { label: 'Set 2', we: 's2We', they: 's2They', required: false },
@@ -380,25 +380,25 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
                     const res = weVal && theyVal ? calcSetResult(weVal, theyVal, editedLeg.isHome) : null;
                     return (
                       <div key={label}>
-                        <div className="text-center text-[10px] font-black text-slate-400 uppercase mb-1.5">{label}</div>
-                        <div className={`rounded-2xl border-2 overflow-hidden ${res === 'win' ? 'border-lime-400' : res === 'loss' ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                        <div className="text-center text-[9px] font-black text-slate-400 uppercase mb-1">{label}</div>
+                        <div className={`rounded-xl border overflow-hidden ${res === 'win' ? 'border-lime-400' : res === 'loss' ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'}`}>
                           <div className={`flex items-stretch ${res === 'win' ? 'bg-lime-50 dark:bg-lime-900/10' : res === 'loss' ? 'bg-red-50 dark:bg-red-900/10' : 'bg-white dark:bg-slate-900'}`}>
                             <div className="flex-1 flex flex-col items-center border-r border-slate-200 dark:border-slate-700">
-                              <span className={`text-[9px] font-black uppercase pt-2 pb-0.5 ${editedLeg.isHome ? 'text-blue-400' : 'text-orange-400'}`}>{leftLabel}</span>
+                              <span className={`text-[8px] font-black uppercase pt-1 pb-0.5 ${editedLeg.isHome ? 'text-blue-400' : 'text-orange-400'}`}>{leftLabel}</span>
                               <input type="number" min={0} max={99} value={weVal}
                                 onChange={e => setForm(f => ({ ...f, [we]: e.target.value }))}
-                                className="w-full pb-2 text-center text-2xl font-black bg-transparent outline-none text-slate-800 dark:text-white"/>
+                                className="w-full pb-1 text-center text-lg font-black bg-transparent outline-none text-slate-800 dark:text-white"/>
                             </div>
                             <div className="flex-1 flex flex-col items-center">
-                              <span className={`text-[9px] font-black uppercase pt-2 pb-0.5 ${editedLeg.isHome ? 'text-orange-400' : 'text-blue-400'}`}>{rightLabel}</span>
+                              <span className={`text-[8px] font-black uppercase pt-1 pb-0.5 ${editedLeg.isHome ? 'text-orange-400' : 'text-blue-400'}`}>{rightLabel}</span>
                               <input type="number" min={0} max={99} value={theyVal}
                                 onChange={e => setForm(f => ({ ...f, [they]: e.target.value }))}
-                                className="w-full pb-2 text-center text-2xl font-black bg-transparent outline-none text-slate-800 dark:text-white"/>
+                                className="w-full pb-1 text-center text-lg font-black bg-transparent outline-none text-slate-800 dark:text-white"/>
                             </div>
                           </div>
                           {res && (
-                            <div className={`text-center text-[9px] font-black py-1 ${res === 'win' ? 'bg-lime-500 text-white' : res === 'loss' ? 'bg-red-500 text-white' : 'bg-blue-400 text-white'}`}>
-                              {res === 'win' ? '✓ Victoria' : res === 'loss' ? '✗ Derrota' : '~ Empate'}
+                            <div className={`text-center text-[8px] font-black py-0.5 ${res === 'win' ? 'bg-lime-500 text-white' : res === 'loss' ? 'bg-red-500 text-white' : 'bg-blue-400 text-white'}`}>
+                              {res === 'win' ? '✓ Win' : res === 'loss' ? '✗ Loss' : '~ Tie'}
                             </div>
                           )}
                         </div>
@@ -408,8 +408,8 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
                 </div>
 
                 <button onClick={addLineup} disabled={!canAddLineup}
-                  className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
-                  <Plus size={18}/> Añadir pareja
+                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm">
+                  <Plus size={16}/> Añadir pareja
                 </button>
               </div>
             </div>
@@ -644,8 +644,8 @@ const AddTieModal: React.FC<{ ourTeamName: string; onAdd: (tie: PlayoffTie) => v
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-700 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-end sm:justify-center p-4 animate-in fade-in">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-700 overflow-y-auto max-h-[95dvh] sm:max-h-[90vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 mt-auto sm:mt-0">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md"><Trophy size={18} className="text-white"/></div>
           <h3 className="font-black text-xl text-slate-900 dark:text-white">Nuevo enfrentamiento</h3>
@@ -717,7 +717,11 @@ const PlayoffsView: React.FC<PlayoffsViewProps> = ({ data, teamId, viewSeasonId,
 
   const save = async (updated: PlayoffBracket[]) => {
     if (!teamId) return;
-    try { await updateTeamData(teamId, { playoffs: updated }); }
+    try { 
+      // Firestore does not allow undefined values, we strip them by serializing.
+      const cleanData = JSON.parse(JSON.stringify(updated));
+      await updateTeamData(teamId, { playoffs: cleanData }); 
+    }
     catch (e: any) { toastError('Error al guardar: ' + (e.message || '')); }
   };
 
