@@ -1,9 +1,8 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { LayoutGrid, Check, BrainCircuit, Sparkles, ArrowUpDown, Trash2, X, ChevronDown, ChevronUp, User, Zap, Shield, Trophy, Copy } from '../Icons';
 import { Button, Card, Checkbox, Select } from '../UIComponents';
 import { AppState, Position } from '../../types';
+import { playoffLegsAsMatchDays } from '../../utils/helpers';
 import { getLineupSuggestion } from '../../services/geminiService';
 import { getPoints } from './PlayersView';
 
@@ -37,8 +36,11 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
 
     const getFilteredMatches = () => {
         if (!data) return [];
-        if (viewSeasonId === 'all') return data.matches;
-        return data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const leagueMatches = viewSeasonId === 'all'
+            ? data.matches
+            : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data?.playoffs, viewSeasonId);
+        return [...leagueMatches, ...playoffMatches];
     };
 
     const togglePlayerAvailability = (id: string) => {
@@ -126,8 +128,8 @@ const LineupView: React.FC<LineupViewProps> = ({ data, viewSeasonId }) => {
                 hasContent = true;
                 const name1 = p1 ? p1.name : '___';
                 const name2 = p2 ? p2.name : '___';
-                const points1 = p1 && data ? getPoints(p1, data.matches, viewSeasonId, data) : 0;
-                const points2 = p2 && data ? getPoints(p2, data.matches, viewSeasonId, data) : 0;
+                const points1 = p1 && data ? getPoints(p1, getFilteredMatches(), viewSeasonId, data) : 0;
+                const points2 = p2 && data ? getPoints(p2, getFilteredMatches(), viewSeasonId, data) : 0;
                 const totalPoints = points1 + points2;
                 // Swapped order: Revés (Left) / Drive (Right) to match visual layout
                 text += `${index + 1}️⃣ ${name2} / ${name1} (${totalPoints} pts)\n`;

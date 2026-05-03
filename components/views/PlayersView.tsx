@@ -1,9 +1,8 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MapPin, Trophy, TrendingUp, Search, Sword, Filter } from '../Icons';
 import { Button, Card } from '../UIComponents';
 import { AppState, Player, Position, MatchResult, MatchDay } from '../../types';
+import { playoffLegsAsMatchDays } from '../../utils/helpers';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface PlayersViewProps {
@@ -42,8 +41,12 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
         return calculatedPoints;
     }
 
+    // Merge league matches with playoff legs so points account for both
+    const playoffMatches = playoffLegsAsMatchDays(data.playoffs, seasonId);
+    const allMatches = [...matchesContext, ...playoffMatches];
+
     // Filter out ignored points matches before calculating score
-    const matchesToScore = matchesContext.filter(m => !m.ignorePoints);
+    const matchesToScore = allMatches.filter(m => !m.ignorePoints);
     const sortedMatches = [...matchesToScore].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
@@ -102,8 +105,11 @@ const PlayersView: React.FC<PlayersViewProps> = ({
 
     const getFilteredMatches = () => {
         if (!data) return [];
-        if (viewSeasonId === 'all') return data.matches;
-        return data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const leagueMatches = viewSeasonId === 'all'
+            ? data.matches
+            : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        return [...leagueMatches, ...playoffMatches];
     };
     
     const matches = getFilteredMatches();
@@ -143,7 +149,8 @@ const PlayersView: React.FC<PlayersViewProps> = ({
         });
         evolutionData.push(initialDataPoint);
 
-        const matchesToScore = matches.filter(m => !m.ignorePoints);
+        const allMatchesForEvolution = [...matches, ...playoffLegsAsMatchDays(data.playoffs, viewSeasonId)];
+        const matchesToScore = allMatchesForEvolution.filter(m => !m.ignorePoints);
         const sortedMatches = [...matchesToScore].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         sortedMatches.forEach((match, index) => {
