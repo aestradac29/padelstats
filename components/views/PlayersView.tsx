@@ -41,12 +41,9 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
         return calculatedPoints;
     }
 
-    // Merge league matches with playoff legs so points account for both
-    const playoffMatches = playoffLegsAsMatchDays(data.playoffs, seasonId);
-    const allMatches = [...matchesContext, ...playoffMatches];
-
     // Filter out ignored points matches before calculating score
-    const matchesToScore = allMatches.filter(m => !m.ignorePoints);
+    // Note: matchesContext should already include playoff legs (via getFilteredMatches)
+    const matchesToScore = matchesContext.filter(m => !m.ignorePoints);
     const sortedMatches = [...matchesToScore].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
