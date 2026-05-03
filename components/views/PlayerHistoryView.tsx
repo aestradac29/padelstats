@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AppState, MatchResult, MatchDay, MatchLineup } from '../../types';
-import { User, Calendar, Home, Plane, Trophy, TrendingUp, TrendingDown, Minus, Search, ChevronDown, ChevronUp, Filter } from '../Icons';
+import { playoffLegsAsMatchDays } from '../../utils/helpers';
+import { User, Calendar, Trophy, TrendingUp, TrendingDown, Search, ChevronDown, Filter, Flame, Target, BarChart2, Activity } from '../Icons';
 
 interface PlayerHistoryViewProps {
   data: AppState | null;
@@ -29,13 +30,6 @@ const ResultBadge = ({ result }: { result: MatchResult }) => {
   );
 };
 
-const StatPill = ({ value, label, color }: { value: number; label: string; color: string }) => (
-  <div className="flex flex-col items-center">
-    <span className={`text-lg font-black ${color}`}>{value}</span>
-    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
-  </div>
-);
-
 const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonId }) => {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,8 +40,11 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
 
   const filteredMatches = useMemo(() => {
     if (!data) return [];
-    if (viewSeasonId === 'all') return data.matches;
-    return data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+    const leagueMatches = viewSeasonId === 'all'
+      ? data.matches
+      : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+    const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+    return [...leagueMatches, ...playoffMatches];
   }, [data, viewSeasonId]);
 
   const playedMatches = useMemo(() =>
@@ -97,22 +94,108 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
     const losses = playerHistory.filter(e => e.lineup.result === MatchResult.LOSS).length;
     const draws = playerHistory.filter(e => e.lineup.result === MatchResult.DRAW).length;
     const total = playerHistory.length;
+
+    // Home / Away
     const homeWins = playerHistory.filter(e => e.match.isHome && e.lineup.result === MatchResult.WIN).length;
     const homePlayed = playerHistory.filter(e => e.match.isHome).length;
     const awayWins = playerHistory.filter(e => !e.match.isHome && e.lineup.result === MatchResult.WIN).length;
     const awayPlayed = playerHistory.filter(e => !e.match.isHome).length;
-    // Top partner
-    const partnerCount: Record<string, { name: string; wins: number; losses: number; draws: number; played: number; recentResults: MatchResult[] }> = {};
+
+    // Current streak (history sorted desc = most recent first)
+    let streakCount = 0;
+    let streakType: MatchResult | null = null;
+    if (playerHistory.length > 0) {
+      streakType = playerHistory[0].lineup.result;
+      for (const e of playerHistory) {
+        if (e.lineup.result === streakType) streakCount++;
+        else break;
+      }
+    }
+
+    // Recent form — last 10
+    const recentForm = playerHistory.slice(0, 10).map(e => e.lineup.result);
+
+    // Sets stats
+    let setsWon = 0, setsLost = 0;
     playerHistory.forEach(e => {
-      if (!partnerCount[e.partnerName]) partnerCount[e.partnerName] = { name: e.partnerName, wins: 0, losses: 0, draws: 0, played: 0, recentResults: [] };
-      partnerCount[e.partnerName].played++;
-      if (e.lineup.result === MatchResult.WIN) partnerCount[e.partnerName].wins++;
-      else if (e.lineup.result === MatchResult.LOSS) partnerCount[e.partnerName].losses++;
-      else partnerCount[e.partnerName].draws++;
-      partnerCount[e.partnerName].recentResults.unshift(e.lineup.result); // most recent first (history is sorted desc)
+      [e.lineup.set1, e.lineup.set2, e.lineup.set3].filter(Boolean).forEach(set => {
+        const parts = set!.split('-');
+        if (parts.length < 2) return;
+        const left = parseInt(parts[0], 10);
+        const right = parseInt(parts[1], 10);
+        if (isNaN(left) || isNaN(right)) return;
+        const ours = e.match.isHome ? left : right;
+        const theirs = e.match.isHome ? right : left;
+        if (ours > theirs) setsWon++;
+        else if (theirs > ours) setsLost++;
+      });
     });
-    const partners = Object.values(partnerCount).sort((a, b) => b.played - a.played);
-    return { wins, losses, draws, total, homeWins, homePlayed, awayWins, awayPlayed, partners };
+
+    // Partners
+    const partnerMap: Record<string, { name: string; wins: number; losses: number; draws: number; played: number; recentResults: MatchResult[] }> = {};
+    playerHistory.forEach(e => {
+      if (!partnerMap[e.partnerName]) partnerMap[e.partnerName] = { name: e.partnerName, wins: 0, losses: 0, draws: 0, played: 0, recentResults: [] };
+      partnerMap[e.partnerName].played++;
+      if (e.lineup.result === MatchResult.WIN) partnerMap[e.partnerName].wins++;
+      else if (e.lineup.result === MatchResult.LOSS) partnerMap[e.partnerName].losses++;
+      else partnerMap[e.partnerName].draws++;
+      partnerMap[e.partnerName].recentResults.unshift(e.lineup.result);
+    });
+    const partners = Object.values(partnerMap).sort((a, b) => b.played - a.played);
+
+    // Rivals frequency
+    const rivalMap: Record<string, { name: string; wins: number; losses: number; draws: number; played: number }> = {};
+    playerHistory.forEach(e => {
+      const key = e.match.opponent;
+      if (!rivalMap[key]) rivalMap[key] = { name: key, wins: 0, losses: 0, draws: 0, played: 0 };
+      rivalMap[key].played++;
+      if (e.lineup.result === MatchResult.WIN) rivalMap[key].wins++;
+      else if (e.lineup.result === MatchResult.LOSS) rivalMap[key].losses++;
+      else rivalMap[key].draws++;
+    });
+    const rivals = Object.values(rivalMap).sort((a, b) => b.played - a.played);
+
+    // Performance by pair position (pairNumber)
+    const pairPosMap: Record<number, { wins: number; played: number }> = {};
+    playerHistory.forEach(e => {
+      const pos = e.lineup.pairNumber ?? -1;
+      if (pos < 0) return;
+      if (!pairPosMap[pos]) pairPosMap[pos] = { wins: 0, played: 0 };
+      pairPosMap[pos].played++;
+      if (e.lineup.result === MatchResult.WIN) pairPosMap[pos].wins++;
+    });
+    const pairPositions = Object.entries(pairPosMap)
+      .map(([pos, s]) => ({ pos: parseInt(pos) + 1, ...s }))
+      .sort((a, b) => a.pos - b.pos);
+
+    // Best / Worst month
+    const monthMap: Record<string, { label: string; wins: number; played: number }> = {};
+    playerHistory.forEach(e => {
+      const d = new Date(e.match.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' });
+      if (!monthMap[key]) monthMap[key] = { label, wins: 0, played: 0 };
+      monthMap[key].played++;
+      if (e.lineup.result === MatchResult.WIN) monthMap[key].wins++;
+    });
+    const months = Object.values(monthMap);
+    const bestMonth = months.length > 0
+      ? months.reduce((best, m) => (m.wins / m.played > best.wins / best.played ? m : best))
+      : null;
+    const worstMonth = months.length > 1
+      ? months.reduce((worst, m) => (m.wins / m.played < worst.wins / worst.played ? m : worst))
+      : null;
+
+    return {
+      wins, losses, draws, total,
+      homeWins, homePlayed, awayWins, awayPlayed,
+      streakCount, streakType,
+      recentForm,
+      setsWon, setsLost,
+      partners, rivals,
+      pairPositions,
+      bestMonth, worstMonth,
+    };
   }, [playerHistory]);
 
   const selectedPlayer = data?.players.find(p => p.id === selectedPlayerId);
@@ -192,114 +275,271 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
         </div>
       </div>
 
-      {/* Player stats summary */}
+      {/* ── STATS PANEL ── */}
       {selectedPlayer && playerHistory.length > 0 && (
-        <div className="bg-gradient-to-br from-blue-950 to-blue-900 rounded-2xl p-5 text-white border border-blue-800 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-lime-400 blur-[80px] opacity-10 rounded-full pointer-events-none" />
-          <div className="flex items-start justify-between gap-4 mb-5 relative z-10">
-            <div>
-              <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1">Jugador seleccionado</p>
-              <h3 className="text-2xl font-black text-white">{selectedPlayer.name}</h3>
-              <p className="text-blue-300 text-sm font-medium mt-0.5">{stats.total} partidos individuales</p>
-            </div>
-            <div className="bg-blue-800/60 border border-blue-700/50 rounded-2xl px-4 py-2 text-center">
-              <span className="block text-2xl font-black text-lime-400">
-                {stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0}%
-              </span>
-              <span className="text-[9px] text-blue-400 font-bold uppercase">Win Rate</span>
-            </div>
-          </div>
-          
-          {/* Win/Loss/Draw */}
-          <div className="grid grid-cols-3 gap-3 mb-4 relative z-10">
-            <div className="bg-lime-400/10 border border-lime-400/20 rounded-xl p-3 text-center">
-              <span className="block text-xl font-black text-lime-400">{stats.wins}</span>
-              <span className="text-[9px] text-lime-300 font-bold uppercase">Victorias</span>
-            </div>
-            <div className="bg-blue-700/30 border border-blue-600/30 rounded-xl p-3 text-center">
-              <span className="block text-xl font-black text-blue-300">{stats.draws}</span>
-              <span className="text-[9px] text-blue-400 font-bold uppercase">Empates</span>
-            </div>
-            <div className="bg-red-400/10 border border-red-400/20 rounded-xl p-3 text-center">
-              <span className="block text-xl font-black text-red-400">{stats.losses}</span>
-              <span className="text-[9px] text-red-300 font-bold uppercase">Derrotas</span>
-            </div>
-          </div>
+        <>
+          {/* Hero card */}
+          <div className="bg-gradient-to-br from-blue-950 to-blue-900 rounded-2xl p-5 text-white border border-blue-800 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-lime-400 blur-[80px] opacity-10 rounded-full pointer-events-none" />
 
-          {/* Home / Away */}
-          <div className="grid grid-cols-2 gap-3 mb-4 relative z-10">
-            <div className="bg-blue-800/40 border border-blue-700/40 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-sm">🏠</div>
+            <div className="flex items-start justify-between gap-4 mb-5 relative z-10">
               <div>
-                <p className="text-xs font-black text-white">{stats.homeWins}/{stats.homePlayed} casa</p>
-                <p className="text-[10px] text-blue-400 font-medium">
-                  {stats.homePlayed > 0 ? Math.round((stats.homeWins / stats.homePlayed) * 100) : 0}% WR local
-                </p>
+                <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1">Jugador seleccionado</p>
+                <h3 className="text-2xl font-black text-white">{selectedPlayer.name}</h3>
+                <p className="text-blue-300 text-sm font-medium mt-0.5">{stats.total} partidos individuales</p>
+              </div>
+              <div className="bg-blue-800/60 border border-blue-700/50 rounded-2xl px-4 py-2 text-center shrink-0">
+                <span className="block text-2xl font-black text-lime-400">
+                  {stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0}%
+                </span>
+                <span className="text-[9px] text-blue-400 font-bold uppercase">Win Rate</span>
               </div>
             </div>
-            <div className="bg-blue-800/40 border border-blue-700/40 rounded-xl p-3 flex items-center gap-3">
-              <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center text-sm">✈️</div>
-              <div>
-                <p className="text-xs font-black text-white">{stats.awayWins}/{stats.awayPlayed} fuera</p>
-                <p className="text-[10px] text-blue-400 font-medium">
-                  {stats.awayPlayed > 0 ? Math.round((stats.awayWins / stats.awayPlayed) * 100) : 0}% WR visitante
-                </p>
+
+            <div className="grid grid-cols-3 gap-3 mb-4 relative z-10">
+              <div className="bg-lime-400/10 border border-lime-400/20 rounded-xl p-3 text-center">
+                <span className="block text-xl font-black text-lime-400">{stats.wins}</span>
+                <span className="text-[9px] text-lime-300 font-bold uppercase">Victorias</span>
+              </div>
+              <div className="bg-blue-700/30 border border-blue-600/30 rounded-xl p-3 text-center">
+                <span className="block text-xl font-black text-blue-300">{stats.draws}</span>
+                <span className="text-[9px] text-blue-400 font-bold uppercase">Empates</span>
+              </div>
+              <div className="bg-red-400/10 border border-red-400/20 rounded-xl p-3 text-center">
+                <span className="block text-xl font-black text-red-400">{stats.losses}</span>
+                <span className="text-[9px] text-red-300 font-bold uppercase">Derrotas</span>
               </div>
             </div>
-          </div>
 
-          {/* Top partners */}
-          {stats.partners.length > 0 && (
-            <div className="relative z-10">
-              <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">Compañeros habituales</p>
-              <div className="space-y-2">
-                {stats.partners.slice(0, 4).map(partner => {
-                  const wr = partner.played > 0 ? Math.round((partner.wins / partner.played) * 100) : 0;
-                  const recent = partner.recentResults.slice(0, 5);
-                  return (
-                    <div key={partner.name} className="bg-blue-800/50 border border-blue-700/40 rounded-xl px-3 py-2.5">
-                      {/* Name + WR bar */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-white text-xs font-black">{partner.name}</span>
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-lg ${wr >= 50 ? 'bg-lime-400/20 text-lime-400' : 'bg-red-400/20 text-red-400'}`}>
-                          {wr}% WR
-                        </span>
-                      </div>
-                      {/* V / E / D counts */}
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-[10px] font-black text-lime-400">{partner.wins}V</span>
-                        {partner.draws > 0 && <span className="text-[10px] font-black text-blue-300">{partner.draws}E</span>}
-                        <span className="text-[10px] font-black text-red-400">{partner.losses}D</span>
-                        <span className="text-[10px] text-blue-500 font-medium ml-auto">{partner.played} partido{partner.played !== 1 ? 's' : ''}</span>
-                      </div>
-                      {/* Recent form dots */}
-                      {recent.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <span className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mr-1">Forma:</span>
-                          {recent.map((r, i) => (
-                            <div key={i} className={`w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-black ${
-                              r === MatchResult.WIN ? 'bg-lime-400/20 text-lime-400 border border-lime-400/30'
-                              : r === MatchResult.LOSS ? 'bg-red-400/20 text-red-400 border border-red-400/30'
-                              : 'bg-blue-400/20 text-blue-300 border border-blue-400/30'
-                            }`}>
-                              {r === MatchResult.WIN ? 'V' : r === MatchResult.LOSS ? 'D' : 'E'}
-                            </div>
-                          ))}
+            <div className="grid grid-cols-2 gap-3 mb-4 relative z-10">
+              <div className="bg-blue-800/40 border border-blue-700/40 rounded-xl p-3 flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-sm">🏠</div>
+                <div>
+                  <p className="text-xs font-black text-white">{stats.homeWins}/{stats.homePlayed} casa</p>
+                  <p className="text-[10px] text-blue-400 font-medium">
+                    {stats.homePlayed > 0 ? Math.round((stats.homeWins / stats.homePlayed) * 100) : 0}% WR local
+                  </p>
+                </div>
+              </div>
+              <div className="bg-blue-800/40 border border-blue-700/40 rounded-xl p-3 flex items-center gap-3">
+                <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center text-sm">✈️</div>
+                <div>
+                  <p className="text-xs font-black text-white">{stats.awayWins}/{stats.awayPlayed} fuera</p>
+                  <p className="text-[10px] text-blue-400 font-medium">
+                    {stats.awayPlayed > 0 ? Math.round((stats.awayWins / stats.awayPlayed) * 100) : 0}% WR visitante
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {stats.partners.length > 0 && (
+              <div className="relative z-10">
+                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">Compañeros habituales</p>
+                <div className="space-y-2">
+                  {stats.partners.slice(0, 4).map(partner => {
+                    const wr = partner.played > 0 ? Math.round((partner.wins / partner.played) * 100) : 0;
+                    const recent = partner.recentResults.slice(0, 5);
+                    return (
+                      <div key={partner.name} className="bg-blue-800/50 border border-blue-700/40 rounded-xl px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-white text-xs font-black">{partner.name}</span>
+                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-lg ${wr >= 50 ? 'bg-lime-400/20 text-lime-400' : 'bg-red-400/20 text-red-400'}`}>
+                            {wr}% WR
+                          </span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-[10px] font-black text-lime-400">{partner.wins}V</span>
+                          {partner.draws > 0 && <span className="text-[10px] font-black text-blue-300">{partner.draws}E</span>}
+                          <span className="text-[10px] font-black text-red-400">{partner.losses}D</span>
+                          <span className="text-[10px] text-blue-500 font-medium ml-auto">{partner.played} partido{partner.played !== 1 ? 's' : ''}</span>
+                        </div>
+                        {recent.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-blue-500 font-bold uppercase tracking-widest mr-1">Forma:</span>
+                            {recent.map((r, i) => (
+                              <div key={i} className={`w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-black ${
+                                r === MatchResult.WIN ? 'bg-lime-400/20 text-lime-400 border border-lime-400/30'
+                                : r === MatchResult.LOSS ? 'bg-red-400/20 text-red-400 border border-red-400/30'
+                                : 'bg-blue-400/20 text-blue-300 border border-blue-400/30'
+                              }`}>
+                                {r === MatchResult.WIN ? 'V' : r === MatchResult.LOSS ? 'D' : 'E'}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Forma reciente ── */}
+          {stats.recentForm.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                  <Activity size={15} className="text-slate-500 dark:text-slate-400" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 dark:text-white text-sm">Forma reciente</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Últimos {stats.recentForm.length} partidos</p>
+                </div>
+                {stats.streakCount >= 2 && stats.streakType && (
+                  <div className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border ${
+                    stats.streakType === MatchResult.WIN ? 'bg-lime-50 dark:bg-lime-900/20 border-lime-200 dark:border-lime-800 text-lime-600 dark:text-lime-400'
+                    : stats.streakType === MatchResult.LOSS ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-500'
+                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-500'
+                  }`}>
+                    <Flame size={10} />
+                    {stats.streakCount} {stats.streakType === MatchResult.WIN ? 'victorias' : stats.streakType === MatchResult.LOSS ? 'derrotas' : 'empates'} seguidas
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {stats.recentForm.map((r, i) => (
+                  <div
+                    key={i}
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black border transition-transform hover:scale-110 ${
+                      r === MatchResult.WIN
+                        ? 'bg-lime-100 dark:bg-lime-900/30 border-lime-300 dark:border-lime-700 text-lime-600 dark:text-lime-400'
+                        : r === MatchResult.LOSS
+                        ? 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700 text-red-500'
+                        : 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-500'
+                    }`}
+                  >
+                    {r === MatchResult.WIN ? 'V' : r === MatchResult.LOSS ? 'D' : 'E'}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Sets & Posición de pareja ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(stats.setsWon + stats.setsLost) > 0 && (
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                    <Target size={15} className="text-slate-500 dark:text-slate-400" />
+                  </div>
+                  <h3 className="font-black text-slate-900 dark:text-white text-sm">Sets</h3>
+                </div>
+                <div className="flex items-end gap-4 mb-3">
+                  <div>
+                    <span className="text-3xl font-black text-lime-600 dark:text-lime-400">{stats.setsWon}</span>
+                    <span className="text-slate-400 text-lg font-black mx-1">–</span>
+                    <span className="text-3xl font-black text-red-500">{stats.setsLost}</span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium mb-1">
+                    {Math.round((stats.setsWon / (stats.setsWon + stats.setsLost)) * 100)}% ganados
+                  </span>
+                </div>
+                <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-lime-400 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((stats.setsWon / (stats.setsWon + stats.setsLost)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {stats.pairPositions.length > 0 && (
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                    <BarChart2 size={15} className="text-slate-500 dark:text-slate-400" />
+                  </div>
+                  <h3 className="font-black text-slate-900 dark:text-white text-sm">Por posición de pareja</h3>
+                </div>
+                <div className="space-y-3">
+                  {stats.pairPositions.map(({ pos, wins, played }) => {
+                    const wr = played > 0 ? Math.round((wins / played) * 100) : 0;
+                    return (
+                      <div key={pos}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-black text-slate-700 dark:text-slate-200">Pareja #{pos}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400 font-medium">{wins}V / {played - wins}D · {played}</span>
+                            <span className={`text-[10px] font-black ${wr >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-red-500'}`}>{wr}%</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all duration-500 ${wr >= 50 ? 'bg-lime-400' : 'bg-red-400'}`} style={{ width: `${wr}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Rivales frecuentes ── */}
+          {stats.rivals.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                  <Trophy size={15} className="text-slate-500 dark:text-slate-400" />
+                </div>
+                <h3 className="font-black text-slate-900 dark:text-white text-sm">Rivales frecuentes</h3>
+              </div>
+              <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                {stats.rivals.slice(0, 6).map(rival => {
+                  const wr = rival.played > 0 ? Math.round((rival.wins / rival.played) * 100) : 0;
+                  return (
+                    <div key={rival.name} className="flex items-center gap-3 px-4 py-3">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${wr >= 50 ? 'bg-lime-400' : wr > 0 ? 'bg-red-400' : 'bg-slate-300'}`} />
+                      <span className="flex-1 text-xs font-black text-slate-800 dark:text-slate-200 truncate">{rival.name}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-black text-lime-600 dark:text-lime-400">{rival.wins}V</span>
+                        {rival.draws > 0 && <span className="text-[10px] font-black text-blue-500">{rival.draws}E</span>}
+                        <span className="text-[10px] font-black text-red-500">{rival.losses}D</span>
+                        <span className={`text-[10px] font-black w-8 text-right tabular-nums ${wr >= 50 ? 'text-lime-600 dark:text-lime-400' : 'text-red-500'}`}>{wr}%</span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
-        </div>
+
+          {/* ── Mejor / Peor mes ── */}
+          {(stats.bestMonth || stats.worstMonth) && (
+            <div className="grid grid-cols-2 gap-4">
+              {stats.bestMonth && (
+                <div className="bg-lime-50 dark:bg-lime-900/10 border border-lime-200 dark:border-lime-800/50 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp size={14} className="text-lime-600 dark:text-lime-400" />
+                    <span className="text-[10px] font-black text-lime-600 dark:text-lime-400 uppercase tracking-widest">Mejor mes</span>
+                  </div>
+                  <p className="text-xl font-black text-lime-700 dark:text-lime-300 capitalize">{stats.bestMonth.label}</p>
+                  <p className="text-xs text-lime-600 dark:text-lime-400 font-medium mt-0.5">
+                    {stats.bestMonth.wins}V / {stats.bestMonth.played} · {Math.round((stats.bestMonth.wins / stats.bestMonth.played) * 100)}%
+                  </p>
+                </div>
+              )}
+              {stats.worstMonth && stats.worstMonth.label !== stats.bestMonth?.label && (
+                <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/50 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingDown size={14} className="text-red-500" />
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Peor mes</span>
+                  </div>
+                  <p className="text-xl font-black text-red-600 dark:text-red-400 capitalize">{stats.worstMonth.label}</p>
+                  <p className="text-xs text-red-500 font-medium mt-0.5">
+                    {stats.worstMonth.wins}V / {stats.worstMonth.played} · {Math.round((stats.worstMonth.wins / stats.worstMonth.played) * 100)}%
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Filters & Match list */}
+      {/* ── Match list ── */}
       {selectedPlayer && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
-          {/* Filters header */}
           <button
             onClick={() => setShowFilters(f => !f)}
             className="w-full flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
@@ -317,7 +557,7 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                 </p>
               </div>
             </div>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700 text-slate-400 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`}>
               <ChevronDown size={13} />
             </div>
           </button>
@@ -326,7 +566,7 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
             <div className="p-4 border-b border-slate-100 dark:border-slate-700 space-y-3 animate-in slide-in-from-top-2 duration-200">
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Resultado</p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {(['ALL', 'WIN', 'LOSS', 'DRAW'] as const).map(r => (
                     <button
                       key={r}
@@ -366,7 +606,6 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
             </div>
           )}
 
-          {/* Match list */}
           {filteredHistory.length === 0 ? (
             <div className="p-8 text-center">
               <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -394,11 +633,8 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                         isWin ? 'bg-lime-50/30 dark:bg-lime-900/5' : isLoss ? 'bg-red-50/30 dark:bg-red-900/5' : ''
                       }`}
                     >
-                      {/* Result indicator */}
                       <div className={`w-1.5 shrink-0 self-stretch rounded-full ${isWin ? 'bg-lime-400' : isLoss ? 'bg-red-400' : 'bg-blue-400'}`} />
-
                       <div className="flex-1 min-w-0">
-                        {/* Rival + location */}
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
                             entry.match.isHome
@@ -411,15 +647,12 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                             vs {entry.match.opponent}
                           </span>
                         </div>
-                        {/* Partner */}
                         <p className="text-[10px] text-slate-400 font-medium">
                           Con <span className="text-slate-600 dark:text-slate-300 font-bold">{entry.partnerName}</span>
                           {' · '}
                           {new Date(entry.match.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' })}
                         </p>
                       </div>
-
-                      {/* Sets score */}
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-[10px] font-bold text-slate-400 tabular-nums hidden sm:block">
                           {formatSets(entry.lineup)}
@@ -431,11 +664,9 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                       </div>
                     </button>
 
-                    {/* Expanded detail */}
                     {isExpanded && (
                       <div className="px-4 pb-4 pt-1 bg-slate-50/50 dark:bg-slate-700/20 animate-in slide-in-from-top-1 duration-150">
                         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
-                          {/* Pair vs opponents */}
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex-1 min-w-0">
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nuestro equipo</p>
@@ -447,7 +678,7 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                               : isLoss ? 'bg-red-100 dark:bg-red-900/30 text-red-500'
                               : 'bg-blue-100 dark:bg-blue-900/30 text-blue-500'
                             }`}>
-                              {isWin ? 'W' : isLoss ? 'L' : 'E'}
+                              {isWin ? 'V' : isLoss ? 'D' : 'E'}
                             </div>
                             <div className="flex-1 min-w-0 text-right">
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Rivales</p>
@@ -461,11 +692,9 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                               )}
                             </div>
                           </div>
-
-                          {/* Sets */}
                           <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Marcador por sets</p>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               {[entry.lineup.set1, entry.lineup.set2, entry.lineup.set3]
                                 .filter(Boolean)
                                 .map((set, i) => (
@@ -476,8 +705,6 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                                 ))}
                             </div>
                           </div>
-
-                          {/* Pair number if available */}
                           {entry.lineup.pairNumber !== undefined && (
                             <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -496,7 +723,6 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
         </div>
       )}
 
-      {/* No player selected placeholder */}
       {!selectedPlayerId && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-10 text-center shadow-sm">
           <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">

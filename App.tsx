@@ -568,7 +568,7 @@ const App = () => {
         } as MatchDay));
 
         const updatedMatches = [...data.matches, ...matchesToSave];
-        const updatedPlayers = recalculateStats(data.players, updatedMatches);
+        const updatedPlayers = recalculateStats(data.players, updatedMatches, data.playoffs);
         await updateTeamData(teamId, { matches: updatedMatches, players: updatedPlayers });
 
         // Cleanup
@@ -590,7 +590,7 @@ const App = () => {
 
         try {
             const updatedMatches = data.matches.filter(m => m.id !== matchToDelete.id);
-            const updatedPlayers = recalculateStats(data.players, updatedMatches);
+            const updatedPlayers = recalculateStats(data.players, updatedMatches, data.playoffs);
 
             await updateTeamData(teamId, sanitize({ matches: updatedMatches, players: updatedPlayers }));
             setMatchToDelete(null);
@@ -631,7 +631,7 @@ const App = () => {
         } else {
             updatedMatches = [...data.matches, newMatchData];
         }
-        const updatedPlayers = recalculateStats(data.players, updatedMatches);
+        const updatedPlayers = recalculateStats(data.players, updatedMatches, data.playoffs);
 
         try {
             await updateTeamData(teamId, sanitize({ matches: updatedMatches, players: updatedPlayers }));
@@ -720,7 +720,7 @@ const App = () => {
         }
 
         const updatedMatches = [...data.matches, ...newMatches];
-        const updatedPlayers = recalculateStats(data.players, updatedMatches);
+        const updatedPlayers = recalculateStats(data.players, updatedMatches, data.playoffs);
 
         // Sanitize before saving
         const sanitize = (obj: any) => JSON.parse(JSON.stringify(obj));
@@ -1086,7 +1086,14 @@ const App = () => {
                             teamId={teamId}
                             viewSeasonId={viewSeasonId}
                             sessionRole={sessionRole}
-                            updateTeamData={updateTeamData}
+                            updateTeamData={async (id, partial) => {
+                                if (partial.playoffs !== undefined && data) {
+                                    const updatedPlayers = recalculateStats(data.players, data.matches, partial.playoffs);
+                                    await updateTeamData(id, { ...partial, players: updatedPlayers });
+                                } else {
+                                    await updateTeamData(id, partial);
+                                }
+                            }}
                         />
                     )}
                     {currentView === 'LINEUP' && (

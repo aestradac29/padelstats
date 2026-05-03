@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Activity, Trophy, Calendar, X, ChevronRight, CheckCircle, XCircle, Table, LayoutGrid, TrendingUp, TrendingDown, Target, Users, ListOrdered, Clock, Download } from '../Icons';
 import { AppState, MatchDay, MatchLineup, MatchResult, Position } from '../../types';
+import { playoffLegsAsMatchDays } from '../../utils/helpers';
 import { Card, Select, Button } from '../UIComponents';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import html2canvas from 'html2canvas';
@@ -113,9 +114,11 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     const pairStats = useMemo(() => {
         if (!data) return [];
 
-        const filteredMatches = viewSeasonId === 'all' 
+        const leagueMatches = viewSeasonId === 'all' 
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        const filteredMatches = [...leagueMatches, ...playoffMatches];
 
         const pairsMap = new Map<string, PairStats>();
 
@@ -219,9 +222,11 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
             [Position.AMBOS]: { matches: 0, wins: 0, losses: 0, winRate: 0 },
         };
 
-        const filteredMatches = viewSeasonId === 'all' 
+        const leagueMatches = viewSeasonId === 'all' 
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        const filteredMatches = [...leagueMatches, ...playoffMatches];
 
         filteredMatches.forEach(matchDay => {
             matchDay.lineups.forEach(lineup => {
@@ -247,9 +252,11 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     // --- NEMESIS ---
     const nemesisStats = useMemo(() => {
         if (!data) return [];
-        const filteredMatches = viewSeasonId === 'all' 
+        const leagueMatches = viewSeasonId === 'all' 
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        const filteredMatches = [...leagueMatches, ...playoffMatches];
 
         const rivalsMap = new Map<string, { name: string, team: string, matches: number, wins: number, losses: number, winRate: number, playedAgainst: any[] }>();
         
@@ -297,21 +304,22 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     const nemesisTeamOptions = useMemo(() => {
         if (!data) return [{ value: 'all', label: 'Todos los equipos' }];
         const teams = new Set<string>();
-        data.matches.forEach(m => {
-            if (m.opponent) teams.add(m.opponent);
-        });
+        data.matches.forEach(m => { if (m.opponent) teams.add(m.opponent); });
+        playoffLegsAsMatchDays(data.playoffs, viewSeasonId).forEach(m => { if (m.opponent) teams.add(m.opponent); });
         return [
             { value: 'all', label: 'Todos los equipos' },
             ...Array.from(teams).sort().map(t => ({ value: t, label: t }))
         ];
-    }, [data]);
+    }, [data, viewSeasonId]);
 
     // --- STREAKS ---
     const streaks = useMemo(() => {
         if (!data) return { hot: [], cold: [] };
-        const filteredMatches = viewSeasonId === 'all' 
+        const leagueMatches = viewSeasonId === 'all' 
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        const filteredMatches = [...leagueMatches, ...playoffMatches];
 
         const playerMatches = new Map<string, MatchResult[]>();
         const sortedMatches = [...filteredMatches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -360,9 +368,11 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
     // --- ORDER ---
     const orderStats = useMemo(() => {
         if (!data) return { players: [], pairs: [], pairPositions: [] };
-        const filteredMatches = viewSeasonId === 'all' 
+        const leagueMatches = viewSeasonId === 'all' 
             ? data.matches 
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        const filteredMatches = [...leagueMatches, ...playoffMatches];
 
         const playerStats = new Map<string, { name: string, positions: { [key: number]: { matches: number, wins: number } } }>();
         const pairStatsMap = new Map<string, { name: string, player1Id?: string, player2Id?: string, positions: { [key: number]: { matches: number, wins: number } } }>();
