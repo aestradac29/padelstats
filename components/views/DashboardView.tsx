@@ -3,6 +3,7 @@ import { Edit2, UserPlus, Trophy, BrainCircuit, Activity, Calendar, Sparkles, Tr
 import { Card, Button, Avatar, ProgressBar, ResultBadge } from '../UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { AppState, MatchResult, Player, MatchDay, PlayoffLeg, PlayoffTie, PlayoffRound, PlayoffBracket } from '../../types';
+import { playoffLegsAsMatchDays } from '../../utils/helpers';
 import { analyzeTeamStats, AIAnalysisResult } from '../../services/geminiService';
 import { getPoints } from './PlayersView';
 import { useToast } from '../Toast';
@@ -311,6 +312,33 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         };
         analyzeTeamStats(context).then(setAiAnalysis).finally(() => setLoadingAi(false));
     };
+
+    // ── Playoff stats ──────────────────────────────────────────────────────────
+    const playoffLegs = playoffLegsAsMatchDays(data?.playoffs, viewSeasonId);
+    const playedPlayoffLegs = playoffLegs.filter(l => l.lineups && l.lineups.length > 0);
+    const playoffMatchDaysWon  = playedPlayoffLegs.filter(l => getMatchDayResult(l) === 'WIN').length;
+    const playoffMatchDaysLost = playedPlayoffLegs.filter(l => getMatchDayResult(l) === 'LOSS').length;
+    const playoffMatchDaysDraw = playedPlayoffLegs.filter(l => getMatchDayResult(l) === 'DRAW').length;
+    const totalPlayoffLineups = playedPlayoffLegs.reduce((a, l) => a + (l.lineups?.length || 0), 0);
+    const wonPlayoffLineups   = playedPlayoffLegs.reduce((a, l) => a + l.lineups.filter(lu => lu.result === MatchResult.WIN).length, 0);
+    const playoffIndWinRate   = totalPlayoffLineups > 0 ? Math.round((wonPlayoffLineups / totalPlayoffLineups) * 100) : 0;
+    const playoffSets = { won: 0, lost: 0 };
+    playedPlayoffLegs.forEach(l => {
+        l.lineups.forEach(lu => {
+            [lu.set1, lu.set2, lu.set3].filter(Boolean).forEach(set => {
+                const parts = set!.split('-');
+                if (parts.length < 2) return;
+                const left = parseInt(parts[0], 10), right = parseInt(parts[1], 10);
+                if (isNaN(left) || isNaN(right)) return;
+                const ours = l.isHome ? left : right;
+                const theirs = l.isHome ? right : left;
+                if (ours > theirs) playoffSets.won++;
+                else if (theirs > ours) playoffSets.lost++;
+            });
+        });
+    });
+    const hasPlayoffData = playedPlayoffLegs.length > 0;
+    // ────────────────────────────────────────────────────────────────────────────
 
     if (!data) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 animate-in fade-in">
@@ -682,6 +710,77 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
         </div>
+        )}
+
+        {/* Playoff Stats */}
+        {hasPlayoffData && (
+          <div className="bg-gradient-to-br from-purple-950 to-purple-900 rounded-2xl border border-purple-800 overflow-hidden">
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-purple-800/60">
+              <div className="w-8 h-8 rounded-xl bg-purple-800/60 border border-purple-700/50 flex items-center justify-center">
+                <Trophy size={15} className="text-yellow-400" />
+              </div>
+              <div>
+                <h3 className="font-black text-white text-sm">Playoff</h3>
+                <p className="text-[10px] text-purple-400 font-bold uppercase tracking-widest">{playedPlayoffLegs.length} partido{playedPlayoffLegs.length !== 1 ? 's' : ''} jugado{playedPlayoffLegs.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* V/E/D */}
+              <div className="bg-purple-900/60 border border-purple-700/40 rounded-xl p-3 text-center">
+                <div className="flex justify-center gap-2 mb-1">
+                  <span className="text-lg font-black text-lime-400">{playoffMatchDaysWon}</span>
+                  <span className="text-lg font-black text-slate-500">·</span>
+                  <span className="text-lg font-black text-blue-300">{playoffMatchDaysDraw}</span>
+                  <span className="text-lg font-black text-slate-500">·</span>
+                  <span className="text-lg font-black text-red-400">{playoffMatchDaysLost}</span>
+                </div>
+                <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">V · E · D (Jornadas)</p>
+              </div>
+              {/* WR individual */}
+              <div className="bg-purple-900/60 border border-purple-700/40 rounded-xl p-3 text-center">
+                <p className={`text-2xl font-black ${playoffIndWinRate >= 50 ? 'text-lime-400' : 'text-red-400'}`}>{playoffIndWinRate}%</p>
+                <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">WR Partidos</p>
+                <p className="text-[9px] text-purple-500 font-medium">{wonPlayoffLineups}/{totalPlayoffLineups}</p>
+              </div>
+              {/* Sets */}
+              <div className="bg-purple-900/60 border border-purple-700/40 rounded-xl p-3 text-center">
+                <div className="flex justify-center items-baseline gap-1 mb-1">
+                  <span className="text-xl font-black text-lime-400">{playoffSets.won}</span>
+                  <span className="text-purple-500 font-bold">–</span>
+                  <span className="text-xl font-black text-red-400">{playoffSets.lost}</span>
+                </div>
+                <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Sets G/P</p>
+                {(playoffSets.won + playoffSets.lost) > 0 && (
+                  <div className="mt-1.5 h-1.5 bg-purple-800 rounded-full overflow-hidden flex">
+                    <div className="h-full bg-lime-400 rounded-l-full" style={{ width: `${Math.round(playoffSets.won / (playoffSets.won + playoffSets.lost) * 100)}%` }} />
+                    <div className="h-full bg-red-400 rounded-r-full" style={{ width: `${Math.round(playoffSets.lost / (playoffSets.won + playoffSets.lost) * 100)}%` }} />
+                  </div>
+                )}
+              </div>
+              {/* Home/Away in playoff */}
+              <div className="bg-purple-900/60 border border-purple-700/40 rounded-xl p-3">
+                <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-2">Local / Visitante</p>
+                {(() => {
+                  const ph = playedPlayoffLegs.filter(l => l.isHome);
+                  const pa = playedPlayoffLegs.filter(l => !l.isHome);
+                  const phW = ph.filter(l => getMatchDayResult(l) === 'WIN').length;
+                  const paW = pa.filter(l => getMatchDayResult(l) === 'WIN').length;
+                  return (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-purple-300 font-bold">🏠 Casa</span>
+                        <span className="text-[10px] font-black text-white">{phW}/{ph.length} · {ph.length > 0 ? Math.round(phW/ph.length*100) : 0}%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-purple-300 font-bold">✈️ Fuera</span>
+                        <span className="text-[10px] font-black text-white">{paW}/{pa.length} · {pa.length > 0 ? Math.round(paW/pa.length*100) : 0}%</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Gráfico + Top jugadores */}

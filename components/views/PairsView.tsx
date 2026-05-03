@@ -216,7 +216,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
         const player = data.players.find(p => p.id === selectedPlayerId);
         if (!player) return null;
 
-        const stats = {
+        const stats: Record<string, { matches: number; wins: number; losses: number; winRate: number }> = {
             [Position.DRIVE]: { matches: 0, wins: 0, losses: 0, winRate: 0 },
             [Position.REVES]: { matches: 0, wins: 0, losses: 0, winRate: 0 },
             [Position.AMBOS]: { matches: 0, wins: 0, losses: 0, winRate: 0 },
@@ -293,8 +293,10 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
         
         return statsArray.filter(r => r.matches > 0).sort((a, b) => {
             const { key, direction } = nemesisSort;
-            let valA = a[key];
-            let valB = b[key];
+            const rival = a as Record<string, any>;
+            const rivalB = b as Record<string, any>;
+            let valA = rival[key];
+            let valB = rivalB[key];
             
             if (direction === 'asc') return valA > valB ? 1 : -1;
             return valA < valB ? 1 : -1;
@@ -914,7 +916,7 @@ const PairsView: React.FC<PairsViewProps> = ({ data, viewSeasonId }) => {
                             <div className="text-center py-10 text-slate-500">Selecciona un jugador arriba para ver su sinergia.</div>
                         ) : positionSynergy ? (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {Object.entries(positionSynergy).map(([pos, stats]) => (
+                                {(Object.entries(positionSynergy) as [string, { matches: number; wins: number; losses: number; winRate: number }][]).map(([pos, stats]) => (
                                     <div key={pos} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-700">
                                         <h4 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Jugando con un {pos}</h4>
                                         <div className="flex items-end gap-2 mb-2">

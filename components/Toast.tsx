@@ -76,7 +76,7 @@ const ToastItem: React.FC<{ toast: Toast; onRemove: (id: string) => void }> = ({
     },
   };
 
-  const c = config[toast.type];
+  const c = config[toast.type as ToastType];
 
   return (
     <div
