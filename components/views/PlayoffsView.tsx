@@ -98,13 +98,14 @@ const getTieAggregate = (tie: PlayoffTie) => {
   };
 };
 
-const emptyLeg = (isHome: boolean): PlayoffLeg => ({ id: uuid(), isHome, lineups: [], tandas: '5', date: '', notes: '' });
+const emptyLeg = (isHome: boolean, gender?: 'MASCULINO' | 'FEMENINO'): PlayoffLeg => ({ id: uuid(), isHome, lineups: [], tandas: gender === 'FEMENINO' ? '4' : '5', date: '', notes: '' });
 
 // ─── LEG EDITOR MODAL ────────────────────────────────────────────────────────
 
 interface LegEditorModalProps {
   leg: PlayoffLeg;
   players: Player[];
+  gender?: 'MASCULINO' | 'FEMENINO';
   onSave: (leg: PlayoffLeg) => void;
   onClose: () => void;
 }
@@ -126,10 +127,18 @@ const emptyForm = (): LineupForm => ({
   s1We: '', s1They: '', s2We: '', s2They: '', s3We: '', s3They: '',
 });
 
-const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, onClose }) => {
+const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, onSave, onClose }) => {
   const [editedLeg, setEditedLeg] = useState<PlayoffLeg>(leg);
   const [form, setForm] = useState<LineupForm>(emptyForm());
   const [activeSection, setActiveSection] = useState<'setup' | 'lineups'>('setup');
+
+  const filteredTandaOptions = TANDA_OPTIONS.filter(o => {
+    const isMasc = o.label.includes('Masculino');
+    const isFem  = o.label.includes('Femenino');
+    if (gender === 'FEMENINO') return isFem;
+    if (gender === 'MASCULINO') return isMasc;
+    return true; // no gender set → show all
+  });
 
   const availIds = editedLeg.availablePlayers || [];
   const allSorted = [...players].sort((a, b) => a.name.localeCompare(b.name));
@@ -235,7 +244,7 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, onSave, o
                   <select value={editedLeg.tandas || '5'}
                     onChange={e => setEditedLeg(p => ({ ...p, tandas: e.target.value }))}
                     className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-3 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-lime-400 outline-none">
-                    {TANDA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    {filteredTandaOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -447,12 +456,13 @@ interface TieCardProps {
   tie: PlayoffTie;
   ourTeamName: string;
   players: Player[];
+  gender?: 'MASCULINO' | 'FEMENINO';
   sessionRole: 'CAPTAIN' | 'GUEST';
   onUpdate: (tie: PlayoffTie) => void;
   onDelete: () => void;
 }
 
-const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRole, onUpdate, onDelete }) => {
+const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, gender, sessionRole, onUpdate, onDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const [editingLegIdx, setEditingLegIdx] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -480,7 +490,7 @@ const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRol
     <>
       <ConfirmDialog isOpen={confirmDelete} title="¿Eliminar enfrentamiento?" message={<>Se eliminará <strong>{tie.homeTeam} vs {tie.awayTeam}</strong> y todos sus resultados.</>} confirmLabel="Eliminar" onConfirm={() => { setConfirmDelete(false); onDelete(); }} onCancel={() => setConfirmDelete(false)}/>
       {editingLegIdx !== null && (
-        <LegEditorModal leg={tie.legs[editingLegIdx]} players={players} onSave={leg => saveLeg(editingLegIdx, leg)} onClose={() => setEditingLegIdx(null)}/>
+        <LegEditorModal leg={tie.legs[editingLegIdx]} players={players} gender={gender} onSave={leg => saveLeg(editingLegIdx, leg)} onClose={() => setEditingLegIdx(null)}/>
       )}
 
       <div className={`rounded-2xl border-2 ${borderClass} bg-white dark:bg-slate-900 shadow-sm overflow-hidden`}>
@@ -603,7 +613,7 @@ const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRol
 
             {/* Add second leg button */}
             {sessionRole === 'CAPTAIN' && tie.legFormat === 'HOME_AWAY' && tie.legs.length < 2 && (
-              <button onClick={() => onUpdate({ ...tie, legs: [...tie.legs, emptyLeg(!tie.legs[0]?.isHome)] })} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-400 hover:border-lime-400 hover:text-lime-600 dark:hover:text-lime-400 transition-all flex items-center justify-center gap-2">
+              <button onClick={() => onUpdate({ ...tie, legs: [...tie.legs, emptyLeg(!tie.legs[0]?.isHome, gender)] })} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-400 hover:border-lime-400 hover:text-lime-600 dark:hover:text-lime-400 transition-all flex items-center justify-center gap-2">
                 <Plus size={14}/> Añadir partido de vuelta
               </button>
             )}
@@ -629,7 +639,7 @@ const TieCard: React.FC<TieCardProps> = ({ tie, ourTeamName, players, sessionRol
 
 // ─── ADD TIE MODAL ────────────────────────────────────────────────────────────
 
-const AddTieModal: React.FC<{ ourTeamName: string; onAdd: (tie: PlayoffTie) => void; onClose: () => void }> = ({ ourTeamName, onAdd, onClose }) => {
+const AddTieModal: React.FC<{ ourTeamName: string; gender?: 'MASCULINO' | 'FEMENINO'; onAdd: (tie: PlayoffTie) => void; onClose: () => void }> = ({ ourTeamName, gender, onAdd, onClose }) => {
   const [opponent, setOpponent] = useState('');
   const [weAreHome, setWeAreHome] = useState(true);
   const [legFormat, setLegFormat] = useState<PlayoffLegFormat>('SINGLE');
@@ -640,7 +650,7 @@ const AddTieModal: React.FC<{ ourTeamName: string; onAdd: (tie: PlayoffTie) => v
     if (!opponent.trim()) return;
     const homeTeam = weAreHome ? ourTeamName : opponent.trim();
     const awayTeam = weAreHome ? opponent.trim() : ourTeamName;
-    onAdd({ id: uuid(), roundId: '', homeTeam, awayTeam, seedHome: seedUs ? parseInt(seedUs) : undefined, seedAway: seedThem ? parseInt(seedThem) : undefined, legFormat, legs: [emptyLeg(weAreHome)] });
+    onAdd({ id: uuid(), roundId: '', homeTeam, awayTeam, seedHome: seedUs ? parseInt(seedUs) : undefined, seedAway: seedThem ? parseInt(seedThem) : undefined, legFormat, legs: [emptyLeg(weAreHome, gender)] });
   };
 
   return (
@@ -789,7 +799,7 @@ const PlayoffsView: React.FC<PlayoffsViewProps> = ({ data, teamId, viewSeasonId,
     <div className="space-y-5 animate-in slide-in-from-right-4 duration-300 pb-24">
       <ConfirmDialog isOpen={!!confirmDeleteBracket} title="¿Eliminar Playoff?" message="Se eliminarán todas las rondas y resultados." confirmLabel="Eliminar" onConfirm={() => confirmDeleteBracket && deleteBracket(confirmDeleteBracket)} onCancel={() => setConfirmDeleteBracket(null)}/>
       <ConfirmDialog isOpen={!!confirmDeleteRound} title="¿Eliminar Ronda?" message="Se eliminará esta ronda y todos sus enfrentamientos." confirmLabel="Eliminar" onConfirm={() => confirmDeleteRound && deleteRound(confirmDeleteRound)} onCancel={() => setConfirmDeleteRound(null)}/>
-      {addTieRoundId && <AddTieModal ourTeamName={ourTeamName} onAdd={tie => addTie(addTieRoundId, tie)} onClose={() => setAddTieRoundId(null)}/>}
+      {addTieRoundId && <AddTieModal ourTeamName={ourTeamName} gender={data?.settings?.gender} onAdd={tie => addTie(addTieRoundId, tie)} onClose={() => setAddTieRoundId(null)}/>}
 
       <header className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-5 sticky top-0 bg-slate-50 dark:bg-slate-950 z-20 pt-2">
         <div><h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Playoffs</h2><p className="text-slate-400 text-sm mt-0.5">{currentSeasonName}</p></div>
@@ -862,7 +872,7 @@ const PlayoffsView: React.FC<PlayoffsViewProps> = ({ data, teamId, viewSeasonId,
                     <div className="border-t border-slate-100 dark:border-slate-800 p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
                       {round.ties.length === 0 && <p className="text-center py-6 text-xs text-slate-400 italic">Sin enfrentamientos. Añade uno abajo.</p>}
                       {round.ties.map(tie => (
-                        <TieCard key={tie.id} tie={tie} ourTeamName={ourTeamName} players={players} sessionRole={sessionRole} onUpdate={updated => updateTie(round.id, updated)} onDelete={() => deleteTie(round.id, tie.id)}/>
+                        <TieCard key={tie.id} tie={tie} ourTeamName={ourTeamName} players={players} gender={data?.settings?.gender} sessionRole={sessionRole} onUpdate={updated => updateTie(round.id, updated)} onDelete={() => deleteTie(round.id, tie.id)}/>
                       ))}
                       {sessionRole === 'CAPTAIN' && (
                         <button onClick={() => setAddTieRoundId(round.id)} className="w-full py-3.5 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-400 hover:border-lime-400 hover:text-lime-600 dark:hover:text-lime-400 transition-all flex items-center justify-center gap-2">
