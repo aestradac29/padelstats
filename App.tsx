@@ -1103,7 +1103,7 @@ const App = () => {
                         />
                     )}
                     {currentView === 'QUICK_LINEUP' && (
-                        <QuickLineupView />
+                        <QuickLineupView gender={data?.settings?.gender} />
                     )}
                     {currentView === 'PAIRS' && (
                         <PairsView

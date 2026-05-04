@@ -1,10 +1,8 @@
-
-
 import React, { useState } from 'react';
 import { Search, Plus, Clock, Edit2, Wand2, Table, ListFilter, MapPin, Trash2, ChevronDown, ChevronUp, AlertCircle, Filter, Share2, Copy, Home, Plane } from '../Icons';
 import { Button, Card, ConfirmDialog } from '../UIComponents';
 import { AppState, MatchDay, MatchResult } from '../../types';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, playoffLegsAsMatchDays } from '../../utils/helpers';
 import { TANDA_OPTIONS } from '../../utils/constants';
 import { useToast } from '../Toast';
 
@@ -32,8 +30,12 @@ const MatchesView: React.FC<MatchesViewProps> = ({
     if (!data) return null;
 
     const getFilteredMatches = () => {
-        if (viewSeasonId === 'all') return data.matches;
-        return data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const leagueMatches = viewSeasonId === 'all'
+            ? data.matches
+            : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        // Playoff legs count as played matchdays too
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        return [...leagueMatches, ...playoffMatches];
     };
 
     const matches = getFilteredMatches();
@@ -346,8 +348,8 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                             <td className="p-3 border-r border-slate-200/50 dark:border-slate-700/50">
                                                 <div className="flex flex-col">
                                                      <div className="flex gap-1 mb-1">
-                                                         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit ${match.isRestDay ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
-                                                            {match.isRestDay ? 'DESCANSO' : match.isHome ? 'CASA' : 'FUERA'}
+                                                         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit ${match.id.startsWith('playoff_') ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : match.isRestDay ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : match.isHome ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
+                                                            {match.id.startsWith('playoff_') ? '🏆 PLAYOFF' : match.isRestDay ? 'DESCANSO' : match.isHome ? 'CASA' : 'FUERA'}
                                                          </span>
                                                          {match.ignorePoints && !match.isRestDay && (
                                                              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded w-fit bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" title="Histórico: No suma puntos">
@@ -372,14 +374,14 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                 <td className="p-3 text-right">
                                                     <div className="flex gap-1 justify-end">
                                                         <button 
-                                                            onClick={() => { setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
+                                                            onClick={() => { if (match.id.startsWith('playoff_')) return; setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
                                                             className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors"
                                                             title="Editar"
                                                         >
                                                             <Edit2 size={15} />
                                                         </button>
                                                         <button 
-                                                            onClick={() => setConfirmDeleteId(match.id)}
+                                                            onClick={() => { if (!match.id.startsWith('playoff_')) setConfirmDeleteId(match.id); }}
                                                             className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                                             title="Eliminar"
                                                         >
@@ -496,7 +498,7 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                 {sessionRole === 'CAPTAIN' && (
                                                     <>
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
+                                                            onClick={(e) => { e.stopPropagation(); if (match.id.startsWith('playoff_')) return; setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
                                                             className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-lg transition-colors"
                                                         >
                                                             <Edit2 size={12} /> Editar

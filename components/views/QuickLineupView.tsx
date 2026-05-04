@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Sparkles, Check, BrainCircuit, ArrowUpDown, Trash2, X, List, Shield, Trophy, Copy, Edit2, ChevronDown, ChevronUp } from '../Icons';
 import { Button, Card, Checkbox, Select } from '../UIComponents';
 import { Player, Position } from '../../types';
 import { getLineupSuggestion } from '../../services/geminiService';
 
-const QuickLineupView: React.FC = () => {
+const QuickLineupView: React.FC<{ gender?: 'MASCULINO' | 'FEMENINO' }> = ({ gender }) => {
     const [bulkText, setBulkText] = useState('');
     const [players, setPlayers] = useState<Player[]>([]);
     const [opponentDesc, setOpponentDesc] = useState('');
@@ -13,8 +12,9 @@ const QuickLineupView: React.FC = () => {
     const [isThinking, setIsThinking] = useState(false);
     const [autoSort, setAutoSort] = useState(true);
     const [showParser, setShowParser] = useState(true);
+    const numPairs = gender === 'FEMENINO' ? 4 : 5;
     const [draftLineup, setDraftLineup] = useState<{player1Id: string, player2Id: string}[]>(
-        Array(5).fill({ player1Id: '', player2Id: '' })
+        Array(numPairs).fill({ player1Id: '', player2Id: '' })
     );
     const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
@@ -74,7 +74,7 @@ const QuickLineupView: React.FC = () => {
             if (result.lineup && Array.isArray(result.lineup)) {
                 let newDraft = [...draftLineup];
                 result.lineup.forEach((pair, index) => {
-                    if (index < 5) newDraft[index] = { player1Id: pair.player1Id || '', player2Id: pair.player2Id || '' };
+                    if (index < numPairs) newDraft[index] = { player1Id: pair.player1Id || '', player2Id: pair.player2Id || '' };
                 });
                 if (autoSort) newDraft = sortPairs(newDraft);
                 setDraftLineup(newDraft);

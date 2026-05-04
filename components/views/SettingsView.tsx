@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Shield, Trash2, Check, X, Edit2, Copy } from '../Icons';
+import { useToast } from '../Toast';
 import { Button, Card, Input, Select } from '../UIComponents';
 import { AppState, Season, TeamSettings, MatchResult } from '../../types';
 import { DEFAULT_SETTINGS, PRESET_RANGES } from '../../utils/constants';
-import { recalculateStats } from '../../utils/helpers';
+import { recalculateStats, playoffLegsAsMatchDays } from '../../utils/helpers';
 
 interface SettingsViewProps {
     data: AppState | null;
@@ -19,6 +19,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
     data, teamId, viewSeasonId, setViewSeasonId, sessionRole, updateTeamData 
 }) => {
     const isGlobalView = viewSeasonId === 'all';
+    const { success: toastSuccess, error: toastError } = useToast();
     const currentSeason = data?.seasons?.find(s => s.id === viewSeasonId);
     const [localSettings, setLocalSettings] = useState<TeamSettings>( currentSeason?.settings || data?.settings || DEFAULT_SETTINGS );
     const [seasonToDelete, setSeasonToDelete] = useState<Season | null>(null);
@@ -50,7 +51,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
         if (idx >= 0) {
             updatedSeasons[idx] = { ...updatedSeasons[idx], settings: localSettings };
             await updateTeamData(teamId, { seasons: updatedSeasons });
-            alert("Configuración de temporada guardada");
+            toastSuccess("Configuración guardada correctamente");
         }
     }
 
@@ -121,7 +122,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({
             });
 
             // Recalculate Player Stats based on remaining matches
-            const nextPlayers = recalculateStats(data.players, nextMatches);
+            const remainingPlayoffs = (data.playoffs || []).filter(b => b.seasonId !== seasonId);
+            const nextPlayers = recalculateStats(data.players, nextMatches, remainingPlayoffs);
 
             // 2. DB Update
             await updateTeamData(teamId, sanitize({ 
@@ -140,7 +142,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
 
         } catch (error: any) {
             console.error("Delete Season Error:", error);
-            alert(`Error al eliminar la temporada: ${error.message || error}`);
+            toastError(`Error al eliminar la temporada: ${error.message || error}`);
             setSeasonToDelete(null); // Close Modal even on error
         }
     };
@@ -198,7 +200,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                             <p className="text-blue-400 text-xs mt-2">Comparte este código con tus jugadores para que puedan ver las estadísticas del equipo.</p>
                         </div>
                         <button
-                            onClick={() => { navigator.clipboard.writeText(teamId); alert('Código copiado al portapapeles'); }}
+                            onClick={() => { navigator.clipboard.writeText(teamId); toastSuccess('Código copiado al portapapeles'); }}
                             className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-lime-400 hover:bg-lime-300 text-blue-950 font-black text-xs rounded-xl transition-colors uppercase tracking-wide"
                         >
                             <Copy size={14}/> Copiar
@@ -292,7 +294,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                            </button>
                                            <button
                                                onClick={() => {
-                                                   if ((data.seasons || []).length <= 1) { alert("No puedes borrar la única temporada."); return; }
+                                                   if ((data.seasons || []).length <= 1) { toastError("No puedes borrar la única temporada"); return; }
                                                    setSeasonToDelete(s);
                                                }}
                                                className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"

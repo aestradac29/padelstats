@@ -103,8 +103,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     
     const getFilteredMatches = () => {
         if (!data) return [];
-        if (viewSeasonId === 'all') return data.matches;
-        return data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const leagueMatches = viewSeasonId === 'all'
+            ? data.matches
+            : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        return [...leagueMatches, ...playoffMatches];
     };
 
     const getFilteredStats = () => {
