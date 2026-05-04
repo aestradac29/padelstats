@@ -720,6 +720,14 @@ const PlayoffsView: React.FC<PlayoffsViewProps> = ({ data, teamId, viewSeasonId,
   const playoffs = useMemo(() => data?.playoffs || [], [data]);
   const players = useMemo(() => data?.players || [], [data]);
   const ourTeamName = data?.teamName || 'Nuestro Equipo';
+  // Resolve gender: global settings first, season settings as fallback
+  const resolvedGender = useMemo(() => {
+    if (data?.settings?.gender) return data.settings.gender;
+    const activeSeason = viewSeasonId !== 'all'
+      ? data?.seasons?.find(s => s.id === viewSeasonId)
+      : data?.seasons?.find(s => s.isActive);
+    return activeSeason?.settings?.gender;
+  }, [data, viewSeasonId]);
 
   const currentSeasonName = useMemo(() => viewSeasonId === 'all' ? 'Todas las temporadas' : data?.seasons?.find(s => s.id === viewSeasonId)?.name || viewSeasonId, [data, viewSeasonId]);
   const visibleBrackets = useMemo(() => viewSeasonId === 'all' ? playoffs : playoffs.filter(b => b.seasonId === viewSeasonId), [playoffs, viewSeasonId]);
@@ -799,7 +807,7 @@ const PlayoffsView: React.FC<PlayoffsViewProps> = ({ data, teamId, viewSeasonId,
     <div className="space-y-5 animate-in slide-in-from-right-4 duration-300 pb-24">
       <ConfirmDialog isOpen={!!confirmDeleteBracket} title="¿Eliminar Playoff?" message="Se eliminarán todas las rondas y resultados." confirmLabel="Eliminar" onConfirm={() => confirmDeleteBracket && deleteBracket(confirmDeleteBracket)} onCancel={() => setConfirmDeleteBracket(null)}/>
       <ConfirmDialog isOpen={!!confirmDeleteRound} title="¿Eliminar Ronda?" message="Se eliminará esta ronda y todos sus enfrentamientos." confirmLabel="Eliminar" onConfirm={() => confirmDeleteRound && deleteRound(confirmDeleteRound)} onCancel={() => setConfirmDeleteRound(null)}/>
-      {addTieRoundId && <AddTieModal ourTeamName={ourTeamName} gender={data?.settings?.gender} onAdd={tie => addTie(addTieRoundId, tie)} onClose={() => setAddTieRoundId(null)}/>}
+      {addTieRoundId && <AddTieModal ourTeamName={ourTeamName} gender={resolvedGender} onAdd={tie => addTie(addTieRoundId, tie)} onClose={() => setAddTieRoundId(null)}/>}
 
       <header className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-5 sticky top-0 bg-slate-50 dark:bg-slate-950 z-20 pt-2">
         <div><h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Playoffs</h2><p className="text-slate-400 text-sm mt-0.5">{currentSeasonName}</p></div>
@@ -872,7 +880,7 @@ const PlayoffsView: React.FC<PlayoffsViewProps> = ({ data, teamId, viewSeasonId,
                     <div className="border-t border-slate-100 dark:border-slate-800 p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
                       {round.ties.length === 0 && <p className="text-center py-6 text-xs text-slate-400 italic">Sin enfrentamientos. Añade uno abajo.</p>}
                       {round.ties.map(tie => (
-                        <TieCard key={tie.id} tie={tie} ourTeamName={ourTeamName} players={players} gender={data?.settings?.gender} sessionRole={sessionRole} onUpdate={updated => updateTie(round.id, updated)} onDelete={() => deleteTie(round.id, tie.id)}/>
+                        <TieCard key={tie.id} tie={tie} ourTeamName={ourTeamName} players={players} gender={resolvedGender} sessionRole={sessionRole} onUpdate={updated => updateTie(round.id, updated)} onDelete={() => deleteTie(round.id, tie.id)}/>
                       ))}
                       {sessionRole === 'CAPTAIN' && (
                         <button onClick={() => setAddTieRoundId(round.id)} className="w-full py-3.5 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-400 hover:border-lime-400 hover:text-lime-600 dark:hover:text-lime-400 transition-all flex items-center justify-center gap-2">
