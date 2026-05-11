@@ -118,8 +118,20 @@ export const playoffLegsAsMatchDays = (playoffs: PlayoffBracket[] | undefined, s
                     // it means the tie was created with us as awayTeam — flip.
                     let opponent: string;
                     if (ourTeamName) {
-                        const weAreHome = tie.homeTeam === ourTeamName;
-                        opponent = weAreHome ? tie.awayTeam : tie.homeTeam;
+                        // Normalize both sides for comparison (trim + lowercase)
+                        const norm = (s: string) => (s || '').trim().toLowerCase();
+                        const weAreHomeTeam = norm(tie.homeTeam) === norm(ourTeamName);
+                        const weAreAwayTeam = norm(tie.awayTeam) === norm(ourTeamName);
+                        if (weAreHomeTeam) {
+                            // We are the home team → opponent is always awayTeam regardless of leg
+                            opponent = tie.awayTeam;
+                        } else if (weAreAwayTeam) {
+                            // We are the away team → opponent is always homeTeam
+                            opponent = tie.homeTeam;
+                        } else {
+                            // Fallback: use leg.isHome as before
+                            opponent = leg.isHome ? tie.awayTeam : tie.homeTeam;
+                        }
                     } else {
                         opponent = leg.isHome ? tie.awayTeam : tie.homeTeam;
                     }
