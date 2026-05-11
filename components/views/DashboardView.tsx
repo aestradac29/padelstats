@@ -34,8 +34,10 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
         }
     }
     if (currentSettings.scoringSystem === 'NONE') return calculatedPoints;
-    const matches = data.matches.filter(m => m.seasonId === seasonId || (!m.seasonId && seasonId === 'default') || seasonId === 'all');
-    const matchesToScore = matches.filter(m => !m.ignorePoints);
+    const leagueMatches = data.matches.filter(m => m.seasonId === seasonId || (!m.seasonId && seasonId === 'default') || seasonId === 'all');
+    const playoffMatches = playoffLegsAsMatchDays(data.playoffs, seasonId, data.teamName);
+    const allMatches = [...leagueMatches, ...playoffMatches];
+    const matchesToScore = allMatches.filter(m => !m.ignorePoints);
     const sortedMatches = [...matchesToScore].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
         sortedMatches.forEach(match => {
@@ -106,7 +108,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         const leagueMatches = viewSeasonId === 'all'
             ? data.matches
             : data.matches.filter(m => m.seasonId === viewSeasonId || (!m.seasonId && viewSeasonId === 'default'));
-        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId);
+        const playoffMatches = playoffLegsAsMatchDays(data.playoffs, viewSeasonId, data.teamName);
         return [...leagueMatches, ...playoffMatches];
     };
 
@@ -317,7 +319,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     };
 
     // ── Playoff stats ──────────────────────────────────────────────────────────
-    const playoffLegs = playoffLegsAsMatchDays(data?.playoffs, viewSeasonId);
+    const playoffLegs = playoffLegsAsMatchDays(data?.playoffs, viewSeasonId, data?.teamName);
     const playedPlayoffLegs = playoffLegs.filter(l => l.lineups && l.lineups.length > 0);
     const playoffMatchDaysWon  = playedPlayoffLegs.filter(l => getMatchDayResult(l) === 'WIN').length;
     const playoffMatchDaysLost = playedPlayoffLegs.filter(l => getMatchDayResult(l) === 'LOSS').length;
