@@ -99,7 +99,7 @@ export const recalculateStats = (players: Player[], matches: MatchDay[], playoff
  * so PairsView, PlayerHistoryView and other stat views can include them transparently.
  * Pass seasonId to filter by season, or 'all' / undefined for all seasons.
  */
-export const playoffLegsAsMatchDays = (playoffs: PlayoffBracket[] | undefined, seasonId?: string): MatchDay[] => {
+export const playoffLegsAsMatchDays = (playoffs: PlayoffBracket[] | undefined, seasonId?: string, ourTeamName?: string): MatchDay[] => {
     if (!playoffs) return [];
     const result: MatchDay[] = [];
     playoffs.forEach(bracket => {
@@ -108,8 +108,21 @@ export const playoffLegsAsMatchDays = (playoffs: PlayoffBracket[] | undefined, s
             round.ties.forEach(tie => {
                 tie.legs.forEach(leg => {
                     if (!leg.lineups || leg.lineups.length === 0) return;
-                    // opponent is whichever team is not us (use homeTeam/awayTeam logic)
-                    const opponent = leg.isHome ? tie.awayTeam : tie.homeTeam;
+                    // Determine opponent correctly:
+                    // If we know ourTeamName, the opponent is whoever is NOT us.
+                    // leg.isHome tells us OUR perspective (are WE playing at home this leg).
+                    // tie.homeTeam is the team that plays at HOME for the home leg.
+                    // So: if leg.isHome=true → we are the home team → opponent = awayTeam
+                    //     if leg.isHome=false → we are the away team → opponent = homeTeam
+                    // But if ourTeamName is known and tie.homeTeam !== ourTeamName,
+                    // it means the tie was created with us as awayTeam — flip.
+                    let opponent: string;
+                    if (ourTeamName) {
+                        const weAreHome = tie.homeTeam === ourTeamName;
+                        opponent = weAreHome ? tie.awayTeam : tie.homeTeam;
+                    } else {
+                        opponent = leg.isHome ? tie.awayTeam : tie.homeTeam;
+                    }
                     result.push({
                         id: `playoff_${leg.id}`,
                         date: leg.date || new Date().toISOString(),

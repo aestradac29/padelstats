@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Trophy, Plus, Trash2, Edit2, ChevronDown, X, Shield, Home, Plane, Users } from '../Icons';
+import { Trophy, Plus, Trash2, Edit2, ChevronDown, X, Shield, Home, Plane, Users, Check } from '../Icons';
 import { Button, ConfirmDialog } from '../UIComponents';
 import { AppState, PlayoffBracket, PlayoffRound, PlayoffTie, PlayoffLeg, MatchLineup, MatchResult, PlayoffLegFormat, Player } from '../../types';
 import { useToast } from '../Toast';
@@ -162,11 +162,19 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
     const newAvail = [...availIds];
     if (player1Id && !newAvail.includes(player1Id)) newAvail.push(player1Id);
     if (player2Id && !newAvail.includes(player2Id)) newAvail.push(player2Id);
-    setEditedLeg(prev => ({ ...prev, lineups: [...prev.lineups, newLineup], availablePlayers: newAvail }));
+    setEditedLeg(prev => {
+      const newLineups = editingLineupIdx !== null
+        ? prev.lineups.map((l, i) => i === editingLineupIdx ? newLineup : l)
+        : [...prev.lineups, newLineup];
+      return { ...prev, lineups: newLineups, availablePlayers: newAvail };
+    });
+    setEditingLineupIdx(null);
     setForm(emptyForm());
   };
 
   const removeLineup = (idx: number) => setEditedLeg(prev => ({ ...prev, lineups: prev.lineups.filter((_, i) => i !== idx) }));
+
+  const [editingLineupIdx, setEditingLineupIdx] = useState<number | null>(null);
 
   const editLineup = (idx: number) => {
     const l = editedLeg.lineups[idx];
@@ -174,8 +182,13 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
     const [s2We, s2They] = (l.set2 || '-').split('-');
     const [s3We, s3They] = l.set3 ? l.set3.split('-') : ['', ''];
     setForm({ pairNumber: String(l.pairNumber || ''), player1Id: l.player1Id, player2Id: l.player2Id, opponent1Name: l.opponent1Name || '', opponent2Name: l.opponent2Name || '', s1We: s1We || '', s1They: s1They || '', s2We: s2We || '', s2They: s2They || '', s3We: s3We || '', s3They: s3They || '' });
-    removeLineup(idx);
+    setEditingLineupIdx(idx);
     setActiveSection('lineups');
+  };
+
+  const cancelEditLineup = () => {
+    setEditingLineupIdx(null);
+    setForm(emptyForm());
   };
 
   const toggleAvail = (id: string) => {
@@ -303,16 +316,20 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
                       {legStats.matchWins}–{legStats.matchLosses}
                     </span>
                   </div>
-                  {[...editedLeg.lineups].sort((a, b) => (a.pairNumber ?? 99) - (b.pairNumber ?? 99)).map((l, i) => {
+                  {editedLeg.lineups
+                    .map((l, originalIdx) => ({ l, originalIdx }))
+                    .sort((a, b) => (a.l.pairNumber ?? 99) - (b.l.pairNumber ?? 99))
+                    .map(({ l, originalIdx }) => {
                     const res = calcLineupResult(l, editedLeg.isHome);
                     const isW = res === MatchResult.WIN, isL = res === MatchResult.LOSS;
                     const p1 = players.find(p => p.id === l.player1Id);
                     const p2 = players.find(p => p.id === l.player2Id);
                     const setsStr = [l.set1, l.set2, l.set3].filter(Boolean).join('  ');
+                    const isBeingEdited = editingLineupIdx === originalIdx;
                     return (
-                      <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 ${isW ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-300 dark:border-lime-800' : isL ? 'bg-red-50 dark:bg-red-900/10 border-red-300 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0 ${isW ? 'bg-lime-500' : isL ? 'bg-red-500' : 'bg-slate-400'}`}>
-                          {l.pairNumber ?? i + 1}
+                      <div key={originalIdx} className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all ${isBeingEdited ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-600 ring-1 ring-blue-400/30' : isW ? 'bg-lime-50 dark:bg-lime-900/10 border-lime-300 dark:border-lime-800' : isL ? 'bg-red-50 dark:bg-red-900/10 border-red-300 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0 ${isBeingEdited ? 'bg-blue-500' : isW ? 'bg-lime-500' : isL ? 'bg-red-500' : 'bg-slate-400'}`}>
+                          {isBeingEdited ? '✎' : (l.pairNumber ?? originalIdx + 1)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-black text-slate-800 dark:text-white truncate">
@@ -322,12 +339,12 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
                             <div className="text-xs text-slate-400 truncate">vs {l.opponent1Name || '?'} / {l.opponent2Name || '?'}</div>
                           )}
                         </div>
-                        <div className={`font-mono font-black text-sm px-2.5 py-1 rounded-xl ${isW ? 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300' : isL ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>
+                        <div className={`font-mono font-black text-sm px-2.5 py-1 rounded-xl ${isBeingEdited ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : isW ? 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300' : isL ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>
                           {setsStr}
                         </div>
                         <div className="flex gap-1 shrink-0">
-                          <button onClick={() => editLineup(i)} className="p-2 text-slate-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"><Edit2 size={14}/></button>
-                          <button onClick={() => removeLineup(i)} className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={14}/></button>
+                          <button onClick={() => editLineup(originalIdx)} className={`p-2 rounded-lg transition-all ${isBeingEdited ? 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}><Edit2 size={14}/></button>
+                          <button onClick={() => { if (!isBeingEdited) removeLineup(originalIdx); }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all disabled:opacity-30" disabled={isBeingEdited}><Trash2 size={14}/></button>
                         </div>
                       </div>
                     );
@@ -416,10 +433,18 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
                   })}
                 </div>
 
-                <button onClick={addLineup} disabled={!canAddLineup}
-                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm">
-                  <Plus size={16}/> Añadir pareja
-                </button>
+                <div className="flex gap-2">
+                  {editingLineupIdx !== null && (
+                    <button onClick={cancelEditLineup}
+                      className="flex-none px-4 py-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-black text-sm transition-all flex items-center gap-2">
+                      <X size={15}/> Cancelar
+                    </button>
+                  )}
+                  <button onClick={addLineup} disabled={!canAddLineup}
+                    className={`flex-1 py-3 rounded-xl text-white font-black text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm ${editingLineupIdx !== null ? 'bg-lime-600 hover:bg-lime-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
+                    {editingLineupIdx !== null ? <><Check size={16}/> Guardar cambios</> : <><Plus size={16}/> Añadir pareja</>}
+                  </button>
+                </div>
               </div>
             </div>
           )}
