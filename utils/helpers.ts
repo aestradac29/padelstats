@@ -108,33 +108,30 @@ export const playoffLegsAsMatchDays = (playoffs: PlayoffBracket[] | undefined, s
             round.ties.forEach(tie => {
                 tie.legs.forEach(leg => {
                     if (!leg.lineups || leg.lineups.length === 0) return;
-                    // Determine opponent correctly:
-                    // If we know ourTeamName, the opponent is whoever is NOT us.
-                    // leg.isHome tells us OUR perspective (are WE playing at home this leg).
-                    // tie.homeTeam is the team that plays at HOME for the home leg.
-                    // So: if leg.isHome=true → we are the home team → opponent = awayTeam
-                    //     if leg.isHome=false → we are the away team → opponent = homeTeam
-                    // But if ourTeamName is known and tie.homeTeam !== ourTeamName,
-                    // it means the tie was created with us as awayTeam — flip.
-                    let opponent: string;
-                    if (ourTeamName) {
-                        // Normalize both sides for comparison (trim + lowercase)
-                        const norm = (s: string) => (s || '').trim().toLowerCase();
-                        const weAreHomeTeam = norm(tie.homeTeam) === norm(ourTeamName);
-                        const weAreAwayTeam = norm(tie.awayTeam) === norm(ourTeamName);
-                        if (weAreHomeTeam) {
-                            // We are the home team → opponent is always awayTeam regardless of leg
-                            opponent = tie.awayTeam;
-                        } else if (weAreAwayTeam) {
-                            // We are the away team → opponent is always homeTeam
-                            opponent = tie.homeTeam;
-                        } else {
-                            // Fallback: use leg.isHome as before
-                            opponent = leg.isHome ? tie.awayTeam : tie.homeTeam;
-                        }
+                    // The ground truth for "who is us" is in leg[0].isHome of the tie:
+                    // When the tie was created, the first leg's isHome reflects weAreHome.
+                    // If tie.legs[0].isHome=true → tie.homeTeam=us → opponent=awayTeam always.
+                    // If tie.legs[0].isHome=false → tie.awayTeam=us → opponent=homeTeam always.
+                    // We also try ourTeamName as a name-based cross-check.
+                    const firstLegIsHome = tie.legs[0]?.isHome ?? true;
+                    const norm = (s: string) => (s || '')
+                        .toLowerCase().trim()
+                        .replace(/\s+/g, ' ')
+                        .replace(/[\u2013\u2014\u2012\u2015\u2010\u2011]/g, '-');
+                    const normUs = ourTeamName ? norm(ourTeamName) : '';
+                    const normHome = norm(tie.homeTeam);
+                    const normAway = norm(tie.awayTeam);
+                    // Primary: name match
+                    let weAreHomeTeam: boolean;
+                    if (normUs && normHome === normUs) {
+                        weAreHomeTeam = true;
+                    } else if (normUs && normAway === normUs) {
+                        weAreHomeTeam = false;
                     } else {
-                        opponent = leg.isHome ? tie.awayTeam : tie.homeTeam;
+                        // Fallback: use first leg's isHome as ground truth
+                        weAreHomeTeam = firstLegIsHome;
                     }
+                    const opponent = weAreHomeTeam ? tie.awayTeam : tie.homeTeam;
                     result.push({
                         id: `playoff_${leg.id}`,
                         date: leg.date || new Date().toISOString(),
