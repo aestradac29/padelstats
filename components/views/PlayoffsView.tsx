@@ -134,10 +134,8 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
 
   const filteredTandaOptions = TANDA_OPTIONS.filter(o => {
     const isMasc = o.label.includes('Masculino');
-    const isFem  = o.label.includes('Femenino');
-    if (gender === 'FEMENINO') return isFem;
-    if (gender === 'MASCULINO') return isMasc;
-    return true; // no gender set → show all
+    if (gender === 'FEMENINO') return !isMasc;
+    return isMasc; // MASCULINO or default
   });
 
   const availIds = editedLeg.availablePlayers || [];
@@ -745,13 +743,13 @@ const PlayoffsView: React.FC<PlayoffsViewProps> = ({ data, teamId, viewSeasonId,
   const playoffs = useMemo(() => data?.playoffs || [], [data]);
   const players = useMemo(() => data?.players || [], [data]);
   const ourTeamName = data?.teamName || 'Nuestro Equipo';
-  // Resolve gender: global settings first, season settings as fallback
+  // Resolve gender: default to MASCULINO if not set
   const resolvedGender = useMemo(() => {
     if (data?.settings?.gender) return data.settings.gender;
     const activeSeason = viewSeasonId !== 'all'
       ? data?.seasons?.find(s => s.id === viewSeasonId)
       : data?.seasons?.find(s => s.isActive);
-    return activeSeason?.settings?.gender;
+    return activeSeason?.settings?.gender ?? 'MASCULINO';
   }, [data, viewSeasonId]);
 
   const currentSeasonName = useMemo(() => viewSeasonId === 'all' ? 'Todas las temporadas' : data?.seasons?.find(s => s.id === viewSeasonId)?.name || viewSeasonId, [data, viewSeasonId]);
