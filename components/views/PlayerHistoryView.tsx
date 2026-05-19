@@ -165,7 +165,7 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
       if (e.lineup.result === MatchResult.WIN) pairPosMap[pos].wins++;
     });
     const pairPositions = Object.entries(pairPosMap)
-      .map(([pos, s]) => ({ pos: parseInt(pos) + 1, ...s }))
+      .map(([pos, s]) => ({ pos: parseInt(pos), ...s }))
       .sort((a, b) => a.pos - b.pos);
 
     // Best / Worst month
@@ -708,7 +708,7 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
                           {entry.lineup.pairNumber !== undefined && (
                             <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                Pareja #{entry.lineup.pairNumber + 1}
+                                Pareja #{entry.lineup.pairNumber}
                               </p>
                             </div>
                           )}
