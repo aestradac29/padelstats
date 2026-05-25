@@ -402,14 +402,14 @@ const App = () => {
             category: tempLoanMatch.category || '',
             partnerName: tempLoanMatch.partnerName || '',
             partnerIsFromTeam: tempLoanMatch.partnerIsFromTeam ?? false,
-            partnerPlayerId: tempLoanMatch.partnerIsFromTeam ? tempLoanMatch.partnerPlayerId : undefined,
             opponent1Name: tempLoanMatch.opponent1Name || '',
             opponent2Name: tempLoanMatch.opponent2Name || '',
             set1: tempLoanMatch.set1 || '',
             set2: tempLoanMatch.set2 || '',
-            set3: tempLoanMatch.set3 || undefined,
             result: tempLoanMatch.result || MatchResult.WIN,
-            notes: tempLoanMatch.notes || undefined,
+            ...(tempLoanMatch.partnerIsFromTeam && tempLoanMatch.partnerPlayerId ? { partnerPlayerId: tempLoanMatch.partnerPlayerId } : {}),
+            ...(tempLoanMatch.set3 ? { set3: tempLoanMatch.set3 } : {}),
+            ...(tempLoanMatch.notes ? { notes: tempLoanMatch.notes } : {}),
         };
 
         let updatedPlayers = data.players.map(p => {
