@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AppState, MatchResult, MatchDay, MatchLineup } from '../../types';
+import { AppState, MatchResult, MatchDay, MatchLineup, LoanMatch } from '../../types';
 import { playoffLegsAsMatchDays } from '../../utils/helpers';
 import { User, Calendar, Trophy, TrendingUp, TrendingDown, Search, ChevronDown, Filter, Flame, Target, BarChart2, Activity } from '../Icons';
 
@@ -722,6 +722,115 @@ const PlayerHistoryView: React.FC<PlayerHistoryViewProps> = ({ data, viewSeasonI
           )}
         </div>
       )}
+
+      {/* ── Partidos Cedidos ── */}
+      {selectedPlayer && (() => {
+        const loanMatches: LoanMatch[] = selectedPlayer.loanMatches || [];
+        if (loanMatches.length === 0) return null;
+        const sorted = [...loanMatches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const loanWins = loanMatches.filter(lm => lm.result === MatchResult.WIN).length;
+        const loanLosses = loanMatches.filter(lm => lm.result === MatchResult.LOSS).length;
+        return (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-base">🏆</div>
+              <div className="flex-1">
+                <h3 className="font-black text-slate-900 dark:text-white text-sm">Partidos Cedidos</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Solo cuentan para puntos — no para estadísticas del equipo</p>
+              </div>
+              <div className="flex items-center gap-3 text-xs font-black">
+                <span className="text-lime-600 dark:text-lime-400">{loanWins}V</span>
+                <span className="text-red-500">{loanLosses}D</span>
+                <span className="text-slate-400 font-medium">({loanMatches.length})</span>
+              </div>
+            </div>
+            {/* List */}
+            <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              {sorted.map((lm, idx) => {
+                const isWin = lm.result === MatchResult.WIN;
+                const isExpanded = expandedMatchId === `loan-${lm.id}`;
+                return (
+                  <div key={lm.id}>
+                    <button
+                      onClick={() => setExpandedMatchId(isExpanded ? null : `loan-${lm.id}`)}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${isWin ? 'bg-lime-50/30 dark:bg-lime-900/5' : 'bg-red-50/30 dark:bg-red-900/5'}`}
+                    >
+                      <div className={`w-1.5 shrink-0 self-stretch rounded-full ${isWin ? 'bg-lime-400' : 'bg-red-400'}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                            🏆 {lm.category}
+                          </span>
+                          <span className="text-xs font-black text-slate-800 dark:text-white">
+                            vs {lm.opponent1Name} / {lm.opponent2Name}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          Con <span className="text-slate-600 dark:text-slate-300 font-bold">{lm.partnerName}</span>
+                          {lm.partnerIsFromTeam && <span className="ml-1 text-blue-500">· del equipo</span>}
+                          {' · '}
+                          {new Date(lm.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-bold text-slate-400 tabular-nums hidden sm:block">
+                          {[lm.set1, lm.set2, lm.set3].filter(Boolean).join(' | ')}
+                        </span>
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-[10px] font-black ${isWin ? 'bg-lime-400/20 text-lime-600 dark:text-lime-400 border border-lime-400/30' : 'bg-red-400/20 text-red-600 dark:text-red-400 border border-red-400/30'}`}>
+                          {isWin ? 'V' : 'D'}
+                        </span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                          <ChevronDown size={12} />
+                        </div>
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-1 bg-slate-50/50 dark:bg-slate-700/20 animate-in slide-in-from-top-1 duration-150">
+                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nuestro equipo</p>
+                              <p className="text-xs font-black text-slate-800 dark:text-white truncate">{selectedPlayer.name}</p>
+                              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate">{lm.partnerName}{lm.partnerIsFromTeam ? ' (equipo)' : ''}</p>
+                            </div>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${isWin ? 'bg-lime-100 dark:bg-lime-900/30 text-lime-600 dark:text-lime-400' : 'bg-red-100 dark:bg-red-900/30 text-red-500'}`}>
+                              {isWin ? 'V' : 'D'}
+                            </div>
+                            <div className="flex-1 min-w-0 text-right">
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Rivales</p>
+                              <p className="text-xs font-black text-slate-800 dark:text-white truncate">{lm.opponent1Name}</p>
+                              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate">{lm.opponent2Name}</p>
+                            </div>
+                          </div>
+                          <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Marcador por sets</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {[lm.set1, lm.set2, lm.set3].filter(Boolean).map((set, i) => (
+                                <div key={i} className="bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-1.5 text-center">
+                                  <span className="text-xs font-black text-slate-700 dark:text-slate-200 tabular-nums">{set}</span>
+                                  <p className="text-[8px] text-slate-400 font-medium">Set {i + 1}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          {lm.notes && (
+                            <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Notas</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300">{lm.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {!selectedPlayerId && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-10 text-center shadow-sm">

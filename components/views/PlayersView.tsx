@@ -3,6 +3,7 @@ import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckC
 import { Button, Card } from '../UIComponents';
 import { AppState, Player, Position, MatchResult, MatchDay } from '../../types';
 import { playoffLegsAsMatchDays } from '../../utils/helpers';
+import { PRESET_RANGES, CATEGORY_TO_RANGE_KEY } from '../../utils/constants';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface PlayersViewProps {
@@ -15,6 +16,8 @@ interface PlayersViewProps {
     setIsModalOpen: (o: boolean) => void;
     deletePlayer: (id: string) => void;
     setTempPlayersList: (l: any[]) => void;
+    onOpenLoanModal: (playerId: string) => void;
+    deleteLoanMatch: (playerId: string, loanMatchId: string) => void;
 }
 
 // Exporting this to be used by other views if needed
@@ -84,11 +87,39 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
             });
         });
     }
+
+    // --- LOAN MATCHES: add points using the category's own ranges ---
+    if (p.loanMatches && p.loanMatches.length > 0) {
+        const sortedLoanMatches = [...p.loanMatches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        sortedLoanMatches.forEach(lm => {
+            if (currentSettings.scoringSystem === 'RANGES') {
+                // Use the category-specific ranges if available, fall back to team ranges
+                const categoryRangeKey = CATEGORY_TO_RANGE_KEY[lm.category];
+                const categoryRanges = categoryRangeKey ? (PRESET_RANGES[categoryRangeKey] ?? currentSettings.ranges) : currentSettings.ranges;
+                const range = categoryRanges?.find(r => calculatedPoints >= r.min && calculatedPoints <= r.max);
+                if (range) {
+                    if (lm.result === MatchResult.WIN) calculatedPoints += range.win;
+                    else if (lm.result === MatchResult.LOSS) calculatedPoints -= range.loss;
+                } else {
+                    if (lm.result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
+                    else if (lm.result === MatchResult.LOSS) calculatedPoints -= currentSettings.pointsPerLoss;
+                }
+            } else {
+                calculatedPoints += currentSettings.pointsAttendance;
+                if (lm.result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
+                else if (lm.result === MatchResult.LOSS) calculatedPoints += currentSettings.pointsPerLoss;
+                else if (lm.result === MatchResult.DRAW) calculatedPoints += currentSettings.pointsPerDraw;
+            }
+            calculatedPoints = Math.max(0, calculatedPoints);
+        });
+    }
+
     return calculatedPoints;
 };
 
 const PlayersView: React.FC<PlayersViewProps> = ({ 
-    data, sessionRole, viewSeasonId, setTempPlayer, setModalType, setImportMode, setIsModalOpen, deletePlayer, setTempPlayersList 
+    data, sessionRole, viewSeasonId, setTempPlayer, setModalType, setImportMode, setIsModalOpen, deletePlayer, setTempPlayersList,
+    onOpenLoanModal, deleteLoanMatch
 }) => {
     const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE' | 'EVOLUTION'>('TABLE');
     const [sortField, setSortField] = useState<string>('points');
@@ -97,6 +128,20 @@ const PlayersView: React.FC<PlayersViewProps> = ({
     const [handednessFilter, setHandednessFilter] = useState<string>('ALL');
     const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
     const [hiddenPlayers, setHiddenPlayers] = useState<Record<string, boolean>>({});
+    const [loanPickerOpen, setLoanPickerOpen] = useState(false);
+    const loanPickerRef = React.useRef<HTMLDivElement>(null);
+
+    // Close picker on outside click
+    React.useEffect(() => {
+        if (!loanPickerOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (loanPickerRef.current && !loanPickerRef.current.contains(e.target as Node)) {
+                setLoanPickerOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [loanPickerOpen]);
 
     if (!data) return null;
 
@@ -381,7 +426,88 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                     <button onClick={() => setViewMode('EVOLUTION')} className={`p-2 rounded-md transition-all ${viewMode === 'EVOLUTION' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}><TrendingUp size={18} /></button>
                 </div>
                 {sessionRole === 'CAPTAIN' && (
-                <Button onClick={() => { setTempPlayer({}); setTempPlayersList([]); setImportMode('MANUAL'); setModalType('ADD_PLAYER'); setIsModalOpen(true); }} className="px-3 md:px-4"><Plus size={18} /> <span className="hidden md:inline">Nuevo</span></Button>
+                    <div className="flex gap-2">
+                        {/* ── Cesión filial button + player picker ── */}
+                        <div className="relative" ref={loanPickerRef}>
+                            <button
+                                onClick={() => setLoanPickerOpen(v => !v)}
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-black text-sm transition-all ${loanPickerOpen ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-600/20' : 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-400'}`}
+                            >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="12" y1="19" x2="12" y2="5"/>
+                                    <polyline points="5 12 12 5 19 12"/>
+                                </svg>
+                                <span className="hidden md:inline">Cesión</span>
+                            </button>
+
+                            {/* Player picker dropdown */}
+                            {loanPickerOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-150">
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">¿Quién se cede?</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Selecciona el jugador cedido</p>
+                                    </div>
+                                    <div className="max-h-64 overflow-y-auto py-1.5">
+                                        {[...(data?.players || [])].sort((a, b) => a.name.localeCompare(b.name)).map(player => {
+                                            const isFilial = player.surname === '(Filial)';
+                                            return isFilial ? (
+                                                <div
+                                                    key={player.id}
+                                                    title="Jugador del filial — no puede ser cedido por este equipo"
+                                                    className="w-full flex items-center gap-3 px-4 py-2.5 opacity-40 cursor-not-allowed text-left"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 text-xs font-black shrink-0 overflow-hidden">
+                                                        {player.photoUrl
+                                                            ? <img src={player.photoUrl} className="w-8 h-8 object-cover" />
+                                                            : player.name.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-black text-slate-500 dark:text-slate-400 truncate">
+                                                            {player.name}
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                            <span>🔒</span> Jugador del filial
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    key={player.id}
+                                                    onClick={() => {
+                                                        setLoanPickerOpen(false);
+                                                        onOpenLoanModal(player.id);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors text-left group"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xs font-black shrink-0 overflow-hidden">
+                                                        {player.photoUrl
+                                                            ? <img src={player.photoUrl} className="w-8 h-8 object-cover" />
+                                                            : player.name.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-black text-slate-900 dark:text-white truncate group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">
+                                                            {player.name}
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-400">{player.position}</p>
+                                                    </div>
+                                                    {player.loanMatches && player.loanMatches.length > 0 && (
+                                                        <span className="text-[9px] font-black bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-full shrink-0">
+                                                            {player.loanMatches.length}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ── Nuevo jugador ── */}
+                        <Button onClick={() => { setTempPlayer({}); setTempPlayersList([]); setImportMode('MANUAL'); setModalType('ADD_PLAYER'); setIsModalOpen(true); }} className="px-3 md:px-4">
+                            <Plus size={18} /> <span className="hidden md:inline">Nuevo</span>
+                        </Button>
+                    </div>
                 )}
             </div>
         </div>
@@ -677,6 +803,38 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                             </button>
                                         </div>
                                     )}
+
+                                    {/* Loan Matches History */}
+                                    {(player.loanMatches && player.loanMatches.length > 0) && (
+                                        <div className="mt-4 border-t border-slate-100 dark:border-slate-700 pt-4">
+                                            <p className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-2 flex items-center gap-1">🏆 Partidos Cedidos ({player.loanMatches.length})</p>
+                                            <div className="space-y-2">
+                                                {[...player.loanMatches].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(lm => (
+                                                    <div key={lm.id} className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/50 rounded-xl p-3 flex items-center justify-between">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full text-white ${lm.result === MatchResult.WIN ? 'bg-lime-500' : lm.result === MatchResult.LOSS ? 'bg-red-500' : 'bg-blue-400'}`}>
+                                                                    {lm.result === MatchResult.WIN ? 'V' : lm.result === MatchResult.LOSS ? 'D' : 'E'}
+                                                                </span>
+                                                                <span className="text-[10px] font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 px-2 py-0.5 rounded-full">{lm.category}</span>
+                                                                <span className="text-[10px] text-slate-400">{new Date(lm.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</span>
+                                                            </div>
+                                                            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium mt-1 truncate">
+                                                                con <span className="font-black">{lm.partnerName}</span> · vs {lm.opponent1Name}/{lm.opponent2Name}
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">{lm.set1} | {lm.set2}{lm.set3 ? ` | ${lm.set3}` : ''}</p>
+                                                        </div>
+                                                        {sessionRole === 'CAPTAIN' && (
+                                                            <button onClick={(e) => { e.stopPropagation(); deleteLoanMatch(player.id, lm.id); }} className="ml-2 p-1.5 rounded-lg text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 flex-shrink-0">
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                 </div>
                             )}
                         </div>
@@ -888,6 +1046,13 @@ const PlayersView: React.FC<PlayersViewProps> = ({
                                     <button className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900/50" onClick={() => deletePlayer(player.id)}>
                                         <Trash2 size={13} />
                                     </button>
+                                </div>
+                            )}
+                            {/* Loan matches badge on card */}
+                            {player.loanMatches && player.loanMatches.length > 0 && (
+                                <div className="mt-2 flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/50 rounded-lg px-2 py-1.5">
+                                    <span className="text-xs">🏆</span>
+                                    <span className="text-[10px] font-black text-purple-600 dark:text-purple-400">{player.loanMatches.length} partido{player.loanMatches.length !== 1 ? 's' : ''} cedido{player.loanMatches.length !== 1 ? 's' : ''}</span>
                                 </div>
                             )}
                         </div>

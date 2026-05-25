@@ -12,6 +12,22 @@ export enum MatchResult {
   DRAW = 'Empate'
 }
 
+export interface LoanMatch {
+  id: string;
+  date: string; // ISO string
+  category: string; // e.g. "Primera División", "Segunda", etc.
+  partnerName: string; // Nombre del compañero (puede ser del equipo superior u otro)
+  partnerIsFromTeam: boolean; // true = es jugador del equipo propio, false = jugador externo
+  partnerPlayerId?: string; // Si es del equipo, id del jugador
+  opponent1Name: string;
+  opponent2Name: string;
+  set1: string;
+  set2: string;
+  set3?: string;
+  result: MatchResult;
+  notes?: string;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -24,6 +40,7 @@ export interface Player {
   matchesPlayed: number;
   wins: number;
   email?: string;
+  loanMatches?: LoanMatch[]; // Partidos jugados cedido al equipo superior/filial
 }
 
 export interface MatchLineup {

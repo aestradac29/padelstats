@@ -3,7 +3,7 @@ import {
     Users, Trophy, Calendar, Settings, LogOut, LayoutGrid, ChevronRight, ChevronDown, X, Camera, Edit2, Trash2, Plus, Menu, Wand2, Upload, ImageIcon, Sparkles, Shield, Check, UserPlus, List, Sun, Moon, Activity, Table, Sword
 } from './components/Icons';
 import {
-    Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult
+    Player, AppState, ViewState, Position, MatchDay, MatchLineup, MatchResult, LoanMatch
 } from './types';
 import {
     auth,
@@ -16,7 +16,7 @@ import {
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 // New Imports
-import { DEFAULT_SETTINGS, DEFAULT_SEASON, TANDA_OPTIONS } from './utils/constants';
+import { DEFAULT_SETTINGS, DEFAULT_SEASON, TANDA_OPTIONS, CATEGORIES_MASCULINO, CATEGORIES_FEMENINO, PRESET_RANGES, CATEGORY_TO_RANGE_KEY } from './utils/constants';
 import { compressImage, recalculateStats, formatDate } from './utils/helpers';
 import { Button, Input, Select, Checkbox, PadelLogo } from './components/UIComponents';
 import { extractScheduleFromImage, parseMatchDetailsFromText, extractScheduleFromExcel, extractScheduleFromFederationImage } from './services/geminiService';
@@ -66,13 +66,26 @@ const App = () => {
 
     // --- Modal/Form State ---
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalType, setModalType] = useState<'ADD_PLAYER' | 'EDIT_PLAYER' | 'ADD_MATCH' | 'EDIT_MATCH' | 'EDIT_TEAM' | 'GENERATE_CALENDAR'>('ADD_PLAYER');
+    const [modalType, setModalType] = useState<'ADD_PLAYER' | 'EDIT_PLAYER' | 'ADD_MATCH' | 'EDIT_MATCH' | 'EDIT_TEAM' | 'GENERATE_CALENDAR' | 'LOAN_MATCH'>('ADD_PLAYER');
     const [importMode, setImportMode] = useState<'MANUAL' | 'BULK'>('MANUAL');
     const [calendarMode, setCalendarMode] = useState<'PATTERN' | 'EXCEL' | 'FEDERATION'>('PATTERN');
     const [matchToDelete, setMatchToDelete] = useState<MatchDay | null>(null);
 
     // Temporary State for Forms
     const [tempPlayer, setTempPlayer] = useState<Partial<Player>>({});
+    const [tempLoanMatch, setTempLoanMatch] = useState<Partial<LoanMatch>>({
+        date: new Date().toISOString().slice(0, 16),
+        category: '',
+        partnerName: '',
+        partnerIsFromTeam: false,
+        opponent1Name: '',
+        opponent2Name: '',
+        set1: '',
+        set2: '',
+        result: MatchResult.WIN,
+        notes: ''
+    });
+    const [loanTargetPlayerId, setLoanTargetPlayerId] = useState<string | null>(null);
     const [tempTeamName, setTempTeamName] = useState('');
     const [bulkText, setBulkText] = useState('');
     const [tempPlayersList, setTempPlayersList] = useState<Partial<Player>[]>([]);
@@ -378,6 +391,63 @@ const App = () => {
             const updatedPlayers = data.players.filter(p => p.id !== id);
             await updateTeamData(teamId, { players: updatedPlayers });
         }
+    };
+
+    const saveLoanMatch = async () => {
+        if (!data || !teamId || !loanTargetPlayerId) return;
+        if (!tempLoanMatch.set1 || !tempLoanMatch.set2 || !tempLoanMatch.category || !tempLoanMatch.opponent1Name) return;
+        const newLoanMatch: LoanMatch = {
+            id: Date.now().toString(),
+            date: tempLoanMatch.date || new Date().toISOString(),
+            category: tempLoanMatch.category || '',
+            partnerName: tempLoanMatch.partnerName || '',
+            partnerIsFromTeam: tempLoanMatch.partnerIsFromTeam ?? false,
+            partnerPlayerId: tempLoanMatch.partnerIsFromTeam ? tempLoanMatch.partnerPlayerId : undefined,
+            opponent1Name: tempLoanMatch.opponent1Name || '',
+            opponent2Name: tempLoanMatch.opponent2Name || '',
+            set1: tempLoanMatch.set1 || '',
+            set2: tempLoanMatch.set2 || '',
+            set3: tempLoanMatch.set3 || undefined,
+            result: tempLoanMatch.result || MatchResult.WIN,
+            notes: tempLoanMatch.notes || undefined,
+        };
+
+        let updatedPlayers = data.players.map(p => {
+            if (p.id !== loanTargetPlayerId) return p;
+            return { ...p, loanMatches: [...(p.loanMatches || []), newLoanMatch] };
+        });
+
+        // If partner is from this team, add a mirrored loan match entry for them too
+        if (tempLoanMatch.partnerIsFromTeam && tempLoanMatch.partnerPlayerId) {
+            const partnerPlayer = data.players.find(p => p.id === tempLoanMatch.partnerPlayerId);
+            const mainPlayer = data.players.find(p => p.id === loanTargetPlayerId);
+            const mirroredLoanMatch: LoanMatch = {
+                ...newLoanMatch,
+                id: (Date.now() + 1).toString(),
+                partnerName: mainPlayer?.name || '',
+                partnerPlayerId: loanTargetPlayerId,
+                partnerIsFromTeam: true,
+            };
+            updatedPlayers = updatedPlayers.map(p => {
+                if (p.id !== tempLoanMatch.partnerPlayerId) return p;
+                return { ...p, loanMatches: [...(p.loanMatches || []), mirroredLoanMatch] };
+            });
+        }
+
+        await updateTeamData(teamId, { players: updatedPlayers });
+        setIsModalOpen(false);
+        setLoanTargetPlayerId(null);
+        setTempLoanMatch({ date: new Date().toISOString().slice(0, 16), category: '', partnerName: '', partnerIsFromTeam: false, opponent1Name: '', opponent2Name: '', set1: '', set2: '', result: MatchResult.WIN });
+    };
+
+    const deleteLoanMatch = async (playerId: string, loanMatchId: string) => {
+        if (!data || !teamId) return;
+        if (!window.confirm('¿Eliminar este partido cedido?')) return;
+        const updatedPlayers = data.players.map(p => {
+            if (p.id !== playerId) return p;
+            return { ...p, loanMatches: (p.loanMatches || []).filter(lm => lm.id !== loanMatchId) };
+        });
+        await updateTeamData(teamId, { players: updatedPlayers });
     };
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1067,6 +1137,13 @@ const App = () => {
                             setIsModalOpen={setIsModalOpen}
                             deletePlayer={deletePlayer}
                             setTempPlayersList={setTempPlayersList}
+                            deleteLoanMatch={deleteLoanMatch}
+                            onOpenLoanModal={(playerId) => {
+                                setLoanTargetPlayerId(playerId);
+                                setTempLoanMatch({ date: new Date().toISOString().slice(0, 16), category: '', partnerName: '', partnerIsFromTeam: false, opponent1Name: '', opponent2Name: '', set1: '', set2: '', result: MatchResult.WIN });
+                                setModalType('LOAN_MATCH');
+                                setIsModalOpen(true);
+                            }}
                         />
                     )}
                     {currentView === 'MATCHES' && (
@@ -1221,6 +1298,7 @@ const App = () => {
                                 <h3 className="font-black text-lg text-slate-900 dark:text-white tracking-tight">
                                     {modalType.includes('PLAYER') ? 'Jugador' :
                                         modalType === 'GENERATE_CALENDAR' ? 'Calendario' :
+                                        modalType === 'LOAN_MATCH' ? 'Partido Cedido' :
                                             modalType.includes('MATCH') ? 'Jornada' : 'Equipo'}
                                 </h3>
                                 <p className="text-xs text-slate-400 font-medium mt-0.5">
@@ -1229,6 +1307,7 @@ const App = () => {
                                      modalType === 'ADD_MATCH' ? 'Crear nueva jornada' :
                                      modalType === 'EDIT_MATCH' ? 'Editar jornada existente' :
                                      modalType === 'GENERATE_CALENDAR' ? 'Generar jornadas automáticamente' :
+                                     modalType === 'LOAN_MATCH' ? 'Registrar partido jugado con equipo superior' :
                                      'Cambiar nombre del equipo'}
                                 </p>
                             </div>
@@ -1605,7 +1684,169 @@ const App = () => {
                             )}
 
                             {modalType === 'EDIT_TEAM' && (<Input label="Nuevo Nombre del Equipo" value={tempTeamName} onChange={(e) => setTempTeamName(e.target.value)} />)}
+
+                            {modalType === 'LOAN_MATCH' && (() => {
+                                const loanPlayer = data?.players.find(p => p.id === loanTargetPlayerId);
+                                return (
+                                <div className="space-y-5">
+
+                                    {/* Player + info banner */}
+                                    <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-600 to-purple-500 rounded-2xl text-white">
+                                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg font-black shrink-0">
+                                            {loanPlayer?.photoUrl
+                                                ? <img src={loanPlayer.photoUrl} className="w-10 h-10 rounded-full object-cover" />
+                                                : loanPlayer?.name?.charAt(0) ?? '?'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-purple-200">Partido cedido para</p>
+                                            <p className="font-black text-base leading-tight truncate">{loanPlayer?.name ?? '—'}</p>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <p className="text-[9px] text-purple-200 font-bold uppercase">Solo puntos</p>
+                                            <p className="text-[9px] text-purple-300">sin stats de equipo</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 1: fecha + categoría */}
+                                    <Input label="Fecha" type="datetime-local" value={tempLoanMatch.date || ''} onChange={e => setTempLoanMatch(p => ({ ...p, date: e.target.value }))} />
+
+                                    {/* Categoría — select filtrado por género del equipo */}
+                                    {(() => {
+                                        const teamGender = data?.settings?.gender || 'MASCULINO';
+                                        const categoryList = teamGender === 'FEMENINO' ? CATEGORIES_FEMENINO : CATEGORIES_MASCULINO;
+                                        const currentSeasonObj = viewSeasonId !== 'all' ? data?.seasons?.find(s => s.id === viewSeasonId) : null;
+                                        const currentSettings = currentSeasonObj?.settings || data?.settings || DEFAULT_SETTINGS;
+                                        const isRanges = currentSettings.scoringSystem === 'RANGES';
+                                        let pointsPreview: { win: number; loss: number } | null = null;
+                                        if (isRanges && tempLoanMatch.category) {
+                                            const rankKey = CATEGORY_TO_RANGE_KEY[tempLoanMatch.category];
+                                            const catRanges = rankKey ? PRESET_RANGES[rankKey] : null;
+                                            const approxPts = data?.players.find(p => p.id === loanTargetPlayerId)?.initialPoints ?? 0;
+                                            const range = catRanges?.find(r => approxPts >= r.min && approxPts <= r.max);
+                                            if (range) pointsPreview = { win: range.win, loss: range.loss };
+                                        }
+                                        return (
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Categoría donde se juega</label>
+                                                <select
+                                                    value={tempLoanMatch.category || ''}
+                                                    onChange={e => setTempLoanMatch(p => ({ ...p, category: e.target.value }))}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all appearance-none"
+                                                >
+                                                    <option value="">— Seleccionar categoría —</option>
+                                                    {categoryList.map(cat => (
+                                                        <option key={cat} value={cat}>{cat}</option>
+                                                    ))}
+                                                </select>
+                                                {isRanges && tempLoanMatch.category && (
+                                                    <div className={`flex items-center gap-3 px-3 py-2 rounded-xl border text-xs font-bold ${pointsPreview ? 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40'}`}>
+                                                        {pointsPreview ? (
+                                                            <>
+                                                                <span className="text-slate-400 text-[10px] uppercase tracking-wide shrink-0">Puntos est.</span>
+                                                                <span className="text-lime-600 dark:text-lime-400">+{pointsPreview.win} victoria</span>
+                                                                <span className="text-slate-300 dark:text-slate-600">·</span>
+                                                                <span className="text-red-500">−{pointsPreview.loss} derrota</span>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-amber-600 dark:text-amber-400">⚠ Sin tramo para esta categoría</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {!isRanges && tempLoanMatch.category && (
+                                                    <p className="text-[10px] text-slate-400 pl-1">Baremo no activo — se usarán los puntos simples</p>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Compañero */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Compañero</p>
+                                        <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                                            <button
+                                                onClick={() => setTempLoanMatch(p => ({ ...p, partnerIsFromTeam: false, partnerPlayerId: undefined, partnerName: '' }))}
+                                                className={`py-2 text-xs font-black rounded-lg transition-all ${!tempLoanMatch.partnerIsFromTeam ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                            >🎾 Externo</button>
+                                            <button
+                                                onClick={() => setTempLoanMatch(p => ({ ...p, partnerIsFromTeam: true }))}
+                                                className={`py-2 text-xs font-black rounded-lg transition-all ${tempLoanMatch.partnerIsFromTeam ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                            >👥 Mi equipo</button>
+                                        </div>
+                                        {tempLoanMatch.partnerIsFromTeam ? (
+                                            <div className="relative">
+                                                <select
+                                                    value={tempLoanMatch.partnerPlayerId || ''}
+                                                    onChange={e => {
+                                                        const pid = e.target.value;
+                                                        const pl = data?.players.find(pl => pl.id === pid);
+                                                        setTempLoanMatch(prev => ({ ...prev, partnerPlayerId: pid, partnerName: pl ? pl.name : '' }));
+                                                    }}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all appearance-none"
+                                                >
+                                                    <option value="">Seleccionar jugador del equipo...</option>
+                                                    {(data?.players || []).filter(pl => pl.id !== loanTargetPlayerId).map(pl => (
+                                                        <option key={pl.id} value={pl.id}>{pl.name}{pl.surname ? ` ${pl.surname}` : ''}</option>
+                                                    ))}
+                                                </select>
+                                                {tempLoanMatch.partnerPlayerId && (
+                                                    <p className="text-[10px] text-blue-500 dark:text-blue-400 font-bold mt-1 pl-1">✓ También sumará/restará puntos a este jugador</p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <Input placeholder="Nombre del compañero (equipo superior u otro)" value={tempLoanMatch.partnerName || ''} onChange={e => setTempLoanMatch(p => ({ ...p, partnerName: e.target.value }))} />
+                                        )}
+                                    </div>
+
+                                    {/* Rivales */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Rivales</p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <Input placeholder="Rival 1" value={tempLoanMatch.opponent1Name || ''} onChange={e => setTempLoanMatch(p => ({ ...p, opponent1Name: e.target.value }))} />
+                                            <Input placeholder="Rival 2" value={tempLoanMatch.opponent2Name || ''} onChange={e => setTempLoanMatch(p => ({ ...p, opponent2Name: e.target.value }))} />
+                                        </div>
+                                    </div>
+
+                                    {/* Sets */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Sets</p>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <Input placeholder="6-4" value={tempLoanMatch.set1 || ''} onChange={e => setTempLoanMatch(p => ({ ...p, set1: e.target.value }))} hint="Set 1" />
+                                            <Input placeholder="3-6" value={tempLoanMatch.set2 || ''} onChange={e => setTempLoanMatch(p => ({ ...p, set2: e.target.value }))} hint="Set 2" />
+                                            <Input placeholder="7-5" value={tempLoanMatch.set3 || ''} onChange={e => setTempLoanMatch(p => ({ ...p, set3: e.target.value }))} hint="Set 3 (opt.)" />
+                                        </div>
+                                    </div>
+
+                                    {/* Resultado: solo V/D */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Resultado</p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                onClick={() => setTempLoanMatch(p => ({ ...p, result: MatchResult.WIN }))}
+                                                className={`py-3.5 rounded-xl font-black text-sm border-2 transition-all flex items-center justify-center gap-2 ${tempLoanMatch.result === MatchResult.WIN
+                                                    ? 'bg-lime-500 border-lime-500 text-white shadow-md shadow-lime-500/20'
+                                                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-lime-400'}`}
+                                            >
+                                                <span className="text-base">✅</span> Victoria
+                                            </button>
+                                            <button
+                                                onClick={() => setTempLoanMatch(p => ({ ...p, result: MatchResult.LOSS }))}
+                                                className={`py-3.5 rounded-xl font-black text-sm border-2 transition-all flex items-center justify-center gap-2 ${tempLoanMatch.result === MatchResult.LOSS
+                                                    ? 'bg-red-500 border-red-500 text-white shadow-md shadow-red-500/20'
+                                                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-red-400'}`}
+                                            >
+                                                <span className="text-base">❌</span> Derrota
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Notas */}
+                                    <Input label="Notas (opcional)" placeholder="Observaciones sobre el partido..." value={tempLoanMatch.notes || ''} onChange={e => setTempLoanMatch(p => ({ ...p, notes: e.target.value }))} />
+                                </div>
+                                );
+                            })()}
+
                         </div>
+
                         <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
                             <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
                             <Button className="px-8 font-black" onClick={() => {
@@ -1620,6 +1861,8 @@ const App = () => {
                                     else saveImportedMatches();
                                 } else if (modalType === 'EDIT_TEAM') {
                                     handleUpdateTeamName();
+                                } else if (modalType === 'LOAN_MATCH') {
+                                    saveLoanMatch();
                                 }
                             }}>
                                 {modalType === 'GENERATE_CALENDAR' ? 'Confirmar' : 'Guardar'}

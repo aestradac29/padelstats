@@ -1,5 +1,16 @@
 import { Season, TeamSettings, ScoringRange } from "../types";
 
+// ─── CATEGORIES ──────────────────────────────────────────────────────────────
+
+export const CATEGORIES_MASCULINO = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª'] as const;
+export const CATEGORIES_FEMENINO  = ['1ª F', '2ª F', '3ª F', '4ª F', '5ª F', '6ª F'] as const;
+
+/** Map category label → PRESET_RANGES key */
+export const CATEGORY_TO_RANGE_KEY: Record<string, string> = {
+  '1ª': '1ª', '2ª': '2ª', '3ª': '3ª', '4ª': '4ª', '5ª': '5ª', '6ª': '6ª',
+  '1ª F': '1ª', '2ª F': '2ª', '3ª F': '3ª', '4ª F': '4ª', '5ª F': '5ª', '6ª F': '6ª',
+};
+
 export const PRESET_RANGES: Record<string, ScoringRange[]> = {
   '1ª': [
     { min: 5281, max: 9999, win: 55, loss: 275 },

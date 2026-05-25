@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Trophy, Plus, Trash2, Edit2, ChevronDown, X, Shield, Home, Plane, Users, Check } from '../Icons';
+import { Trophy, Plus, Trash2, Edit2, ChevronDown, X, Shield, Home, Plane, Users, Check, Camera, Sparkles } from '../Icons';
 import { Button, ConfirmDialog } from '../UIComponents';
+import { extractScheduleFromFederationImage } from '../../services/geminiService';
 import { AppState, PlayoffBracket, PlayoffRound, PlayoffTie, PlayoffLeg, MatchLineup, MatchResult, PlayoffLegFormat, Player } from '../../types';
 import { useToast } from '../Toast';
 import { TANDA_OPTIONS } from '../../utils/constants';
@@ -131,6 +132,76 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
   const [editedLeg, setEditedLeg] = useState<PlayoffLeg>(leg);
   const [form, setForm] = useState<LineupForm>(emptyForm());
   const [activeSection, setActiveSection] = useState<'setup' | 'lineups'>('setup');
+  const [isProcessingFed, setIsProcessingFed] = useState(false);
+
+  const handleFederationImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const base64 = evt.target?.result as string;
+      setIsProcessingFed(true);
+      try {
+        const matches = await extractScheduleFromFederationImage(base64, players);
+        if (matches.length > 0) {
+          const match = matches[0];
+          const findId = (name: string): string => {
+            if (!name) return '';
+            const normalized = name.toLowerCase().trim();
+            const found = players.find(p => {
+              const fullName = `${p.name} ${(p as any).surname || ''}`.toLowerCase().trim();
+              const firstName = p.name.toLowerCase();
+              return fullName === normalized ||
+                firstName === normalized ||
+                normalized.includes(firstName) ||
+                fullName.includes(normalized);
+            });
+            return found?.id || '';
+          };
+          const resolvedLineups = (match.lineups || []).map((l: any, idx: number) => {
+            const p1Id = l.player1Id || findId(l.player1Name || '');
+            const p2Id = l.player2Id || findId(l.player2Name || '');
+            const newLineup: MatchLineup = {
+              player1Id: p1Id,
+              player2Id: p2Id,
+              opponent1Name: l.opponent1Name || undefined,
+              opponent2Name: l.opponent2Name || undefined,
+              set1: l.set1 || '',
+              set2: l.set2 || '',
+              set3: l.set3 || undefined,
+              result: MatchResult.DRAW,
+              pairNumber: l.pairNumber || (idx + 1),
+            };
+            newLineup.result = calcLineupResult(newLineup, editedLeg.isHome);
+            return newLineup;
+          });
+          const matchedPlayerIds = resolvedLineups
+            .flatMap((l: MatchLineup) => [l.player1Id, l.player2Id])
+            .filter(Boolean) as string[];
+          const mergedAvailable = Array.from(new Set([
+            ...(editedLeg.availablePlayers || []),
+            ...matchedPlayerIds
+          ]));
+          setEditedLeg(prev => ({
+            ...prev,
+            date: match.date || prev.date,
+            tandas: match.tandas || prev.tandas,
+            notes: match.notes || prev.notes,
+            lineups: resolvedLineups.length > 0 ? resolvedLineups : prev.lineups,
+            availablePlayers: mergedAvailable,
+          }));
+          setActiveSection('lineups');
+        }
+      } catch (err) {
+        console.error('Error procesando el acta:', err);
+      } finally {
+        setIsProcessingFed(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const filteredTandaOptions = TANDA_OPTIONS.filter(o => {
     const isMasc = o.label.includes('Masculino');
@@ -302,6 +373,23 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
           {/* LINEUPS TAB */}
           {activeSection === 'lineups' && (
             <div className="p-6 space-y-5">
+
+              {/* Importar desde Federación */}
+              <label className={`flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 border-dashed font-black text-sm transition-all cursor-pointer
+                ${isProcessingFed
+                  ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 text-purple-400 opacity-70 cursor-not-allowed'
+                  : 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 hover:border-purple-400'}`}>
+                {isProcessingFed
+                  ? <><Sparkles size={15} className="animate-pulse" /> Procesando acta...</>
+                  : <><Camera size={15} /> Importar desde Federación</>}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  disabled={isProcessingFed}
+                  onChange={handleFederationImageUpload}
+                />
+              </label>
 
               {/* Summary of entered lineups */}
               {editedLeg.lineups.length > 0 && (
