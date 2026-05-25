@@ -756,12 +756,34 @@ const AddTieModal: React.FC<{ ourTeamName: string; gender?: 'MASCULINO' | 'FEMEN
   const [legFormat, setLegFormat] = useState<PlayoffLegFormat>('SINGLE');
   const [seedUs, setSeedUs] = useState('');
   const [seedThem, setSeedThem] = useState('');
+  // 'us' | 'them' | null — who wins the tiebreak when seeds are equal
+  const [tiebreakFavor, setTiebreakFavor] = useState<'us' | 'them' | null>(null);
+
+  const seedsEqual = seedUs !== '' && seedThem !== '' && parseInt(seedUs) === parseInt(seedThem);
 
   const handleAdd = () => {
     if (!opponent.trim()) return;
     const homeTeam = weAreHome ? ourTeamName : opponent.trim();
     const awayTeam = weAreHome ? opponent.trim() : ourTeamName;
-    onAdd({ id: uuid(), roundId: '', homeTeam, awayTeam, seedHome: seedUs ? parseInt(seedUs) : undefined, seedAway: seedThem ? parseInt(seedThem) : undefined, legFormat, legs: [emptyLeg(weAreHome, gender)] });
+
+    let finalSeedHome: number | undefined = seedUs ? parseInt(seedUs) : undefined;
+    let finalSeedAway: number | undefined = seedThem ? parseInt(seedThem) : undefined;
+
+    // When seeds are equal, apply a 0.5 advantage to the tiebreak winner
+    if (seedsEqual && tiebreakFavor !== null && finalSeedHome != null && finalSeedAway != null) {
+      const usIsHome = weAreHome;
+      if (tiebreakFavor === 'us') {
+        // We win tiebreak → our seed becomes slightly lower (better)
+        if (usIsHome) finalSeedHome = finalSeedHome - 0.5;
+        else finalSeedAway = finalSeedAway - 0.5;
+      } else {
+        // They win tiebreak → their seed becomes slightly lower (better)
+        if (usIsHome) finalSeedAway = finalSeedAway - 0.5;
+        else finalSeedHome = finalSeedHome - 0.5;
+      }
+    }
+
+    onAdd({ id: uuid(), roundId: '', homeTeam, awayTeam, seedHome: finalSeedHome, seedAway: finalSeedAway, legFormat, legs: [emptyLeg(weAreHome, gender)] });
   };
 
   return (
@@ -793,9 +815,33 @@ const AddTieModal: React.FC<{ ourTeamName: string; gender?: 'MASCULINO' | 'FEMEN
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Nuestra pos.</label><input type="number" min={1} placeholder="Ej: 3" value={seedUs} onChange={e => setSeedUs(e.target.value)} className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-lime-400 outline-none"/></div>
-            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Pos. rival</label><input type="number" min={1} placeholder="Ej: 5" value={seedThem} onChange={e => setSeedThem(e.target.value)} className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-lime-400 outline-none"/></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Nuestra pos.</label><input type="number" min={1} placeholder="Ej: 3" value={seedUs} onChange={e => { setSeedUs(e.target.value); setTiebreakFavor(null); }} className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-lime-400 outline-none"/></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Pos. rival</label><input type="number" min={1} placeholder="Ej: 5" value={seedThem} onChange={e => { setSeedThem(e.target.value); setTiebreakFavor(null); }} className="w-full text-sm font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-lime-400 outline-none"/></div>
           </div>
+
+          {/* Tiebreak selector — only shown when both seeds are equal */}
+          {seedsEqual && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div>
+                <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">⚖️ Posiciones iguales — Desempate</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">¿Qué equipo tiene mejores resultados generales?</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setTiebreakFavor('us')}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-black border-2 transition-all text-left truncate ${tiebreakFavor === 'us' ? 'bg-lime-500 text-white border-lime-500 shadow-md shadow-lime-500/20' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-lime-400'}`}
+                >
+                  ✓ {ourTeamName}
+                </button>
+                <button
+                  onClick={() => setTiebreakFavor('them')}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-black border-2 transition-all text-left truncate ${tiebreakFavor === 'them' ? 'bg-red-500 text-white border-red-500 shadow-md shadow-red-500/20' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-red-400'}`}
+                >
+                  ✓ {opponent.trim() || 'Rival'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={onClose} className="flex-1 py-3.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 transition-all">Cancelar</button>
