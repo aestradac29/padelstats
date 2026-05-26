@@ -1,5 +1,6 @@
 {
   "name": "Padel Stats Pro",
   "description": "Una aplicación integral para capitanes de pádel. Gestiona jugadores, jornadas, estadísticas y utiliza IA para generar alineaciones óptimas.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

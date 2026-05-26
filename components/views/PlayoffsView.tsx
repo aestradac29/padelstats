@@ -133,6 +133,7 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
   const [form, setForm] = useState<LineupForm>(emptyForm());
   const [activeSection, setActiveSection] = useState<'setup' | 'lineups'>('setup');
   const [isProcessingFed, setIsProcessingFed] = useState(false);
+  const { error: toastError } = useToast();
 
   const handleFederationImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -194,8 +195,9 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
           }));
           setActiveSection('lineups');
         }
-      } catch (err) {
-        console.error('Error procesando el acta:', err);
+      } catch (err: any) {
+        console.error('Error procesando el acta:', err?.message || err);
+        toastError('Error al procesar el acta: ' + (err?.message || 'inténtalo de nuevo'));
       } finally {
         setIsProcessingFed(false);
       }

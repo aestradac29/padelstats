@@ -3,7 +3,14 @@ import { GoogleGenAI } from "@google/genai";
 import { Player, MatchDay, MatchResult, MatchLineup } from "../types";
 
 // Always use const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 export interface AIAnalysisResult {
     summary: string;
@@ -49,7 +56,7 @@ export const getLineupSuggestion = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', 
+      model: 'gemini-3.5-flash', 
       contents: prompt,
       config: {
         responseMimeType: "application/json"
@@ -102,7 +109,7 @@ export const analyzeTeamStats = async (context: any): Promise<AIAnalysisResult> 
     
     try {
          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash', 
+            model: 'gemini-3.5-flash', 
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
@@ -153,16 +160,18 @@ export const extractScheduleFromImage = async (
         const cleanBase64 = base64Image.split(',')[1] || base64Image;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [
-                {
-                    inlineData: {
-                        mimeType: 'image/jpeg',
-                        data: cleanBase64
-                    }
-                },
-                { text: prompt }
-            ],
+            model: 'gemini-3.5-flash',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            mimeType: 'image/jpeg',
+                            data: cleanBase64
+                        }
+                    },
+                    { text: prompt }
+                ]
+            },
             config: {
                 responseMimeType: "application/json"
             }
@@ -225,7 +234,7 @@ export const extractScheduleFromExcel = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
@@ -318,16 +327,18 @@ ${JSON.stringify(players.map(p => ({ id: p.id, name: p.name })))}`
         const cleanBase64 = base64Image.split(',')[1] || base64Image;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [
-                {
-                    inlineData: {
-                        mimeType: 'image/jpeg',
-                        data: cleanBase64
-                    }
-                },
-                { text: prompt }
-            ],
+            model: 'gemini-3.5-flash',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            mimeType: 'image/jpeg',
+                            data: cleanBase64
+                        }
+                    },
+                    { text: prompt }
+                ]
+            },
             config: {
                 responseMimeType: "application/json"
             }
@@ -438,7 +449,7 @@ export const parseMatchDetailsFromText = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
