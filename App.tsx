@@ -395,7 +395,12 @@ const App = () => {
 
     const saveLoanMatch = async () => {
         if (!data || !teamId || !loanTargetPlayerId) return;
-        if (!tempLoanMatch.set1 || !tempLoanMatch.set2 || !tempLoanMatch.category || !tempLoanMatch.opponent1Name) return;
+        const tm = tempLoanMatch as any;
+        // Build set strings from individual numeric fields
+        const set1 = (tm.set1We !== '' && tm.set1We != null && tm.set1They !== '' && tm.set1They != null) ? `${tm.set1We}-${tm.set1They}` : '';
+        const set2 = (tm.set2We !== '' && tm.set2We != null && tm.set2They !== '' && tm.set2They != null) ? `${tm.set2We}-${tm.set2They}` : '';
+        const set3 = (tm.set3We !== '' && tm.set3We != null && tm.set3They !== '' && tm.set3They != null) ? `${tm.set3We}-${tm.set3They}` : '';
+        if (!set1 || !set2 || !tempLoanMatch.category || !tempLoanMatch.opponent1Name) return;
         const newLoanMatch: LoanMatch = {
             id: Date.now().toString(),
             date: tempLoanMatch.date || new Date().toISOString(),
@@ -404,11 +409,11 @@ const App = () => {
             partnerIsFromTeam: tempLoanMatch.partnerIsFromTeam ?? false,
             opponent1Name: tempLoanMatch.opponent1Name || '',
             opponent2Name: tempLoanMatch.opponent2Name || '',
-            set1: tempLoanMatch.set1 || '',
-            set2: tempLoanMatch.set2 || '',
+            set1,
+            set2,
             result: tempLoanMatch.result || MatchResult.WIN,
             ...(tempLoanMatch.partnerIsFromTeam && tempLoanMatch.partnerPlayerId ? { partnerPlayerId: tempLoanMatch.partnerPlayerId } : {}),
-            ...(tempLoanMatch.set3 ? { set3: tempLoanMatch.set3 } : {}),
+            ...(set3 ? { set3 } : {}),
             ...(tempLoanMatch.notes ? { notes: tempLoanMatch.notes } : {}),
         };
 
@@ -437,7 +442,7 @@ const App = () => {
         await updateTeamData(teamId, { players: updatedPlayers });
         setIsModalOpen(false);
         setLoanTargetPlayerId(null);
-        setTempLoanMatch({ date: new Date().toISOString().slice(0, 16), category: '', partnerName: '', partnerIsFromTeam: false, opponent1Name: '', opponent2Name: '', set1: '', set2: '', result: MatchResult.WIN });
+        setTempLoanMatch({ date: new Date().toISOString().slice(0, 16), category: '', partnerName: '', partnerIsFromTeam: false, opponent1Name: '', opponent2Name: '', result: MatchResult.WIN } as any);
     };
 
     const deleteLoanMatch = async (playerId: string, loanMatchId: string) => {
@@ -1140,7 +1145,7 @@ const App = () => {
                             deleteLoanMatch={deleteLoanMatch}
                             onOpenLoanModal={(playerId) => {
                                 setLoanTargetPlayerId(playerId);
-                                setTempLoanMatch({ date: new Date().toISOString().slice(0, 16), category: '', partnerName: '', partnerIsFromTeam: false, opponent1Name: '', opponent2Name: '', set1: '', set2: '', result: MatchResult.WIN });
+                                setTempLoanMatch({ date: new Date().toISOString().slice(0, 16), category: '', partnerName: '', partnerIsFromTeam: false, opponent1Name: '', opponent2Name: '', result: MatchResult.WIN } as any);
                                 setModalType('LOAN_MATCH');
                                 setIsModalOpen(true);
                             }}
@@ -1710,10 +1715,16 @@ const App = () => {
                                     {/* Row 1: fecha + categoría */}
                                     <Input label="Fecha" type="datetime-local" value={tempLoanMatch.date || ''} onChange={e => setTempLoanMatch(p => ({ ...p, date: e.target.value }))} />
 
-                                    {/* Categoría — select filtrado por género del equipo */}
+                                    {/* Categoría — select filtrado por género del equipo y solo categorías superiores */}
                                     {(() => {
                                         const teamGender = data?.settings?.gender || 'MASCULINO';
-                                        const categoryList = teamGender === 'FEMENINO' ? CATEGORIES_FEMENINO : CATEGORIES_MASCULINO;
+                                        const fullCategoryList = teamGender === 'FEMENINO' ? [...CATEGORIES_FEMENINO] : [...CATEGORIES_MASCULINO];
+                                        const teamCategory = data?.settings?.teamCategory || null;
+                                        const teamCategoryIdx = teamCategory ? fullCategoryList.indexOf(teamCategory as any) : -1;
+                                        // Only show categories ranked higher (lower index) than the team's own
+                                        const categoryList = teamCategoryIdx >= 0
+                                            ? fullCategoryList.slice(0, teamCategoryIdx)
+                                            : fullCategoryList;
                                         const currentSeasonObj = viewSeasonId !== 'all' ? data?.seasons?.find(s => s.id === viewSeasonId) : null;
                                         const currentSettings = currentSeasonObj?.settings || data?.settings || DEFAULT_SETTINGS;
                                         const isRanges = currentSettings.scoringSystem === 'RANGES';
@@ -1727,6 +1738,9 @@ const App = () => {
                                         }
                                         return (
                                             <div className="space-y-1.5">
+                                                {!teamCategory && (
+                                                    <p className="text-[10px] text-amber-500 font-bold">⚠️ Configura la división de tu equipo en Ajustes para filtrar categorías automáticamente.</p>
+                                                )}
                                                 <label className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest block">Categoría donde se juega</label>
                                                 <select
                                                     value={tempLoanMatch.category || ''}
@@ -1806,13 +1820,54 @@ const App = () => {
                                         </div>
                                     </div>
 
-                                    {/* Sets */}
+                                    {/* Sets — inputs numéricos visuales */}
                                     <div className="space-y-2">
                                         <p className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Sets</p>
                                         <div className="grid grid-cols-3 gap-2">
-                                            <Input placeholder="6-4" value={tempLoanMatch.set1 || ''} onChange={e => setTempLoanMatch(p => ({ ...p, set1: e.target.value }))} hint="Set 1" />
-                                            <Input placeholder="3-6" value={tempLoanMatch.set2 || ''} onChange={e => setTempLoanMatch(p => ({ ...p, set2: e.target.value }))} hint="Set 2" />
-                                            <Input placeholder="7-5" value={tempLoanMatch.set3 || ''} onChange={e => setTempLoanMatch(p => ({ ...p, set3: e.target.value }))} hint="Set 3 (opt.)" />
+                                            {([
+                                                { label: 'SET 1', weKey: 'set1We', theyKey: 'set1They', required: true },
+                                                { label: 'SET 2', weKey: 'set2We', theyKey: 'set2They', required: true },
+                                                { label: 'SET 3', weKey: 'set3We', theyKey: 'set3They', required: false },
+                                            ] as const).map(({ label, weKey, theyKey, required }) => {
+                                                const weVal = (tempLoanMatch as any)[weKey] ?? '';
+                                                const theyVal = (tempLoanMatch as any)[theyKey] ?? '';
+                                                const hasValues = weVal !== '' && theyVal !== '';
+                                                const weNum = Number(weVal), theyNum = Number(theyVal);
+                                                const isWin = hasValues && weNum > theyNum;
+                                                const isLoss = hasValues && weNum < theyNum;
+                                                return (
+                                                    <div key={label} className="space-y-1">
+                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">{label}{required ? '' : ' (opt.)'}</p>
+                                                        <div className={`rounded-xl border-2 overflow-hidden transition-all ${isWin ? 'border-lime-400' : isLoss ? 'border-red-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                                                            <div className={`flex ${isWin ? 'bg-lime-50 dark:bg-lime-900/10' : isLoss ? 'bg-red-50 dark:bg-red-900/10' : 'bg-white dark:bg-slate-900'}`}>
+                                                                <div className="flex-1 flex flex-col items-center border-r border-slate-200 dark:border-slate-700">
+                                                                    <span className="text-[8px] font-black text-blue-400 uppercase pt-1 pb-0.5">Nos</span>
+                                                                    <input
+                                                                        type="number" min={0} max={99}
+                                                                        value={weVal}
+                                                                        onChange={e => setTempLoanMatch(p => ({ ...p, [weKey]: e.target.value }))}
+                                                                        className="w-full pb-1.5 text-center text-lg font-black bg-transparent outline-none text-slate-800 dark:text-white"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex-1 flex flex-col items-center">
+                                                                    <span className="text-[8px] font-black text-orange-400 uppercase pt-1 pb-0.5">Ellos</span>
+                                                                    <input
+                                                                        type="number" min={0} max={99}
+                                                                        value={theyVal}
+                                                                        onChange={e => setTempLoanMatch(p => ({ ...p, [theyKey]: e.target.value }))}
+                                                                        className="w-full pb-1.5 text-center text-lg font-black bg-transparent outline-none text-slate-800 dark:text-white"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            {hasValues && (
+                                                                <div className={`text-center text-[8px] font-black py-0.5 ${isWin ? 'bg-lime-500 text-white' : isLoss ? 'bg-red-500 text-white' : 'bg-blue-400 text-white'}`}>
+                                                                    {isWin ? '✓ Win' : isLoss ? '✗ Loss' : '~ Tie'}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 

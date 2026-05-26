@@ -375,14 +375,14 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                                     <div className="flex gap-1 justify-end">
                                                         <button 
                                                             onClick={() => { if (match.id.startsWith('playoff_')) return; setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
-                                                            className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors"
+                                                            className={`text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors ${match.id.startsWith('playoff_') ? 'invisible' : ''}`}
                                                             title="Editar"
                                                         >
                                                             <Edit2 size={15} />
                                                         </button>
                                                         <button 
                                                             onClick={() => { if (!match.id.startsWith('playoff_')) setConfirmDeleteId(match.id); }}
-                                                            className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                            className={`text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${match.id.startsWith('playoff_') ? 'invisible' : ''}`}
                                                             title="Eliminar"
                                                         >
                                                             <Trash2 size={15} />
@@ -497,18 +497,22 @@ const MatchesView: React.FC<MatchesViewProps> = ({
                                             <div className="flex items-center gap-2">
                                                 {sessionRole === 'CAPTAIN' && (
                                                     <>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); if (match.id.startsWith('playoff_')) return; setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
-                                                            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-lg transition-colors"
-                                                        >
-                                                            <Edit2 size={12} /> Editar
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(match.id); }}
-                                                            className="flex items-center gap-1.5 text-xs font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg transition-colors"
-                                                        >
-                                                            <Trash2 size={12} /> Eliminar
-                                                        </button>
+                                                        {!match.id.startsWith('playoff_') && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setTempMatch(match); setModalType('EDIT_MATCH'); setIsModalOpen(true); }}
+                                                                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-lg transition-colors"
+                                                            >
+                                                                <Edit2 size={12} /> Editar
+                                                            </button>
+                                                        )}
+                                                        {!match.id.startsWith('playoff_') && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(match.id); }}
+                                                                className="flex items-center gap-1.5 text-xs font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg transition-colors"
+                                                            >
+                                                                <Trash2 size={12} /> Eliminar
+                                                            </button>
+                                                        )}
                                                     </>
                                                 )}
                                                 {/* Copy share - always visible */}

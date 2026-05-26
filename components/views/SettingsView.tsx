@@ -3,8 +3,10 @@ import { Shield, Trash2, Check, X, Edit2, Copy } from '../Icons';
 import { useToast } from '../Toast';
 import { Button, Card, Input, Select } from '../UIComponents';
 import { AppState, Season, TeamSettings, MatchResult } from '../../types';
-import { DEFAULT_SETTINGS, PRESET_RANGES } from '../../utils/constants';
+import { DEFAULT_SETTINGS, PRESET_RANGES, CATEGORIES_MASCULINO, CATEGORIES_FEMENINO } from '../../utils/constants';
 import { recalculateStats, playoffLegsAsMatchDays } from '../../utils/helpers';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 interface SettingsViewProps {
     data: AppState | null;
@@ -38,9 +40,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({
         if (localSettings.ranges) {
             const match = Object.entries(PRESET_RANGES).find(([key, val]) => JSON.stringify(val) === JSON.stringify(localSettings.ranges));
             if (match) setSelectedCategory(match[0]);
-            else setSelectedCategory('');
+            else {
+                // Fallback: use saved teamCategory (strip ' F' suffix for femenino)
+                const saved = data?.settings?.teamCategory || '';
+                setSelectedCategory(saved.replace(' F', ''));
+            }
         }
-    }, [localSettings.ranges]);
+    }, [localSettings.ranges, data?.settings?.teamCategory]);
 
     if (!data) return null;
 
@@ -372,9 +378,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({
                                         <Select
                                             label="Cargar tramos por categoría"
                                             value={selectedCategory}
-                                            onChange={(e) => {
+                                            onChange={async (e) => {
                                                 const cat = e.target.value;
                                                 if (cat && PRESET_RANGES[cat]) setLocalSettings(s => ({...s, ranges: PRESET_RANGES[cat]}));
+                                                setSelectedCategory(cat);
+                                                // Also persist as the team's division so the loan category filter works
+                                                if (teamId && cat) {
+                                                    const teamGender = data?.settings?.gender || 'MASCULINO';
+                                                    const catLabel = teamGender === 'FEMENINO' ? cat + ' F' : cat;
+                                                    await updateDoc(doc(db, 'teams', teamId), { 'settings.teamCategory': catLabel });
+                                                }
                                             }}
                                             options={[
                                                 {label: 'Seleccionar categoría...', value: ''},

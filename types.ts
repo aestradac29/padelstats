@@ -85,6 +85,7 @@ export interface TeamSettings {
   pointsAttendance: number;
   ranges: ScoringRange[]; // Array of ranges for RANGES system
   gender?: 'MASCULINO' | 'FEMENINO'; // New field for team gender
+  teamCategory?: string; // e.g. '1ª', '2ª', '3ª F', etc.
 }
 
 export interface Season {
