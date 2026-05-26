@@ -1718,9 +1718,9 @@ const App = () => {
                                     {/* Categoría — select filtrado por género del equipo y solo categorías superiores */}
                                     {(() => {
                                         const teamGender = data?.settings?.gender || 'MASCULINO';
-                                        const fullCategoryList = teamGender === 'FEMENINO' ? [...CATEGORIES_FEMENINO] : [...CATEGORIES_MASCULINO];
+                                        const fullCategoryList: string[] = teamGender === 'FEMENINO' ? [...CATEGORIES_FEMENINO] : [...CATEGORIES_MASCULINO];
                                         const teamCategory = data?.settings?.teamCategory || null;
-                                        const teamCategoryIdx = teamCategory ? fullCategoryList.indexOf(teamCategory as any) : -1;
+                                        const teamCategoryIdx = teamCategory ? fullCategoryList.indexOf(teamCategory) : -1;
                                         // Only show categories ranked higher (lower index) than the team's own
                                         const categoryList = teamCategoryIdx >= 0
                                             ? fullCategoryList.slice(0, teamCategoryIdx)
