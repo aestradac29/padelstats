@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { Trophy, Plus, Trash2, Edit2, ChevronDown, X, Shield, Home, Plane, Users, Check, Camera, Sparkles } from '../Icons';
 import { Button, ConfirmDialog } from '../UIComponents';
 import { extractScheduleFromFederationImage } from '../../services/geminiService';
@@ -272,9 +273,9 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
   const canAddLineup = !!(form.s1We && form.s1They);
   const legStats = getLegStats(editedLeg);
 
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] overflow-y-auto flex flex-col items-center p-4 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700 my-auto">
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 bg-blue-950/90 backdrop-blur-md z-[200] flex flex-col md:items-center md:justify-center md:p-4 md:overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 md:rounded-3xl w-full md:max-w-2xl flex flex-col shadow-2xl border-0 md:border md:border-slate-200 md:dark:border-slate-700 md:my-4 h-full md:h-auto overflow-hidden">
 
         {/* ── Header ── */}
         <div className="shrink-0 px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 z-10 bg-white dark:bg-slate-900 shadow-sm">
@@ -310,7 +311,7 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
         </div>
 
         {/* ── Content ── */}
-        <div className="flex-1">
+        <div className="flex-1 overflow-y-auto">
 
           {/* SETUP TAB */}
           {activeSection === 'setup' && (
@@ -539,7 +540,7 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
         </div>
 
         {/* ── Footer ── */}
-        <div className="shrink-0 px-6 py-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="shrink-0 px-6 py-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 sticky bottom-0">
           <div className="flex items-center gap-3">
             <div className="flex-1 text-sm text-slate-400">
               {editedLeg.lineups.length > 0 ? (
@@ -559,7 +560,8 @@ const LegEditorModal: React.FC<LegEditorModalProps> = ({ leg, players, gender, o
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -788,7 +790,7 @@ const AddTieModal: React.FC<{ ourTeamName: string; gender?: 'MASCULINO' | 'FEMEN
     onAdd({ id: uuid(), roundId: '', homeTeam, awayTeam, seedHome: finalSeedHome, seedAway: finalSeedAway, legFormat, legs: [emptyLeg(weAreHome, gender)] });
   };
 
-  return (
+  return ReactDOM.createPortal(
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-end sm:justify-center p-4 animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-700 overflow-y-auto max-h-[95dvh] sm:max-h-[90vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 mt-auto sm:mt-0">
         <div className="flex items-center gap-3 mb-5">
@@ -850,7 +852,8 @@ const AddTieModal: React.FC<{ ourTeamName: string; gender?: 'MASCULINO' | 'FEMEN
           <button onClick={handleAdd} disabled={!opponent.trim()} className="flex-1 py-3.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-blue-950 font-black text-sm transition-all shadow-lg shadow-lime-400/30 disabled:opacity-50 disabled:cursor-not-allowed">Añadir</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
