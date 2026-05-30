@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Player, MatchDay, MatchResult, MatchLineup } from "../types";
 
@@ -361,28 +360,39 @@ ${JSON.stringify(players.map(p => ({ id: p.id, name: p.name })))}`
             return found?.id || '';
         };
         
-        return rawData.map((item: any, index: number) => ({
-            id: `imported_fed_${Date.now()}_${index}`,
-            date: item.date,
-            opponent: item.opponent,
-            isHome: item.isHome ?? true,
-            notes: item.notes || '',
-            tandas: item.tandas ? String(item.tandas) : '5',
-            ignorePoints: false,
-            lineups: (item.lineups || []).map((l: any, i: number) => ({
-                pairNumber: l.pairNumber || (i + 1),
-                player1Name: l.player1Name || '',
-                player2Name: l.player2Name || '',
-                player1Id: l.player1Id || findPlayerId(l.player1Name || ''),
-                player2Id: l.player2Id || findPlayerId(l.player2Name || ''),
-                opponent1Name: l.opponent1Name || '',
-                opponent2Name: l.opponent2Name || '',
-                set1: l.set1 || '',
-                set2: l.set2 || '',
-                set3: l.set3 || '',
-                result: l.result || 'Derrota',
-            }))
-        }));
+        return rawData.map((item: any, index: number) => {
+            const isHome = item.isHome ?? true;
+            return {
+                id: `imported_fed_${Date.now()}_${index}`,
+                date: item.date,
+                opponent: item.opponent,
+                isHome,
+                notes: item.notes || '',
+                tandas: item.tandas ? String(item.tandas) : '5',
+                ignorePoints: false,
+                lineups: (item.lineups || []).map((l: any, i: number) => {
+                    // If playing away, our players are the VISITANTE (right column), not LOCAL (left column)
+                    // Swap player <-> opponent names so player1/2 always = our team
+                    const myP1Name   = isHome ? (l.player1Name   || '') : (l.opponent1Name || '');
+                    const myP2Name   = isHome ? (l.player2Name   || '') : (l.opponent2Name || '');
+                    const theirP1Name = isHome ? (l.opponent1Name || '') : (l.player1Name   || '');
+                    const theirP2Name = isHome ? (l.opponent2Name || '') : (l.player2Name   || '');
+                    return {
+                        pairNumber: l.pairNumber || (i + 1),
+                        player1Name: myP1Name,
+                        player2Name: myP2Name,
+                        player1Id: l.player1Id || findPlayerId(myP1Name),
+                        player2Id: l.player2Id || findPlayerId(myP2Name),
+                        opponent1Name: theirP1Name,
+                        opponent2Name: theirP2Name,
+                        set1: l.set1 || '',
+                        set2: l.set2 || '',
+                        set3: l.set3 || '',
+                        result: l.result || 'Derrota',
+                    };
+                })
+            };
+        });
 
     } catch (error) {
         console.error("Error parsing federation image:", error);

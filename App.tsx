@@ -580,11 +580,16 @@ const App = () => {
                             return found?.id || '';
                         };
 
+                        const isHomeMatch = match.isHome !== undefined ? match.isHome : (tempMatch.isHome ?? true);
+                        const myP1Name    = isHomeMatch ? (l.player1Name   || '') : (l.opponent1Name || '');
+                        const myP2Name    = isHomeMatch ? (l.player2Name   || '') : (l.opponent2Name || '');
+                        const theirP1Name = isHomeMatch ? (l.opponent1Name || '') : (l.player1Name   || '');
+                        const theirP2Name = isHomeMatch ? (l.opponent2Name || '') : (l.player2Name   || '');
                         return {
-                            player1Id: l.player1Id || findId(l.player1Name || ''),
-                            player2Id: l.player2Id || findId(l.player2Name || ''),
-                            opponent1Name: l.opponent1Name || l.opponent2Name ? l.opponent1Name : '',
-                            opponent2Name: l.opponent2Name || '',
+                            player1Id: l.player1Id || findId(myP1Name),
+                            player2Id: l.player2Id || findId(myP2Name),
+                            opponent1Name: theirP1Name,
+                            opponent2Name: theirP2Name,
                             set1: l.set1 || '',
                             set2: l.set2 || '',
                             set3: l.set3 || '',
