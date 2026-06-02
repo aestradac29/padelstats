@@ -3,7 +3,7 @@ import { LayoutGrid, List, ArrowUpDown, Edit2, Trash2, Plus, AlertCircle, CheckC
 import { Button, Card } from '../UIComponents';
 import { AppState, Player, Position, MatchResult, MatchDay } from '../../types';
 import { playoffLegsAsMatchDays } from '../../utils/helpers';
-import { PRESET_RANGES, CATEGORY_TO_RANGE_KEY } from '../../utils/constants';
+
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface PlayersViewProps {
@@ -88,15 +88,13 @@ export const getPoints = (p: Player, matchesContext: MatchDay[], seasonId: strin
         });
     }
 
-    // --- LOAN MATCHES: add points using the category's own ranges ---
+    // --- LOAN MATCHES: points always calculated with team's own ranges ---
     if (p.loanMatches && p.loanMatches.length > 0) {
         const sortedLoanMatches = [...p.loanMatches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         sortedLoanMatches.forEach(lm => {
-            if (currentSettings.scoringSystem === 'RANGES') {
-                // Use the category-specific ranges if available, fall back to team ranges
-                const categoryRangeKey = CATEGORY_TO_RANGE_KEY[lm.category];
-                const categoryRanges = categoryRangeKey ? (PRESET_RANGES[categoryRangeKey] ?? currentSettings.ranges) : currentSettings.ranges;
-                const range = categoryRanges?.find(r => calculatedPoints >= r.min && calculatedPoints <= r.max);
+            if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
+                // Always use the team's own ranges regardless of the loan category
+                const range = currentSettings.ranges.find(r => calculatedPoints >= r.min && calculatedPoints <= r.max);
                 if (range) {
                     if (lm.result === MatchResult.WIN) calculatedPoints += range.win;
                     else if (lm.result === MatchResult.LOSS) calculatedPoints -= range.loss;

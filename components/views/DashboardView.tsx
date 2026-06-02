@@ -73,6 +73,33 @@ const getPointsLocal = (p: Player, data: AppState, seasonId: string) => {
             });
         });
     }
+
+    // Loan matches — always scored with the team's own ranges (not the category where they played)
+    const loanMatches = (p.loanMatches || []).filter(lm => {
+        if (seasonId === 'all') return true;
+        // Loan matches don't have seasonId, so include them in all non-'all' views
+        return true;
+    });
+    const sortedLoans = [...loanMatches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    sortedLoans.forEach(lm => {
+        if (currentSettings.scoringSystem === 'NONE') return;
+        if (currentSettings.scoringSystem === 'RANGES' && currentSettings.ranges) {
+            const range = currentSettings.ranges.find(r => calculatedPoints >= r.min && calculatedPoints <= r.max);
+            if (range) {
+                if (lm.result === MatchResult.WIN) calculatedPoints += range.win;
+                else if (lm.result === MatchResult.LOSS) calculatedPoints -= range.loss;
+            } else {
+                if (lm.result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
+                else if (lm.result === MatchResult.LOSS) calculatedPoints -= currentSettings.pointsPerLoss;
+            }
+        } else {
+            calculatedPoints += currentSettings.pointsAttendance;
+            if (lm.result === MatchResult.WIN) calculatedPoints += currentSettings.pointsPerWin;
+            else if (lm.result === MatchResult.LOSS) calculatedPoints -= currentSettings.pointsPerLoss;
+        }
+        calculatedPoints = Math.max(0, calculatedPoints);
+    });
+
     return calculatedPoints;
 };
 
